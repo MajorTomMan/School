@@ -13,7 +13,7 @@ fun LearningScreen(
     onBack: () -> Unit,
     onRecordAttempt: (answer: String, correct: Boolean, feedback: String) -> Unit,
 ) {
-    MinimalLearningScreen(
+    MinimalLearningScreenV2(
         lesson = lesson,
         aiSettings = aiSettings,
         progress = progress,
