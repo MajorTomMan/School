@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "book": {
+    "id": "math-grade7-volume1",
+    "title": "七年级数学上册",
+    "subject": "数学",
+    "grade": 7,
+    "volume": 1
+  },
+  "chapters": [
+    {
+      "id": "rational-numbers",
+      "title": "第一章 有理数",
+      "lessons": [
+        { "id": "positive-negative", "title": "正数和负数", "pages": [9, 14] },
+        { "id": "number-line", "title": "数轴", "pages": [15, 20] },
+        { "id": "opposite-number", "title": "相反数", "pages": [21, 24] },
+        { "id": "absolute-value", "title": "绝对值", "pages": [25, 31] },
+        { "id": "compare-rational", "title": "有理数大小比较", "pages": [32, 37] }
+      ]
+    }
+  ]
+}
