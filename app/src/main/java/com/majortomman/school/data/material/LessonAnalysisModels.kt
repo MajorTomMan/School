@@ -3,11 +3,13 @@ package com.majortomman.school.data.material
 import org.json.JSONArray
 import org.json.JSONObject
 
-const val LESSON_ANALYSIS_SCHEMA_VERSION = 1
+const val LESSON_ANALYSIS_SCHEMA_VERSION = 2
 
 enum class LessonAnalysisSource(val label: String) {
     PACK("教材包扫描结果"),
+    AI_TEXT("本地 OCR + 文本分析"),
     AI_VISION("教材页面视觉分析"),
+    OCR_FALLBACK("本地 OCR 提取"),
     CATALOG_FALLBACK("目录生成"),
 }
 
@@ -122,16 +124,18 @@ data class LessonAnalysis(
         fun fromModelResponse(
             raw: String,
             lesson: GeneratedLesson,
+            source: LessonAnalysisSource = LessonAnalysisSource.AI_VISION,
         ): LessonAnalysis {
             val start = raw.indexOf('{')
             val end = raw.lastIndexOf('}')
             require(start >= 0 && end > start) { "模型没有返回课程 JSON" }
             val root = JSONObject(raw.substring(start, end + 1))
+                .put("schemaVersion", LESSON_ANALYSIS_SCHEMA_VERSION)
                 .put("lessonSourceId", lesson.sourceId)
                 .put("pageStart", lesson.pageStart)
                 .put("pageEnd", lesson.pageEnd)
-                .put("source", LessonAnalysisSource.AI_VISION.name)
-            return fromJson(root, LessonAnalysisSource.AI_VISION)
+                .put("source", source.name)
+            return fromJson(root, source)
         }
     }
 
@@ -157,6 +161,7 @@ data class LessonAnalysis(
             explanation = exercise.explanation.ifBlank { safeSummary }.take(800),
         )
         return copy(
+            schemaVersion = LESSON_ANALYSIS_SCHEMA_VERSION,
             summary = safeSummary,
             objectives = safeObjectives,
             misconception = safeMisconception,
@@ -271,6 +276,30 @@ object LessonAnalysisFallback {
                 explanation = scene.conclusion,
             ),
             source = LessonAnalysisSource.CATALOG_FALLBACK,
+        )
+    }
+
+    fun generateFromOcr(
+        slot: TextbookSlot,
+        lesson: GeneratedLesson,
+        pages: List<OcrPageResult>,
+    ): LessonAnalysis {
+        val fallback = generate(slot, lesson)
+        val excerpt = pages.asSequence()
+            .filter { it.isUsable }
+            .map { it.compactText }
+            .joinToString(" ")
+            .take(420)
+            .trim()
+        if (excerpt.isBlank()) return fallback
+        return fallback.copy(
+            summary = "教材本地识别内容：$excerpt",
+            objectives = listOf(
+                "结合教材原文理解${lesson.title}",
+                "从识别出的定义、例题或说明中找出关键条件",
+                "回到教材第 ${lesson.pageStart}—${lesson.pageEnd} 页核对结论",
+            ),
+            source = LessonAnalysisSource.OCR_FALLBACK,
         )
     }
 }
