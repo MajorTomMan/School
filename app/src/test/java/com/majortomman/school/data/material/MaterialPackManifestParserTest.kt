@@ -2,7 +2,7 @@ package com.majortomman.school.data.material
 
 import java.nio.file.Files
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFailsWith
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class MaterialPackManifestParserTest {
@@ -33,7 +33,7 @@ class MaterialPackManifestParserTest {
 
     @Test
     fun rejectsTraversalPath() {
-        assertFailsWith<IllegalArgumentException> {
+        assertThrows(IllegalArgumentException::class.java) {
             MaterialPackManifestParser.safeRelativePath("../outside.pdf", "pdf.path")
         }
     }
