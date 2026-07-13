@@ -16,10 +16,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -31,8 +30,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.majortomman.school.data.AiSettings
 import com.majortomman.school.data.AttemptRecord
 import com.majortomman.school.data.LearningProgress
@@ -42,14 +43,15 @@ import com.majortomman.school.data.ScheduledReview
 import com.majortomman.school.data.recordAttempt
 import kotlinx.coroutines.launch
 
-private enum class MainTab(
-    val label: String,
-    val symbol: String,
-) {
-    TODAY("今天", "●"),
-    PATH("路径", "◇"),
-    REVIEW("复习", "↻"),
-    SETTINGS("设置", "⌁"),
+private val NavigationBlack = Color.Black
+private val NavigationWhite = Color(0xFFF5F5F7)
+private val NavigationBlue = Color(0xFF0A84FF)
+
+private enum class MainTab(val label: String) {
+    TODAY("今天"),
+    PATH("路径"),
+    REVIEW("复习"),
+    SETTINGS("设置"),
 }
 
 @Composable
@@ -72,17 +74,17 @@ fun SchoolApp(repository: PreferencesRepository) {
         targetState = openedLesson,
         transitionSpec = {
             if (targetState != null) {
-                (fadeIn(tween(240)) + slideInHorizontally(tween(320)) { it / 5 }) togetherWith
-                    (fadeOut(tween(150)) + slideOutHorizontally(tween(220)) { -it / 8 })
+                (fadeIn(tween(300)) + slideInHorizontally(tween(420)) { it / 7 }) togetherWith
+                    (fadeOut(tween(170)) + slideOutHorizontally(tween(280)) { -it / 9 })
             } else {
-                (fadeIn(tween(220)) + slideInHorizontally(tween(300)) { -it / 6 }) togetherWith
-                    (fadeOut(tween(150)) + slideOutHorizontally(tween(220)) { it / 8 })
+                (fadeIn(tween(280)) + slideInHorizontally(tween(400)) { -it / 8 }) togetherWith
+                    (fadeOut(tween(170)) + slideOutHorizontally(tween(280)) { it / 9 })
             }
         },
         label = "appNavigation",
     ) { lesson ->
         if (lesson != null) {
-            LearningScreen(
+            SceneLearningScreen(
                 lesson = lesson,
                 aiSettings = aiSettings,
                 progress = progress,
@@ -95,9 +97,9 @@ fun SchoolApp(repository: PreferencesRepository) {
             )
         } else {
             Scaffold(
-                containerColor = MaterialTheme.colorScheme.background,
+                containerColor = NavigationBlack,
                 bottomBar = {
-                    GuidedBottomBar(
+                    MinimalBottomBar(
                         selected = selectedTab,
                         onSelect = { selectedTabName = it.name },
                     )
@@ -107,13 +109,13 @@ fun SchoolApp(repository: PreferencesRepository) {
                     AnimatedContent(
                         targetState = selectedTab,
                         transitionSpec = {
-                            (fadeIn(tween(210)) + slideInHorizontally(tween(260)) { it / 12 }) togetherWith
-                                (fadeOut(tween(140)) + slideOutHorizontally(tween(200)) { -it / 12 })
+                            (fadeIn(tween(260)) + slideInHorizontally(tween(360)) { it / 14 }) togetherWith
+                                (fadeOut(tween(150)) + slideOutHorizontally(tween(260)) { -it / 14 })
                         },
                         label = "mainTabs",
                     ) { tab ->
                         when (tab) {
-                            MainTab.TODAY -> TodayScreen(
+                            MainTab.TODAY -> SceneTodayScreen(
                                 plan = SampleContent.dailyPlan,
                                 lessons = lessons,
                                 progress = progress,
@@ -121,12 +123,12 @@ fun SchoolApp(repository: PreferencesRepository) {
                                 onOpenPath = { selectedTabName = MainTab.PATH.name },
                             )
 
-                            MainTab.PATH -> CoursePathScreen(
+                            MainTab.PATH -> SceneCoursePathScreen(
                                 lessons = lessons,
                                 onOpenLesson = { openedLessonId = it },
                             )
 
-                            MainTab.REVIEW -> RoomReviewScreen(
+                            MainTab.REVIEW -> MinimalRoomReviewScreen(
                                 fallbackItems = SampleContent.reviews,
                                 progress = progress,
                                 scheduledReviews = reviewQueue,
@@ -134,7 +136,7 @@ fun SchoolApp(repository: PreferencesRepository) {
                                 onOpenLesson = { openedLessonId = it },
                             )
 
-                            MainTab.SETTINGS -> SettingsScreen(
+                            MainTab.SETTINGS -> MinimalSettingsScreen(
                                 settings = aiSettings,
                                 onSave = { updated -> scope.launch { repository.saveAiSettings(updated) } },
                                 onClearProgress = { scope.launch { repository.clearLearningProgress() } },
@@ -148,45 +150,39 @@ fun SchoolApp(repository: PreferencesRepository) {
 }
 
 @Composable
-private fun GuidedBottomBar(
+private fun MinimalBottomBar(
     selected: MainTab,
     onSelect: (MainTab) -> Unit,
 ) {
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 3.dp,
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(NavigationBlack)
+            .padding(horizontal = 18.dp, vertical = 13.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            MainTab.entries.forEach { tab ->
-                val isSelected = tab == selected
-                Column(
+        MainTab.entries.forEach { tab ->
+            val isSelected = tab == selected
+            Column(
+                modifier = Modifier
+                    .clickable { onSelect(tab) }
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                Text(
+                    text = tab.label,
+                    color = if (isSelected) NavigationWhite else NavigationWhite.copy(alpha = 0.32f),
+                    fontSize = 13.sp,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                )
+                Box(
                     modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(
-                            if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surface,
-                        )
-                        .clickable { onSelect(tab) }
-                        .padding(vertical = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    Text(
-                        text = tab.symbol,
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = tab.label,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                    )
-                }
+                        .size(4.dp)
+                        .clip(CircleShape)
+                        .background(if (isSelected) NavigationBlue else Color.Transparent),
+                )
             }
         }
     }
