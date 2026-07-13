@@ -52,9 +52,6 @@ class PreferencesRepository(
         val aiEndpoint = stringPreferencesKey("ai_endpoint")
         val aiModel = stringPreferencesKey("ai_model")
         val aiApiKey = stringPreferencesKey("ai_api_key")
-
-        // 0.2/0.3 used counters in DataStore. They remain as a legacy baseline so upgrades
-        // keep the visible totals while all new attempt details are stored in Room.
         val attempts = intPreferencesKey("practice_attempts")
         val correctAttempts = intPreferencesKey("practice_correct_attempts")
         val lastLessonId = stringPreferencesKey("last_lesson_id")
@@ -222,7 +219,7 @@ class PreferencesRepository(
         learningDao.clearMathMistakes()
         context.schoolDataStore.edit { preferences ->
             preferences.asMap().keys
-                .map(Preferences.Key<*>::name)
+                .map { it.name }
                 .filter { it.startsWith(LESSON_STATUS_PREFIX) }
                 .forEach { keyName -> preferences.remove(stringPreferencesKey(keyName)) }
             preferences.remove(Keys.attempts)
