@@ -1,7 +1,16 @@
 package com.majortomman.school.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -22,12 +31,12 @@ import kotlinx.coroutines.launch
 
 private enum class MainTab(
     val label: String,
-    val emoji: String,
+    val symbol: String,
 ) {
-    TODAY("今日", "☀️"),
-    PATH("课程", "🧭"),
-    REVIEW("复习", "📝"),
-    SETTINGS("设置", "⚙️"),
+    TODAY("今日", "●"),
+    PATH("课程", "◇"),
+    REVIEW("复习", "↻"),
+    SETTINGS("设置", "⌁"),
 }
 
 @Composable
@@ -44,56 +53,84 @@ fun SchoolApp(repository: PreferencesRepository) {
     val selectedTab = MainTab.valueOf(selectedTabName)
     val openedLesson = lessons.firstOrNull { it.id == openedLessonId }
 
-    if (openedLesson != null) {
-        LearningScreen(
-            lesson = openedLesson,
-            aiSettings = aiSettings,
-            progress = progress,
-            onBack = { openedLessonId = null },
-            onRecordAttempt = { answer, correct, feedback ->
-                scope.launch {
-                    repository.recordAttempt(openedLesson.id, answer, correct, feedback)
-                }
-            },
-        )
-        return
-    }
-
-    Scaffold(
-        bottomBar = {
-            NavigationBar {
-                MainTab.entries.forEach { tab ->
-                    NavigationBarItem(
-                        selected = tab == selectedTab,
-                        onClick = { selectedTabName = tab.name },
-                        icon = { Text(tab.emoji) },
-                        label = { Text(tab.label) },
-                    )
-                }
+    AnimatedContent(
+        targetState = openedLesson,
+        transitionSpec = {
+            if (targetState != null) {
+                (fadeIn(tween(240)) + slideInHorizontally(tween(320)) { it / 5 }) togetherWith
+                    (fadeOut(tween(160)) + slideOutHorizontally(tween(240)) { -it / 8 })
+            } else {
+                (fadeIn(tween(240)) + slideInHorizontally(tween(320)) { -it / 6 }) togetherWith
+                    (fadeOut(tween(160)) + slideOutHorizontally(tween(240)) { it / 8 })
             }
         },
-    ) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding)) {
-            when (selectedTab) {
-                MainTab.TODAY -> TodayScreen(
-                    plan = SampleContent.dailyPlan,
-                    lessons = lessons,
-                    progress = progress,
-                    onStartLesson = { openedLessonId = it },
-                    onOpenPath = { selectedTabName = MainTab.PATH.name },
-                )
+        label = "appNavigation",
+    ) { lesson ->
+        if (lesson != null) {
+            LearningScreen(
+                lesson = lesson,
+                aiSettings = aiSettings,
+                progress = progress,
+                onBack = { openedLessonId = null },
+                onRecordAttempt = { answer, correct, feedback ->
+                    scope.launch {
+                        repository.recordAttempt(lesson.id, answer, correct, feedback)
+                    }
+                },
+            )
+        } else {
+            Scaffold(
+                containerColor = MaterialTheme.colorScheme.background,
+                bottomBar = {
+                    NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
+                        MainTab.entries.forEach { tab ->
+                            NavigationBarItem(
+                                selected = tab == selectedTab,
+                                onClick = { selectedTabName = tab.name },
+                                icon = { Text(tab.symbol) },
+                                label = { Text(tab.label) },
+                                alwaysShowLabel = true,
+                            )
+                        }
+                    }
+                },
+            ) { innerPadding ->
+                Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+                    AnimatedContent(
+                        targetState = selectedTab,
+                        transitionSpec = {
+                            (fadeIn(tween(220)) + slideInHorizontally(tween(280)) { it / 10 }) togetherWith
+                                (fadeOut(tween(160)) + slideOutHorizontally(tween(220)) { -it / 12 })
+                        },
+                        label = "mainTabs",
+                    ) { tab ->
+                        when (tab) {
+                            MainTab.TODAY -> TodayScreen(
+                                plan = SampleContent.dailyPlan,
+                                lessons = lessons,
+                                progress = progress,
+                                onStartLesson = { openedLessonId = it },
+                                onOpenPath = { selectedTabName = MainTab.PATH.name },
+                            )
 
-                MainTab.PATH -> CoursePathScreen(
-                    lessons = lessons,
-                    onOpenLesson = { openedLessonId = it },
-                )
+                            MainTab.PATH -> CoursePathScreen(
+                                lessons = lessons,
+                                onOpenLesson = { openedLessonId = it },
+                            )
 
-                MainTab.REVIEW -> ReviewScreen(items = SampleContent.reviews, progress = progress)
-                MainTab.SETTINGS -> SettingsScreen(
-                    settings = aiSettings,
-                    onSave = { updated -> scope.launch { repository.saveAiSettings(updated) } },
-                    onClearProgress = { scope.launch { repository.clearLearningProgress() } },
-                )
+                            MainTab.REVIEW -> ReviewScreen(
+                                items = SampleContent.reviews,
+                                progress = progress,
+                            )
+
+                            MainTab.SETTINGS -> SettingsScreen(
+                                settings = aiSettings,
+                                onSave = { updated -> scope.launch { repository.saveAiSettings(updated) } },
+                                onClearProgress = { scope.launch { repository.clearLearningProgress() } },
+                            )
+                        }
+                    }
+                }
             }
         }
     }
