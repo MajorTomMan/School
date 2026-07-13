@@ -55,6 +55,7 @@ import com.majortomman.school.ai.OpenAiCompatibleClient
 import com.majortomman.school.data.AiSettings
 import com.majortomman.school.data.LearningProgress
 import com.majortomman.school.data.Lesson
+import com.majortomman.school.data.material.InstalledMaterialPack
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -79,6 +80,8 @@ fun MinimalLearningScreenV2(
     lesson: Lesson,
     aiSettings: AiSettings,
     progress: LearningProgress,
+    installedMaterial: InstalledMaterialPack?,
+    onOpenTextbook: (Int) -> Unit,
     onBack: () -> Unit,
     onRecordAttempt: (answer: String, correct: Boolean, feedback: String) -> Unit,
 ) {
@@ -222,7 +225,7 @@ fun MinimalLearningScreenV2(
                 when (currentPage) {
                     LessonPage.INTUITION -> LessonIntuition(lesson)
                     LessonPage.PITFALL -> LessonPitfall(lesson)
-                    LessonPage.TEXTBOOK -> LessonTextbook(lesson)
+                    LessonPage.TEXTBOOK -> LessonTextbook(lesson, installedMaterial, onOpenTextbook)
                     LessonPage.PRACTICE -> LessonPractice(
                         lesson = lesson,
                         settings = aiSettings,
@@ -308,8 +311,12 @@ private fun LessonPitfall(lesson: Lesson) = LessonScroll {
 }
 
 @Composable
-private fun LessonTextbook(lesson: Lesson) = LessonScroll {
-    Spacer(Modifier.height(90.dp))
+private fun LessonTextbook(
+    lesson: Lesson,
+    installedMaterial: InstalledMaterialPack?,
+    onOpenTextbook: (Int) -> Unit,
+) = LessonScroll {
+    Spacer(Modifier.height(78.dp))
     Text("教材", color = LessonMuted, fontSize = 15.sp)
     Spacer(Modifier.height(10.dp))
     Text(
@@ -319,15 +326,31 @@ private fun LessonTextbook(lesson: Lesson) = LessonScroll {
         fontWeight = FontWeight.Bold,
     )
     Text("页", color = LessonWhite, fontSize = 25.sp)
-    Spacer(Modifier.height(40.dp))
+    Spacer(Modifier.height(34.dp))
     LessonDivider()
     Spacer(Modifier.height(24.dp))
-    Text(
-        "真实教材导入后，这里直接打开对应页。\n不再让你从整本书里寻找上下文。",
-        color = LessonWhite.copy(alpha = 0.67f),
-        fontSize = 18.sp,
-        lineHeight = 28.sp,
-    )
+    if (installedMaterial == null) {
+        Text(
+            "尚未导入教材包。\n进入设置，选择 School Material Pack ZIP。",
+            color = LessonWhite.copy(alpha = 0.67f),
+            fontSize = 18.sp,
+            lineHeight = 28.sp,
+        )
+    } else {
+        Text(
+            installedMaterial.manifest.title + " · " + installedMaterial.manifest.version,
+            color = LessonWhite.copy(alpha = 0.67f),
+            fontSize = 17.sp,
+        )
+        Spacer(Modifier.height(24.dp))
+        LessonOutlinedAction(
+            label = "打开第 ${lesson.textbookPages.first} 页",
+            color = LessonYellow,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            onOpenTextbook(lesson.textbookPages.first)
+        }
+    }
 }
 
 @Composable
