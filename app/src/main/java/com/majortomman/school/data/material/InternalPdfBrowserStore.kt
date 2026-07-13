@@ -76,7 +76,7 @@ internal object InternalPdfBrowserStore {
     fun directories(context: Context): List<PdfLibraryDirectory> {
         val resolver = context.contentResolver
         return storedUris(context).mapNotNull { raw ->
-            val uri = runCatching(Uri::parse).getOrNull() ?: return@mapNotNull null
+            val uri = runCatching { Uri.parse(raw) }.getOrNull() ?: return@mapNotNull null
             val name = queryDocumentName(resolver, uri).ifBlank { uri.lastPathSegment ?: "教材目录" }
             PdfLibraryDirectory(uri.toString(), name)
         }.sortedBy { it.name.lowercase() }
