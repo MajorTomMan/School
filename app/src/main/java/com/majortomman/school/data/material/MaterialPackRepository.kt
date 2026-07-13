@@ -1,200 +1,144 @@
 package com.majortomman.school.data.material
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
-import java.io.BufferedInputStream
-import java.io.BufferedOutputStream
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
-import java.io.IOException
-import java.security.MessageDigest
-import java.util.UUID
-import java.util.zip.ZipInputStream
+import androidx.lifecycle.Observer
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import androidx.work.workDataOf
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
 
 class MaterialPackRepository(
-    private val context: Context,
+    context: Context,
 ) {
-    private val materialRoot = File(context.filesDir, "material-packs")
-    private val packsRoot = File(materialRoot, "packs")
-    private val installedIndex = File(materialRoot, "installed.json")
+    private val appContext = context.applicationContext
+    private val workManager = WorkManager.getInstance(appContext)
     private val mutableState = MutableStateFlow(
-        MaterialPackState(installed = loadInstalledPack()),
+        MaterialLibraryState(installedTextbooks = MaterialLibraryStore.read(appContext)),
     )
+    private val workObserver = Observer<List<WorkInfo>> { workInfos ->
+        refresh(workInfos.orEmpty())
+    }
 
-    val state: StateFlow<MaterialPackState> = mutableState.asStateFlow()
+    val state: StateFlow<MaterialLibraryState> = mutableState.asStateFlow()
 
-    suspend fun importFromUri(uri: Uri): Result<InstalledMaterialPack> = withContext(Dispatchers.IO) {
-        mutableState.value = mutableState.value.copy(importing = true, message = "正在校验教材包…")
-        val result = runCatching { importInternal(uri) }
-        result.onSuccess { installed ->
-            mutableState.value = MaterialPackState(
-                installed = installed,
-                importing = false,
-                message = "已导入 ${installed.manifest.title} ${installed.manifest.version}",
+    init {
+        workManager.getWorkInfosByTagLiveData(TextbookProcessingContract.TAG)
+            .observeForever(workObserver)
+    }
+
+    fun enqueueImport(
+        slot: TextbookSlot,
+        uri: Uri,
+    ) {
+        runCatching {
+            appContext.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION,
             )
-        }.onFailure { error ->
-            mutableState.value = mutableState.value.copy(
-                importing = false,
-                message = "导入失败：${error.message ?: error::class.java.simpleName}",
+        }
+        val request = OneTimeWorkRequestBuilder<TextbookProcessingWorker>()
+            .setInputData(
+                workDataOf(
+                    TextbookProcessingContract.KEY_SOURCE_URI to uri.toString(),
+                    TextbookProcessingContract.KEY_SUBJECT_ID to slot.subjectId,
+                    TextbookProcessingContract.KEY_SUBJECT_TITLE to slot.subjectTitle,
+                    TextbookProcessingContract.KEY_GRADE to slot.grade,
+                    TextbookProcessingContract.KEY_VOLUME to slot.volume.id,
+                    TextbookProcessingContract.KEY_SLOT_KEY to slot.key,
+                ),
             )
-        }
-        result
-    }
-
-    suspend fun removeInstalledPack() = withContext(Dispatchers.IO) {
-        mutableState.value.installed?.let { installed ->
-            File(installed.rootPath).deleteRecursively()
-        }
-        installedIndex.delete()
-        mutableState.value = MaterialPackState(message = "教材包已移除")
-    }
-
-    private fun importInternal(uri: Uri): InstalledMaterialPack {
-        materialRoot.mkdirs()
-        packsRoot.mkdirs()
-        val staging = File(materialRoot, ".import-${UUID.randomUUID()}")
-        require(staging.mkdirs()) { "无法创建教材包临时目录" }
-
-        try {
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                extractArchive(input.buffered(), staging)
-            } ?: throw IOException("无法读取所选文件")
-
-            val manifestFile = File(staging, "manifest.json")
-            require(manifestFile.isFile) { "教材包根目录缺少 manifest.json" }
-            val manifest = MaterialPackManifestParser.parse(manifestFile.readText(Charsets.UTF_8))
-            val pdfFile = resolveInside(staging, manifest.pdf.path)
-            val catalogFile = resolveInside(staging, manifest.catalogPath)
-            require(pdfFile.isFile) { "教材包缺少 PDF：${manifest.pdf.path}" }
-            require(catalogFile.isFile) { "教材包缺少目录：${manifest.catalogPath}" }
-
-            val actualSha256 = sha256(pdfFile)
-            require(actualSha256.equals(manifest.pdf.sha256, ignoreCase = true)) {
-                "PDF 校验失败，文件可能损坏或版本不一致"
-            }
-
-            val finalDirectory = File(packsRoot, manifest.packId)
-            val backup = File(materialRoot, ".backup-${manifest.packId}-${UUID.randomUUID()}")
-            if (finalDirectory.exists()) {
-                require(finalDirectory.renameTo(backup)) { "无法替换旧教材包" }
-            }
-            try {
-                require(staging.renameTo(finalDirectory)) { "无法保存教材包" }
-                backup.deleteRecursively()
-            } catch (error: Throwable) {
-                if (!finalDirectory.exists() && backup.exists()) backup.renameTo(finalDirectory)
-                throw error
-            }
-
-            val installed = InstalledMaterialPack(
-                manifest = manifest,
-                rootPath = finalDirectory.absolutePath,
-                installedAt = System.currentTimeMillis(),
-                sizeBytes = directorySize(finalDirectory),
+            .addTag(TextbookProcessingContract.TAG)
+            .addTag(TextbookProcessingContract.slotTag(slot))
+            .setBackoffCriteria(
+                androidx.work.BackoffPolicy.EXPONENTIAL,
+                15,
+                TimeUnit.SECONDS,
             )
-            writeInstalledPack(installed)
-            return installed
-        } finally {
-            if (staging.exists()) staging.deleteRecursively()
-        }
-    }
-
-    private fun extractArchive(input: java.io.InputStream, destination: File) {
-        var fileCount = 0
-        var totalBytes = 0L
-        ZipInputStream(BufferedInputStream(input)).use { zip ->
-            while (true) {
-                val entry = zip.nextEntry ?: break
-                fileCount += 1
-                require(fileCount <= MAX_FILE_COUNT) { "教材包文件数量过多" }
-                val safePath = MaterialPackManifestParser.safeRelativePath(entry.name, "ZIP 条目")
-                val output = resolveInside(destination, safePath)
-                if (entry.isDirectory) {
-                    require(output.mkdirs() || output.isDirectory) { "无法创建目录：$safePath" }
-                } else {
-                    output.parentFile?.let { parent ->
-                        require(parent.mkdirs() || parent.isDirectory) { "无法创建目录：${parent.name}" }
-                    }
-                    BufferedOutputStream(FileOutputStream(output)).use { target ->
-                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                        var entryBytes = 0L
-                        while (true) {
-                            val read = zip.read(buffer)
-                            if (read < 0) break
-                            entryBytes += read
-                            totalBytes += read
-                            require(entryBytes <= MAX_SINGLE_FILE_BYTES) { "教材包内单个文件过大" }
-                            require(totalBytes <= MAX_TOTAL_UNCOMPRESSED_BYTES) { "教材包解压后体积过大" }
-                            target.write(buffer, 0, read)
-                        }
-                    }
-                }
-                zip.closeEntry()
-            }
-        }
-        require(fileCount > 0) { "教材包是空文件" }
-    }
-
-    private fun resolveInside(root: File, relativePath: String): File {
-        val file = File(root, relativePath)
-        val rootPath = root.canonicalFile.path + File.separator
-        val filePath = file.canonicalFile.path
-        require(filePath.startsWith(rootPath)) { "教材包包含越界路径" }
-        return file
-    }
-
-    private fun sha256(file: File): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        FileInputStream(file).use { input ->
-            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-            while (true) {
-                val read = input.read(buffer)
-                if (read < 0) break
-                digest.update(buffer, 0, read)
-            }
-        }
-        return digest.digest().joinToString("") { "%02x".format(it) }
-    }
-
-    private fun directorySize(directory: File): Long =
-        directory.walkTopDown().filter { it.isFile }.sumOf { it.length() }
-
-    private fun writeInstalledPack(installed: InstalledMaterialPack) {
-        materialRoot.mkdirs()
-        val root = JSONObject()
-            .put("manifest", MaterialPackManifestParser.toJson(installed.manifest))
-            .put("rootPath", installed.rootPath)
-            .put("installedAt", installed.installedAt)
-            .put("sizeBytes", installed.sizeBytes)
-        val temporary = File(materialRoot, "installed.json.tmp")
-        temporary.writeText(root.toString(2), Charsets.UTF_8)
-        if (installedIndex.exists()) installedIndex.delete()
-        require(temporary.renameTo(installedIndex)) { "无法保存教材包索引" }
-    }
-
-    private fun loadInstalledPack(): InstalledMaterialPack? = runCatching {
-        if (!installedIndex.isFile) return@runCatching null
-        val root = JSONObject(installedIndex.readText(Charsets.UTF_8))
-        val manifest = MaterialPackManifestParser.parse(root.getJSONObject("manifest").toString())
-        val installed = InstalledMaterialPack(
-            manifest = manifest,
-            rootPath = root.getString("rootPath"),
-            installedAt = root.getLong("installedAt"),
-            sizeBytes = root.optLong("sizeBytes", 0L),
+            .build()
+        workManager.enqueueUniqueWork(
+            TextbookProcessingContract.uniqueWorkName(slot),
+            ExistingWorkPolicy.KEEP,
+            request,
         )
-        if (!installed.pdfFile.isFile) null else installed
-    }.getOrNull()
+    }
 
-    private companion object {
-        const val MAX_FILE_COUNT = 10_000
-        const val MAX_SINGLE_FILE_BYTES = 1_600L * 1024L * 1024L
-        const val MAX_TOTAL_UNCOMPRESSED_BYTES = 2_200L * 1024L * 1024L
+    fun cancelProcessing(slot: TextbookSlot) {
+        workManager.cancelUniqueWork(TextbookProcessingContract.uniqueWorkName(slot))
+    }
+
+    suspend fun removeInstalled(slot: TextbookSlot) = withContext(Dispatchers.IO) {
+        cancelProcessing(slot)
+        val removed = MaterialLibraryStore.remove(appContext, slot.key)
+        removed?.pack?.rootPath?.let { java.io.File(it).deleteRecursively() }
+        MaterialLibraryStore.processingRoot(appContext, slot).deleteRecursively()
+        refreshCurrent()
+    }
+
+    fun refreshCurrent() {
+        workManager.getWorkInfosByTag(TextbookProcessingContract.TAG).get()
+            .let(::refresh)
+    }
+
+    private fun refresh(workInfos: List<WorkInfo>) {
+        val installed = MaterialLibraryStore.read(appContext)
+        val jobs = workInfos
+            .mapNotNull(::toProcessingState)
+            .groupBy { it.slot.key }
+            .mapValues { (_, states) ->
+                states.maxByOrNull { statePriority(it.status) } ?: states.first()
+            }
+        mutableState.value = MaterialLibraryState(
+            installedTextbooks = installed,
+            processing = jobs,
+            message = jobs.values.firstOrNull { it.status == TextbookProcessingStatus.FAILED }?.message,
+        )
+    }
+
+    private fun toProcessingState(info: WorkInfo): TextbookProcessingState? {
+        val slotKey = info.tags
+            .firstOrNull { it.startsWith(TextbookProcessingContract.TAG_SLOT_PREFIX) }
+            ?.removePrefix(TextbookProcessingContract.TAG_SLOT_PREFIX)
+            ?: return null
+        val slot = TextbookSlot.fromKey(slotKey) ?: return null
+        val data = if (info.state == WorkInfo.State.FAILED) info.outputData else info.progress
+        val stage = data.getString(TextbookProcessingContract.KEY_STAGE)
+            ?.let { runCatching { TextbookProcessingStage.valueOf(it) }.getOrNull() }
+            ?: TextbookProcessingStage.PREPARING
+        val progress = data.getInt(TextbookProcessingContract.KEY_PROGRESS, 0).coerceIn(0, 100)
+        val message = data.getString(TextbookProcessingContract.KEY_MESSAGE)
+            ?: when (info.state) {
+                WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED -> "等待后台处理"
+                WorkInfo.State.RUNNING -> stage.label
+                WorkInfo.State.FAILED -> "教材处理失败"
+                else -> ""
+            }
+        val status = when (info.state) {
+            WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED -> TextbookProcessingStatus.QUEUED
+            WorkInfo.State.RUNNING -> TextbookProcessingStatus.RUNNING
+            WorkInfo.State.FAILED -> TextbookProcessingStatus.FAILED
+            else -> return null
+        }
+        return TextbookProcessingState(
+            slot = slot,
+            status = status,
+            stage = stage,
+            progress = progress,
+            message = message,
+        )
+    }
+
+    private fun statePriority(status: TextbookProcessingStatus): Int = when (status) {
+        TextbookProcessingStatus.RUNNING -> 3
+        TextbookProcessingStatus.QUEUED -> 2
+        TextbookProcessingStatus.FAILED -> 1
     }
 }
