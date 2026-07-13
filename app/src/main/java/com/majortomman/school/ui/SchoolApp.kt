@@ -101,6 +101,8 @@ fun SchoolApp(
     }
     val selectedTab = MainTab.valueOf(selectedTabName)
     val openedLesson = lessons.firstOrNull { it.id == openedLessonId }
+    val openedLessonIndex = lessons.indexOfFirst { it.id == openedLessonId }
+    val nextLesson = openedLessonIndex.takeIf { it >= 0 }?.let { lessons.getOrNull(it + 1) }
     val openedGeneratedLesson = activeTextbook?.lessons?.firstOrNull { it.id == openedLessonId }
     val openedAnalysis = if (activeTextbook != null && openedGeneratedLesson != null) {
         materialRepository.loadLessonAnalysis(activeTextbook, openedGeneratedLesson.sourceId)
@@ -154,6 +156,18 @@ fun SchoolApp(
             val recordAttempt: (String, Boolean, String) -> Unit = { answer, correct, feedback ->
                 scope.launch { repository.recordAttempt(lesson.id, answer, correct, feedback) }
             }
+            val completeLesson: () -> Unit = {
+                val nextId = nextLesson?.id
+                scope.launch {
+                    repository.finishLessonAndStartNext(lesson.id, nextId)
+                }
+                if (nextLesson != null) {
+                    openedLessonId = nextLesson.id
+                } else {
+                    openedLessonId = null
+                    selectedTabName = MainTab.PATH.name
+                }
+            }
             if (openedAnalysis != null) {
                 GeneratedLearningScreen(
                     lesson = lesson,
@@ -161,8 +175,10 @@ fun SchoolApp(
                     aiSettings = aiSettings,
                     progress = progress,
                     installedMaterial = activeTextbook.pack,
+                    nextLessonTitle = nextLesson?.title,
                     onOpenTextbook = openTextbook,
                     onBack = { openedLessonId = null },
+                    onComplete = completeLesson,
                     onRecordAttempt = recordAttempt,
                 )
             } else {
