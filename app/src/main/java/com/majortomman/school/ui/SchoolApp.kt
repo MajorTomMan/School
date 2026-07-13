@@ -15,11 +15,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -30,7 +29,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.majortomman.school.data.AiSettings
@@ -42,14 +41,18 @@ import com.majortomman.school.data.ScheduledReview
 import com.majortomman.school.data.recordAttempt
 import kotlinx.coroutines.launch
 
+private val NavigationBlack = Color(0xFF050608)
+private val NavigationWhite = Color(0xFFF5F7FA)
+private val NavigationBlue = Color(0xFF2D7BFF)
+
 private enum class MainTab(
     val label: String,
     val symbol: String,
 ) {
-    TODAY("今天", "●"),
-    PATH("路径", "◇"),
-    REVIEW("复习", "↻"),
-    SETTINGS("设置", "⌁"),
+    TODAY("今天", "01"),
+    PATH("路径", "02"),
+    REVIEW("复习", "03"),
+    SETTINGS("设置", "04"),
 }
 
 @Composable
@@ -82,7 +85,7 @@ fun SchoolApp(repository: PreferencesRepository) {
         label = "appNavigation",
     ) { lesson ->
         if (lesson != null) {
-            LearningScreen(
+            SceneLearningScreen(
                 lesson = lesson,
                 aiSettings = aiSettings,
                 progress = progress,
@@ -97,7 +100,7 @@ fun SchoolApp(repository: PreferencesRepository) {
             Scaffold(
                 containerColor = MaterialTheme.colorScheme.background,
                 bottomBar = {
-                    GuidedBottomBar(
+                    SceneBottomBar(
                         selected = selectedTab,
                         onSelect = { selectedTabName = it.name },
                     )
@@ -113,7 +116,7 @@ fun SchoolApp(repository: PreferencesRepository) {
                         label = "mainTabs",
                     ) { tab ->
                         when (tab) {
-                            MainTab.TODAY -> TodayScreen(
+                            MainTab.TODAY -> SceneTodayScreen(
                                 plan = SampleContent.dailyPlan,
                                 lessons = lessons,
                                 progress = progress,
@@ -121,7 +124,7 @@ fun SchoolApp(repository: PreferencesRepository) {
                                 onOpenPath = { selectedTabName = MainTab.PATH.name },
                             )
 
-                            MainTab.PATH -> CoursePathScreen(
+                            MainTab.PATH -> SceneCoursePathScreen(
                                 lessons = lessons,
                                 onOpenLesson = { openedLessonId = it },
                             )
@@ -148,43 +151,54 @@ fun SchoolApp(repository: PreferencesRepository) {
 }
 
 @Composable
-private fun GuidedBottomBar(
+private fun SceneBottomBar(
     selected: MainTab,
     onSelect: (MainTab) -> Unit,
 ) {
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 3.dp,
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(NavigationBlack),
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(NavigationWhite.copy(alpha = 0.12f)),
+        )
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 9.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             MainTab.entries.forEach { tab ->
                 val isSelected = tab == selected
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(
-                            if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surface,
-                        )
                         .clickable { onSelect(tab) }
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = 5.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
-                        text = tab.symbol,
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Bold,
+                        tab.symbol,
+                        color = if (isSelected) NavigationBlue else NavigationWhite.copy(alpha = 0.32f),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Black,
                     )
                     Text(
-                        text = tab.label,
+                        tab.label,
+                        color = if (isSelected) NavigationWhite else NavigationWhite.copy(alpha = 0.46f),
                         style = MaterialTheme.typography.labelMedium,
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .height(2.dp)
+                            .fillMaxWidth(0.42f)
+                            .background(if (isSelected) NavigationBlue else Color.Transparent),
                     )
                 }
             }
