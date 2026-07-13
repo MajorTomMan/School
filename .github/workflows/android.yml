@@ -20,6 +20,40 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Validate Chinese release notes
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          notes_file=".release-notes/current.md"
+
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path(".release-notes/current.md")
+          if not path.is_file():
+              raise SystemExit("缺少 .release-notes/current.md")
+
+          text = path.read_text(encoding="utf-8").strip()
+          if not text:
+              raise SystemExit("中文发布说明不能为空")
+          if "## 修改点" not in text or "## 修复点" not in text:
+              raise SystemExit("发布说明必须包含“## 修改点”和“## 修复点”")
+          if not re.search(r"[\u4e00-\u9fff]", text):
+              raise SystemExit("发布说明必须使用中文")
+          if not re.search(r"(?m)^- .+", text):
+              raise SystemExit("发布说明至少需要一条列表项")
+          PY
+
+          if [ -n "${BASE_SHA:-}" ] && [ "$BASE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            if ! git diff --name-only "$BASE_SHA" "$GITHUB_SHA" | grep -qx "$notes_file"; then
+              echo "每次提交都必须同步更新 $notes_file，并用中文逐条写出修改点和修复点。" >&2
+              exit 1
+            fi
+          fi
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -102,49 +136,13 @@ jobs:
           tag="dev-latest"
           title="School ${VERSION_NAME} (${SHORT_SHA})"
 
-          git fetch origin --tags --force
-          previous_sha="$(git rev-list -n 1 "$tag" 2>/dev/null || true)"
-
-          if [ -n "$previous_sha" ] && [ "$previous_sha" != "$GITHUB_SHA" ]; then
-            diff_base="$previous_sha"
-          else
-            diff_base="$(git rev-parse "${GITHUB_SHA}^" 2>/dev/null || true)"
-            if [ -z "$diff_base" ]; then
-              diff_base="$(git hash-object -t tree /dev/null)"
-            fi
-          fi
-
-          changelog="$(git log --no-merges --pretty=format:'- %s (`%h`)' "${diff_base}..${GITHUB_SHA}" || true)"
-          if [ -z "$changelog" ]; then
-            changelog="- $(git log -1 --pretty=%s "$GITHUB_SHA") (${SHORT_SHA})"
-          fi
-
-          files_changed="$(git diff --name-only "$diff_base" "$GITHUB_SHA" | sed '/^$/d' | wc -l | tr -d ' ')"
-          read -r additions deletions < <(
-            git diff --numstat "$diff_base" "$GITHUB_SHA" |
-              awk '{ if ($1 ~ /^[0-9]+$/) add += $1; if ($2 ~ /^[0-9]+$/) del += $2 } END { print add + 0, del + 0 }'
-          )
-
-          if [ -n "$previous_sha" ] && [ "$previous_sha" != "$GITHUB_SHA" ]; then
-            compare_url="https://github.com/${GITHUB_REPOSITORY}/compare/${previous_sha}...${GITHUB_SHA}"
-          else
-            compare_url="https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
-          fi
-
           cat > release-notes.md <<EOF
           ## 版本
 
-          \`${VERSION_NAME}\` · [\`${SHORT_SHA}\`](https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA})
+          \`${VERSION_NAME}\`
 
-          ## 修改内容
-
-          ${changelog}
-
-          ## 差异
-
-          - [查看完整差异](${compare_url})
-          - 修改 \`${files_changed}\` 个文件，新增 \`${additions}\` 行，删除 \`${deletions}\` 行
           EOF
+          cat .release-notes/current.md >> release-notes.md
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
