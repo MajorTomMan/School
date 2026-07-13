@@ -60,7 +60,7 @@ gradle :app:testDebugUnitTest :app:assembleDebug
 
 ## CI/CD 与自动 APK
 
-每次 pull request 都会自动运行单元测试并编译 Debug APK。每次代码进入 `master` 且测试、编译成功后，工作流还会：
+每次 Pull Request 都会自动运行单元测试并编译 Debug APK。每次代码进入 `master` 且测试、编译成功后，工作流还会：
 
 1. 生成 `school-debug.apk` 和 SHA-256 校验文件。
 2. 上传为 GitHub Actions 构建产物。
