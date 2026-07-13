@@ -2,7 +2,6 @@ package com.majortomman.school.ui
 
 import android.graphics.Paint
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -13,12 +12,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,9 +32,7 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,7 +46,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -68,11 +62,11 @@ import com.majortomman.school.data.Lesson
 import com.majortomman.school.data.MasteryStatus
 import kotlinx.coroutines.delay
 
-private val SceneBlack = Color(0xFF050608)
-private val SceneWhite = Color(0xFFF5F7FA)
-private val SceneBlue = Color(0xFF2D7BFF)
-private val SceneRed = Color(0xFFFF3B30)
-private val SceneYellow = Color(0xFFFFCC00)
+private val SceneBlack = Color(0xFF000000)
+private val SceneWhite = Color(0xFFF5F5F7)
+private val SceneBlue = Color(0xFF0A84FF)
+private val SceneRed = Color(0xFFFF453A)
+private val SceneYellow = Color(0xFFFFD60A)
 
 @Composable
 fun SceneTodayScreen(
@@ -88,7 +82,7 @@ fun SceneTodayScreen(
     val animatedProgress by animateFloatAsState(
         targetValue = progressTarget,
         animationSpec = tween(900),
-        label = "sceneTodayProgress",
+        label = "minimalTodayProgress",
     )
 
     Box(
@@ -96,113 +90,64 @@ fun SceneTodayScreen(
             .fillMaxSize()
             .background(SceneBlack),
     ) {
-        TechGridBackground()
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(28.dp),
+        MinimalAmbientBackground()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .systemBarsPadding()
+                .padding(horizontal = 26.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TechLabel("SCHOOL / TODAY", SceneBlue)
-                    Text(
-                        "继续学习",
-                        color = SceneWhite.copy(alpha = 0.62f),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        lesson.title,
-                        color = SceneWhite,
-                        fontSize = 50.sp,
-                        lineHeight = 54.sp,
-                        fontWeight = FontWeight.Black,
-                    )
-                    Text(
-                        lesson.subtitle,
-                        color = SceneWhite.copy(alpha = 0.7f),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                }
+            Text(
+                text = "今天",
+                color = SceneWhite.copy(alpha = 0.42f),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                Text(
+                    text = lesson.title,
+                    color = SceneWhite,
+                    fontSize = 54.sp,
+                    lineHeight = 57.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = lesson.subtitle,
+                    color = SceneWhite.copy(alpha = 0.58f),
+                    fontSize = 18.sp,
+                    lineHeight = 27.sp,
+                )
             }
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(
-                            "${lessonIndex + 1} / ${lessons.size}",
-                            color = SceneBlue,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text(
-                            "预计 ${plan.estimatedMinutes} 分钟",
-                            color = SceneWhite.copy(alpha = 0.58f),
-                        )
-                    }
-                    ProgressRail(animatedProgress)
-                    Text(
-                        "理解 → 动画观察 → 推导 → 练习",
-                        color = SceneWhite.copy(alpha = 0.48f),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-            }
-            item {
-                TechAction(
-                    label = "进入动态课程",
+
+            Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                MinimalProgress(
+                    progress = animatedProgress,
+                    leading = "${lessonIndex + 1} / ${lessons.size}",
+                    trailing = "${plan.estimatedMinutes} 分钟",
+                )
+                MinimalAction(
+                    label = "继续",
                     color = SceneBlue,
                     onClick = { onStartLesson(lesson.id) },
                 )
-            }
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        TechLabel("TODAY / REVIEW", SceneYellow)
-                        Text(
-                            "查看全部路径",
-                            modifier = Modifier.clickable(onClick = onOpenPath),
-                            color = SceneBlue,
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
-                    plan.reviewItems.forEachIndexed { index, item ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(if (index == 0) SceneRed else SceneYellow),
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(item.title, color = SceneWhite, fontWeight = FontWeight.SemiBold)
-                                Text(
-                                    item.reason,
-                                    color = SceneWhite.copy(alpha = 0.5f),
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
-                            Text(item.dueLabel, color = SceneWhite.copy(alpha = 0.46f))
-                        }
-                        ThinDivider()
-                    }
-                }
-            }
-            item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("已作答 ${progress.attempts} 次", color = SceneWhite.copy(alpha = 0.42f))
-                    Text("正确率 ${progress.accuracyPercent}%", color = SceneYellow)
+                    Text(
+                        text = "${plan.reviewItems.size} 项复习",
+                        color = if (plan.reviewItems.isEmpty()) SceneWhite.copy(alpha = 0.35f) else SceneYellow,
+                        fontSize = 13.sp,
+                    )
+                    Text(
+                        text = "查看路径",
+                        modifier = Modifier.clickable(onClick = onOpenPath),
+                        color = SceneWhite.copy(alpha = 0.54f),
+                        fontSize = 13.sp,
+                    )
                 }
             }
         }
@@ -214,34 +159,43 @@ fun SceneCoursePathScreen(
     lessons: List<Lesson>,
     onOpenLesson: (String) -> Unit,
 ) {
+    val mastered = lessons.count { it.status == MasteryStatus.MASTERED }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(SceneBlack),
     ) {
-        TechGridBackground()
-        Column(
+        MinimalAmbientBackground()
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 28.dp),
+                .systemBarsPadding(),
+            contentPadding = PaddingValues(horizontal = 26.dp, vertical = 26.dp),
         ) {
-            TechLabel("KNOWLEDGE / ROUTE", SceneBlue)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "有理数",
-                color = SceneWhite,
-                fontSize = 46.sp,
-                fontWeight = FontWeight.Black,
-            )
-            Text(
-                "节点不是菜单，而是理解的中转站。",
-                color = SceneWhite.copy(alpha = 0.58f),
-            )
-            Spacer(Modifier.height(34.dp))
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom,
+                ) {
+                    Text(
+                        text = "有理数",
+                        color = SceneWhite,
+                        fontSize = 44.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "$mastered / ${lessons.size}",
+                        color = SceneWhite.copy(alpha = 0.38f),
+                        fontSize = 14.sp,
+                    )
+                }
+                Spacer(Modifier.height(52.dp))
+            }
 
-            lessons.forEachIndexed { index, lesson ->
-                AnimatedPathNode(
+            itemsIndexed(lessons, key = { _, lesson -> lesson.id }) { index, lesson ->
+                MinimalPathNode(
                     index = index,
                     lesson = lesson,
                     onClick = { onOpenLesson(lesson.id) },
@@ -249,12 +203,12 @@ fun SceneCoursePathScreen(
                 if (index != lessons.lastIndex) {
                     Box(
                         modifier = Modifier
-                            .padding(start = 25.dp)
-                            .width(2.dp)
-                            .height(54.dp)
+                            .padding(start = 9.dp)
+                            .width(1.dp)
+                            .height(52.dp)
                             .background(
-                                if (lesson.status == MasteryStatus.MASTERED) SceneYellow.copy(alpha = 0.7f)
-                                else SceneWhite.copy(alpha = 0.15f),
+                                if (lesson.status == MasteryStatus.MASTERED) SceneYellow.copy(alpha = 0.65f)
+                                else SceneWhite.copy(alpha = 0.12f),
                             ),
                     )
                 }
@@ -264,98 +218,64 @@ fun SceneCoursePathScreen(
 }
 
 @Composable
-private fun AnimatedPathNode(
+private fun MinimalPathNode(
     index: Int,
     lesson: Lesson,
     onClick: () -> Unit,
 ) {
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        delay(index * 90L)
+        delay(index * 70L)
         visible = true
     }
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(tween(360)) + slideInVertically(tween(420)) { it / 3 },
-    ) {
-        PathNode(lesson = lesson, onClick = onClick)
-    }
-}
-
-@Composable
-private fun PathNode(
-    lesson: Lesson,
-    onClick: () -> Unit,
-) {
     val active = lesson.status == MasteryStatus.LEARNING
-    val infinite = rememberInfiniteTransition(label = "scenePathPulse")
-    val pulse by infinite.animateFloat(
+    val pulseTransition = rememberInfiniteTransition(label = "minimalPathPulse")
+    val pulse by pulseTransition.animateFloat(
         initialValue = 1f,
-        targetValue = if (active) 1.14f else 1f,
+        targetValue = if (active) 1.22f else 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(900),
+            animation = tween(1100),
             repeatMode = RepeatMode.Reverse,
         ),
-        label = "scenePathPulseValue",
+        label = "minimalPathPulseValue",
     )
-    val color = when (lesson.status) {
-        MasteryStatus.MASTERED -> SceneYellow
-        MasteryStatus.LEARNING -> SceneBlue
-        MasteryStatus.NEEDS_REVIEW -> SceneRed
-        MasteryStatus.NOT_STARTED -> SceneWhite.copy(alpha = 0.34f)
-    }
+    val color = statusColor(lesson.status)
+    val alpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(320),
+        label = "minimalPathAppear",
+    )
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .graphicsLayer { this.alpha = alpha }
             .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(18.dp),
+            .padding(vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
-                .size(52.dp)
+                .size(19.dp)
                 .graphicsLayer {
                     scaleX = pulse
                     scaleY = pulse
                 }
-                .drawBehind {
-                    drawCircle(color = color.copy(alpha = 0.16f), radius = size.minDimension * 0.64f)
-                }
-                .border(2.dp, color, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                when (lesson.status) {
-                    MasteryStatus.MASTERED -> "✓"
-                    MasteryStatus.LEARNING -> "→"
-                    MasteryStatus.NEEDS_REVIEW -> "!"
-                    MasteryStatus.NOT_STARTED -> "·"
-                },
-                color = color,
-                fontWeight = FontWeight.Black,
-                fontSize = 22.sp,
-            )
-        }
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(
-                lesson.title,
-                color = SceneWhite,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                lesson.subtitle,
-                color = SceneWhite.copy(alpha = 0.5f),
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
-        Text(
-            lesson.status.label,
-            color = color,
-            style = MaterialTheme.typography.labelMedium,
+                .clip(CircleShape)
+                .background(color),
         )
+        Text(
+            text = lesson.title,
+            color = if (active) SceneWhite else SceneWhite.copy(alpha = if (lesson.status == MasteryStatus.NOT_STARTED) 0.36f else 0.78f),
+            fontSize = if (active) 27.sp else 21.sp,
+            lineHeight = 31.sp,
+            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+            modifier = Modifier.weight(1f),
+        )
+        if (active) {
+            Text("继续", color = SceneBlue, fontSize = 13.sp)
+        }
     }
 }
 
@@ -396,56 +316,58 @@ fun SceneLearningScreen(
             .background(SceneBlack)
             .systemBarsPadding(),
     ) {
-        TechGridBackground()
+        MinimalAmbientBackground()
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                    .padding(horizontal = 22.dp, vertical = 14.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "← 返回",
+                    text = "‹",
                     modifier = Modifier.clickable(onClick = onBack),
-                    color = SceneWhite.copy(alpha = 0.72f),
+                    color = SceneWhite,
+                    fontSize = 38.sp,
+                    fontWeight = FontWeight.Light,
                 )
-                TechLabel("SCENE ${sceneIndex + 1} / ${scenes.size}", SceneBlue)
+                SceneDots(current = sceneIndex, total = scenes.size)
             }
-            ProgressRail((sceneIndex + 1f) / scenes.size)
+
             AnimatedContent(
                 targetState = scene,
                 modifier = Modifier.weight(1f),
                 transitionSpec = {
-                    (fadeIn(tween(300)) + slideInHorizontally(tween(420)) { it / 4 }) togetherWith
-                        (fadeOut(tween(180)) + slideOutHorizontally(tween(300)) { -it / 5 })
+                    (fadeIn(tween(360)) + slideInHorizontally(tween(460)) { it / 7 }) togetherWith
+                        (fadeOut(tween(220)) + slideOutHorizontally(tween(360)) { -it / 8 })
                 },
-                label = "sceneLessonTransition",
+                label = "minimalSceneTransition",
             ) { current ->
                 when (current) {
-                    PreviewScene.QUESTION -> QuestionScene(lesson)
-                    PreviewScene.OBSERVE -> ObserveScene()
-                    PreviewScene.INFER -> InferScene()
+                    PreviewScene.QUESTION -> MinimalQuestionScene()
+                    PreviewScene.OBSERVE -> MinimalObserveScene()
+                    PreviewScene.INFER -> MinimalInferScene()
                 }
             }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    .padding(horizontal = 24.dp, vertical = 18.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (sceneIndex > 0) {
-                    TechAction(
-                        label = "上一步",
-                        color = SceneWhite.copy(alpha = 0.64f),
-                        modifier = Modifier.weight(1f),
-                        onClick = { sceneIndex -= 1 },
-                    )
-                }
-                TechAction(
-                    label = if (scene == PreviewScene.INFER) "进入现有练习" else "继续",
+                Text(
+                    text = if (sceneIndex > 0) "上一步" else "",
+                    modifier = if (sceneIndex > 0) Modifier.clickable { sceneIndex -= 1 } else Modifier,
+                    color = SceneWhite.copy(alpha = 0.42f),
+                    fontSize = 15.sp,
+                )
+                MinimalAction(
+                    label = if (scene == PreviewScene.INFER) "练习" else "继续",
                     color = if (scene == PreviewScene.INFER) SceneYellow else SceneBlue,
-                    modifier = Modifier.weight(1.4f),
+                    compact = true,
                     onClick = {
                         if (scene == PreviewScene.INFER) legacyMode = true else sceneIndex += 1
                     },
@@ -456,81 +378,63 @@ fun SceneLearningScreen(
 }
 
 @Composable
-private fun QuestionScene(lesson: Lesson) {
+private fun MinimalQuestionScene() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp),
+            .padding(horizontal = 26.dp),
         verticalArrangement = Arrangement.Center,
     ) {
-        TechLabel("QUESTION", SceneRed)
-        Spacer(Modifier.height(18.dp))
         Text(
-            "数，究竟是什么？",
+            text = "数是什么？",
             color = SceneWhite,
-            fontSize = 48.sp,
-            lineHeight = 54.sp,
-            fontWeight = FontWeight.Black,
-        )
-        Spacer(Modifier.height(18.dp))
-        Text(
-            "在这一节里，数不再只是符号。\n它会变成空间中的位置。",
-            color = SceneWhite.copy(alpha = 0.68f),
-            fontSize = 20.sp,
-            lineHeight = 30.sp,
-        )
-        Spacer(Modifier.height(34.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            LargeToken("数", SceneBlue)
-            LargeToken("→", SceneWhite.copy(alpha = 0.42f))
-            LargeToken("位置", SceneYellow)
-        }
-        Spacer(Modifier.height(30.dp))
-        Text(
-            lesson.explanation,
-            color = SceneWhite.copy(alpha = 0.5f),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-    }
-}
-
-@Composable
-private fun ObserveScene() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.Center,
-    ) {
-        TechLabel("OBSERVE", SceneBlue)
-        Spacer(Modifier.height(10.dp))
-        Text(
-            "看位置，不要先算。",
-            color = SceneWhite,
-            fontSize = 34.sp,
-            fontWeight = FontWeight.Black,
-        )
-        Text(
-            "-3 与 2 会依次落到数轴上。",
-            color = SceneWhite.copy(alpha = 0.55f),
-        )
-        Spacer(Modifier.height(22.dp))
-        AnimatedNumberLine()
-        Text(
-            "方向：左  ←  0  →  右",
-            modifier = Modifier.fillMaxWidth(),
-            color = SceneYellow,
-            textAlign = TextAlign.Center,
+            fontSize = 54.sp,
+            lineHeight = 58.sp,
             fontWeight = FontWeight.SemiBold,
         )
+        Spacer(Modifier.height(24.dp))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("符号", color = SceneBlue, fontSize = 24.sp, fontWeight = FontWeight.Medium)
+            Text("→", color = SceneWhite.copy(alpha = 0.28f), fontSize = 24.sp)
+            Text("位置", color = SceneYellow, fontSize = 24.sp, fontWeight = FontWeight.Medium)
+        }
     }
 }
 
 @Composable
-private fun InferScene() {
+private fun MinimalObserveScene() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 18.dp),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = "看位置。",
+            modifier = Modifier.padding(horizontal = 8.dp),
+            color = SceneWhite,
+            fontSize = 38.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        MinimalNumberLine()
+        Text(
+            text = "左边更小，右边更大",
+            modifier = Modifier.fillMaxWidth(),
+            color = SceneWhite.copy(alpha = 0.46f),
+            textAlign = TextAlign.Center,
+            fontSize = 15.sp,
+        )
+    }
+}
+
+@Composable
+private fun MinimalInferScene() {
     val reveal = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
-        reveal.animateTo(1f, animationSpec = tween(900))
+        reveal.animateTo(1f, animationSpec = tween(850))
     }
 
     Column(
@@ -540,87 +444,63 @@ private fun InferScene() {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        TechLabel("INFER", SceneYellow)
-        Spacer(Modifier.height(24.dp))
         Row(
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(18.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("-3", color = SceneRed, fontSize = 58.sp, fontWeight = FontWeight.Black)
+            Text("-3", color = SceneRed, fontSize = 64.sp, fontWeight = FontWeight.SemiBold)
             Text(
-                "<",
-                color = SceneYellow.copy(alpha = reveal.value),
-                fontSize = 58.sp,
-                fontWeight = FontWeight.Black,
-                modifier = Modifier.graphicsLayer { scaleX = reveal.value; scaleY = reveal.value },
+                text = "<",
+                color = SceneWhite.copy(alpha = reveal.value),
+                fontSize = 56.sp,
+                fontWeight = FontWeight.Light,
+                modifier = Modifier.graphicsLayer {
+                    scaleX = reveal.value
+                    scaleY = reveal.value
+                },
             )
-            Text("2", color = SceneBlue, fontSize = 58.sp, fontWeight = FontWeight.Black)
+            Text("2", color = SceneBlue, fontSize = 64.sp, fontWeight = FontWeight.SemiBold)
         }
-        Spacer(Modifier.height(28.dp))
-        ThinDivider(color = SceneWhite.copy(alpha = 0.22f))
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(30.dp))
         Text(
-            "右边的数更大。",
-            color = SceneWhite,
-            fontSize = 26.sp,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            "结论不是弹出来的，\n而是从位置关系中自然生成。",
-            color = SceneWhite.copy(alpha = 0.55f),
-            textAlign = TextAlign.Center,
-            lineHeight = 25.sp,
-        )
-        Spacer(Modifier.height(32.dp))
-        Text(
-            "这是一半预览：后续练习、复习和设置暂时沿用现有界面。",
-            color = SceneWhite.copy(alpha = 0.36f),
-            style = MaterialTheme.typography.bodySmall,
-            textAlign = TextAlign.Center,
+            text = "因为 2 在右边。",
+            color = SceneWhite.copy(alpha = 0.62f),
+            fontSize = 18.sp,
         )
     }
 }
 
 @Composable
-private fun AnimatedNumberLine() {
+private fun MinimalNumberLine() {
     val axis = remember { Animatable(0f) }
     val points = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
-        axis.animateTo(1f, animationSpec = tween(850))
-        points.animateTo(1f, animationSpec = tween(700))
+        axis.animateTo(1f, animationSpec = tween(900))
+        points.animateTo(1f, animationSpec = tween(620))
     }
 
     Canvas(
         modifier = Modifier
             .fillMaxWidth()
-            .height(240.dp),
+            .height(260.dp),
     ) {
-        val left = 28.dp.toPx()
-        val right = size.width - 28.dp.toPx()
-        val centerY = size.height * 0.52f
+        val left = 24.dp.toPx()
+        val right = size.width - 24.dp.toPx()
+        val centerY = size.height * 0.54f
         val unit = (right - left) / 8f
         val axisEnd = left + (right - left) * axis.value
 
-        for (row in 1..4) {
-            val y = size.height * row / 5f
-            drawLine(
-                color = SceneWhite.copy(alpha = 0.045f),
-                start = Offset(0f, y),
-                end = Offset(size.width, y),
-                strokeWidth = 1f,
-            )
-        }
         drawLine(
-            color = SceneWhite.copy(alpha = 0.78f),
+            color = SceneWhite.copy(alpha = 0.72f),
             start = Offset(left, centerY),
             end = Offset(axisEnd, centerY),
-            strokeWidth = 3.dp.toPx(),
+            strokeWidth = 2.dp.toPx(),
             cap = StrokeCap.Round,
         )
 
-        val textPaint = Paint().apply {
-            color = SceneWhite.copy(alpha = 0.56f).toArgb()
-            textSize = 13.sp.toPx()
+        val labelPaint = Paint().apply {
+            color = SceneWhite.copy(alpha = 0.32f).toArgb()
+            textSize = 12.sp.toPx()
             textAlign = Paint.Align.CENTER
             isAntiAlias = true
         }
@@ -628,162 +508,159 @@ private fun AnimatedNumberLine() {
             val x = left + (value + 4) * unit
             if (x <= axisEnd) {
                 drawLine(
-                    color = SceneWhite.copy(alpha = 0.5f),
-                    start = Offset(x, centerY - 8.dp.toPx()),
-                    end = Offset(x, centerY + 8.dp.toPx()),
-                    strokeWidth = 1.5.dp.toPx(),
+                    color = SceneWhite.copy(alpha = if (value == 0) 0.7f else 0.28f),
+                    start = Offset(x, centerY - 7.dp.toPx()),
+                    end = Offset(x, centerY + 7.dp.toPx()),
+                    strokeWidth = 1.dp.toPx(),
                 )
-                drawContext.canvas.nativeCanvas.drawText(
-                    value.toString(),
-                    x,
-                    centerY + 31.dp.toPx(),
-                    textPaint,
-                )
+                if (value == 0) {
+                    drawContext.canvas.nativeCanvas.drawText("0", x, centerY + 29.dp.toPx(), labelPaint)
+                }
             }
         }
 
         val minusThreeX = left + unit
         val twoX = left + unit * 6f
-        val pointY = centerY - 28.dp.toPx() * (1f - points.value)
+        val landingY = centerY - 32.dp.toPx() * (1f - points.value)
         drawCircle(
-            color = SceneRed,
-            radius = 10.dp.toPx() * points.value,
-            center = Offset(minusThreeX, pointY),
+            color = SceneRed.copy(alpha = points.value),
+            radius = 8.dp.toPx() * points.value,
+            center = Offset(minusThreeX, landingY),
         )
         drawCircle(
-            color = SceneBlue,
-            radius = 10.dp.toPx() * points.value,
-            center = Offset(twoX, pointY),
+            color = SceneBlue.copy(alpha = points.value),
+            radius = 8.dp.toPx() * points.value,
+            center = Offset(twoX, landingY),
         )
 
         val pointPaint = Paint().apply {
-            textSize = 17.sp.toPx()
+            textSize = 18.sp.toPx()
             textAlign = Paint.Align.CENTER
             isAntiAlias = true
             isFakeBoldText = true
         }
-        pointPaint.color = SceneRed.toArgb()
-        drawContext.canvas.nativeCanvas.drawText("-3", minusThreeX, centerY - 22.dp.toPx(), pointPaint)
-        pointPaint.color = SceneBlue.toArgb()
-        drawContext.canvas.nativeCanvas.drawText("2", twoX, centerY - 22.dp.toPx(), pointPaint)
+        pointPaint.color = SceneRed.copy(alpha = points.value).toArgb()
+        drawContext.canvas.nativeCanvas.drawText("-3", minusThreeX, centerY - 20.dp.toPx(), pointPaint)
+        pointPaint.color = SceneBlue.copy(alpha = points.value).toArgb()
+        drawContext.canvas.nativeCanvas.drawText("2", twoX, centerY - 20.dp.toPx(), pointPaint)
     }
 }
 
 @Composable
-private fun TechGridBackground() {
-    val transition = rememberInfiniteTransition(label = "techScan")
-    val scan by transition.animateFloat(
+private fun MinimalAmbientBackground() {
+    val transition = rememberInfiniteTransition(label = "minimalAmbient")
+    val motion by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(animation = tween(4200)),
-        label = "techScanProgress",
+        animationSpec = infiniteRepeatable(
+            animation = tween(7000),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "minimalAmbientMotion",
     )
     Canvas(modifier = Modifier.fillMaxSize()) {
-        val grid = 32.dp.toPx()
-        var x = 0f
-        while (x <= size.width) {
-            drawLine(
-                color = SceneWhite.copy(alpha = 0.035f),
-                start = Offset(x, 0f),
-                end = Offset(x, size.height),
-                strokeWidth = 1f,
-            )
-            x += grid
-        }
-        var y = 0f
-        while (y <= size.height) {
-            drawLine(
-                color = SceneWhite.copy(alpha = 0.035f),
-                start = Offset(0f, y),
-                end = Offset(size.width, y),
-                strokeWidth = 1f,
-            )
-            y += grid
-        }
-        val scanX = size.width * scan
+        val center = Offset(
+            x = size.width * (0.12f + motion * 0.76f),
+            y = size.height * 0.34f,
+        )
+        drawCircle(
+            color = SceneBlue.copy(alpha = 0.035f),
+            radius = size.minDimension * 0.58f,
+            center = center,
+        )
         drawLine(
-            color = SceneBlue.copy(alpha = 0.12f),
-            start = Offset(scanX, 0f),
-            end = Offset(scanX, size.height),
-            strokeWidth = 2.dp.toPx(),
+            color = SceneWhite.copy(alpha = 0.035f),
+            start = Offset(0f, size.height * 0.78f),
+            end = Offset(size.width, size.height * 0.78f),
+            strokeWidth = 1f,
         )
     }
 }
 
 @Composable
-private fun ProgressRail(progress: Float) {
-    Canvas(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(8.dp),
-    ) {
-        drawLine(
-            color = SceneWhite.copy(alpha = 0.15f),
-            start = Offset(0f, size.height / 2f),
-            end = Offset(size.width, size.height / 2f),
-            strokeWidth = 2.dp.toPx(),
-            cap = StrokeCap.Round,
-        )
-        drawLine(
-            color = SceneBlue,
-            start = Offset(0f, size.height / 2f),
-            end = Offset(size.width * progress.coerceIn(0f, 1f), size.height / 2f),
-            strokeWidth = 3.dp.toPx(),
-            cap = StrokeCap.Round,
-        )
+private fun MinimalProgress(
+    progress: Float,
+    leading: String,
+    trailing: String,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(leading, color = SceneBlue, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            Text(trailing, color = SceneWhite.copy(alpha = 0.36f), fontSize = 13.sp)
+        }
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(3.dp),
+        ) {
+            drawLine(
+                color = SceneWhite.copy(alpha = 0.12f),
+                start = Offset(0f, size.height / 2f),
+                end = Offset(size.width, size.height / 2f),
+                strokeWidth = 1.dp.toPx(),
+                cap = StrokeCap.Round,
+            )
+            drawLine(
+                color = SceneBlue,
+                start = Offset(0f, size.height / 2f),
+                end = Offset(size.width * progress.coerceIn(0f, 1f), size.height / 2f),
+                strokeWidth = 2.dp.toPx(),
+                cap = StrokeCap.Round,
+            )
+        }
     }
 }
 
 @Composable
-private fun TechLabel(text: String, color: Color) {
-    Text(
-        text,
-        color = color,
-        fontSize = 12.sp,
-        letterSpacing = 1.8.sp,
-        fontWeight = FontWeight.Bold,
-    )
+private fun SceneDots(
+    current: Int,
+    total: Int,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        repeat(total) { index ->
+            Box(
+                modifier = Modifier
+                    .size(if (index == current) 7.dp else 5.dp)
+                    .clip(CircleShape)
+                    .background(if (index == current) SceneBlue else SceneWhite.copy(alpha = 0.22f)),
+            )
+        }
+    }
 }
 
 @Composable
-private fun LargeToken(text: String, color: Color) {
-    Text(
-        text,
-        color = color,
-        fontSize = 30.sp,
-        fontWeight = FontWeight.Black,
-    )
-}
-
-@Composable
-private fun ThinDivider(color: Color = SceneWhite.copy(alpha = 0.12f)) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(1.dp)
-            .background(color),
-    )
-}
-
-@Composable
-private fun TechAction(
+private fun MinimalAction(
     label: String,
     color: Color,
-    modifier: Modifier = Modifier,
+    compact: Boolean = false,
     onClick: () -> Unit,
 ) {
-    Box(
-        modifier = modifier
-            .border(1.dp, color)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 14.dp),
-        contentAlignment = Alignment.Center,
+    Row(
+        modifier = Modifier.clickable(onClick = onClick),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            label,
+            text = label,
             color = color,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.6.sp,
+            fontSize = if (compact) 18.sp else 25.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = "→",
+            color = color,
+            fontSize = if (compact) 19.sp else 27.sp,
+            fontWeight = FontWeight.Light,
         )
     }
+}
+
+private fun statusColor(status: MasteryStatus): Color = when (status) {
+    MasteryStatus.MASTERED -> SceneYellow
+    MasteryStatus.LEARNING -> SceneBlue
+    MasteryStatus.NEEDS_REVIEW -> SceneRed
+    MasteryStatus.NOT_STARTED -> SceneWhite.copy(alpha = 0.2f)
 }
