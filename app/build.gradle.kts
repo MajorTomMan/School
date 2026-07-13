@@ -12,8 +12,8 @@ android {
         applicationId = "com.majortomman.school"
         minSdk = 26
         targetSdk = 36
-        versionCode = 8
-        versionName = "0.6.0-preview3"
+        versionCode = 9
+        versionName = "0.7.0"
     }
 
     buildTypes {
@@ -62,5 +62,6 @@ dependencies {
     ksp("androidx.room:room-compiler:$roomVersion")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
