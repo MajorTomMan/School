@@ -376,7 +376,7 @@ object MathQuestionTemplateCatalog {
         val c = if (difficulty.level >= 3) random.nextInt(-6, 7) else 0
         val original = if (c == 0) "$a*(x${signed(b)})" else "$a*(x${signed(b)})${signed(c)}"
         val constant = a * b + c
-        val expanded = "${coefficient(a)}x${signed(constant)}"
+        val expanded = "${coefficientText(a)}x${signed(constant)}"
         return base(
             textbookKey = textbookKey,
             lessonId = lessonId,
@@ -405,10 +405,10 @@ object MathQuestionTemplateCatalog {
         steps: Boolean,
     ): MathQuestion {
         val solution = randomNonZero(random, -9, 10)
-        val coefficient = randomNonZero(random, -6, 7)
+        val coefficientValue = randomNonZero(random, -6, 7)
         val constant = random.nextInt(-10, 11)
-        val right = coefficient * solution + constant
-        val equation = "${coefficient(coefficient)}x${signed(constant)}=$right"
+        val right = coefficientValue * solution + constant
+        val equation = "${coefficientText(coefficientValue)}x${signed(constant)}=$right"
         return base(
             textbookKey = textbookKey,
             lessonId = lessonId,
@@ -417,7 +417,7 @@ object MathQuestionTemplateCatalog {
             type = if (steps) MathQuestionType.STEP_BY_STEP else MathQuestionType.NUMERIC_INPUT,
             difficulty = difficulty,
             source = source,
-            parameters = "$coefficient,$constant,$right",
+            parameters = "$coefficientValue,$constant,$right",
             prompt = if (steps) "逐步解方程，每一步单独写一行：$equation" else "解方程：$equation",
             answerSpec = if (steps) {
                 MathAnswerSpec.StepSequence(equation, solution.toString())
@@ -488,7 +488,7 @@ object MathQuestionTemplateCatalog {
         else -> ""
     }
 
-    private fun coefficient(value: Int): String = when (value) {
+    private fun coefficientText(value: Int): String = when (value) {
         1 -> ""
         -1 -> "-"
         else -> value.toString()
