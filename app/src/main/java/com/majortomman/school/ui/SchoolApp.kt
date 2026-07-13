@@ -33,6 +33,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.majortomman.school.data.AiSettings
 import com.majortomman.school.data.AttemptRecord
 import com.majortomman.school.data.LearningProgress
@@ -173,7 +174,7 @@ private fun MinimalBottomBar(
                 Text(
                     text = tab.label,
                     color = if (isSelected) NavigationWhite else NavigationWhite.copy(alpha = 0.32f),
-                    fontSize = androidx.compose.ui.unit.TextUnit.Unspecified,
+                    fontSize = 13.sp,
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                 )
                 Box(
