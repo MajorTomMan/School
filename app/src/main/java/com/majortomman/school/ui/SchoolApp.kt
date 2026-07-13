@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +41,7 @@ import com.majortomman.school.data.LearningProgress
 import com.majortomman.school.data.PreferencesRepository
 import com.majortomman.school.data.SampleContent
 import com.majortomman.school.data.ScheduledReview
+import com.majortomman.school.data.material.MaterialPackRepository
 import com.majortomman.school.data.recordAttempt
 import kotlinx.coroutines.launch
 
@@ -55,20 +57,40 @@ private enum class MainTab(val label: String) {
 }
 
 @Composable
-fun SchoolApp(repository: PreferencesRepository) {
+fun SchoolApp(
+    repository: PreferencesRepository,
+    materialRepository: MaterialPackRepository,
+) {
     var selectedTabName by rememberSaveable { mutableStateOf(MainTab.TODAY.name) }
     var openedLessonId by rememberSaveable { mutableStateOf<String?>(null) }
+    var openedTextbookPage by rememberSaveable { mutableStateOf<Int?>(null) }
     val scope = rememberCoroutineScope()
     val progress by repository.learningProgress.collectAsState(initial = LearningProgress())
     val aiSettings by repository.aiSettings.collectAsState(initial = AiSettings())
     val recentAttempts by repository.recentAttempts.collectAsState(initial = emptyList<AttemptRecord>())
     val reviewQueue by repository.reviewQueue.collectAsState(initial = emptyList<ScheduledReview>())
+    val materialState by materialRepository.state.collectAsState()
 
     val lessons = SampleContent.lessons.map { lesson ->
         lesson.copy(status = progress.lessonStatuses[lesson.id] ?: lesson.status)
     }
     val selectedTab = MainTab.valueOf(selectedTabName)
     val openedLesson = lessons.firstOrNull { it.id == openedLessonId }
+    val installedMaterial = materialState.installed
+
+    LaunchedEffect(installedMaterial) {
+        if (installedMaterial == null) openedTextbookPage = null
+    }
+
+    val textbookPage = openedTextbookPage
+    if (textbookPage != null && installedMaterial != null) {
+        PdfTextbookScreen(
+            pack = installedMaterial,
+            initialPrintedPage = textbookPage,
+            onBack = { openedTextbookPage = null },
+        )
+        return
+    }
 
     AnimatedContent(
         targetState = openedLesson,
@@ -88,6 +110,8 @@ fun SchoolApp(repository: PreferencesRepository) {
                 lesson = lesson,
                 aiSettings = aiSettings,
                 progress = progress,
+                installedMaterial = installedMaterial,
+                onOpenTextbook = { printedPage -> openedTextbookPage = printedPage },
                 onBack = { openedLessonId = null },
                 onRecordAttempt = { answer, correct, feedback ->
                     scope.launch {
@@ -136,9 +160,12 @@ fun SchoolApp(repository: PreferencesRepository) {
                                 onOpenLesson = { openedLessonId = it },
                             )
 
-                            MainTab.SETTINGS -> MinimalSettingsScreen(
+                            MainTab.SETTINGS -> MaterialSettingsScreen(
                                 settings = aiSettings,
+                                materialState = materialState,
                                 onSave = { updated -> scope.launch { repository.saveAiSettings(updated) } },
+                                onImportMaterial = { uri -> scope.launch { materialRepository.importFromUri(uri) } },
+                                onRemoveMaterial = { scope.launch { materialRepository.removeInstalledPack() } },
                                 onClearProgress = { scope.launch { repository.clearLearningProgress() } },
                             )
                         }
