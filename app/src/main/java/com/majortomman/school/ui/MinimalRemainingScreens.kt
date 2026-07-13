@@ -13,8 +13,8 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BasicTooltipBox
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,6 +33,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -51,7 +52,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
@@ -114,14 +114,9 @@ fun MinimalLearningScreen(
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        "返回",
-                        modifier = Modifier.clickable(onClick = onBack),
-                        color = MinimalMuted,
-                    )
                     Text(
                         "${stepIndex + 1} / ${steps.size}",
                         color = MinimalMuted,
@@ -155,17 +150,26 @@ fun MinimalLearningScreen(
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        if (helpVisible) "收起" else "我没看懂",
-                        modifier = Modifier.clickable { helpVisible = !helpVisible },
-                        color = MinimalMuted,
+                    MinimalOutlinedAction(
+                        label = "返回",
+                        color = MinimalWhite.copy(alpha = 0.72f),
+                        modifier = Modifier.weight(1f),
+                        onClick = onBack,
                     )
-                    MinimalTextAction(
-                        label = if (step == MinimalLessonStep.SUMMARY) "返回课程" else "继续",
+                    MinimalOutlinedAction(
+                        label = "我没看懂",
+                        color = MinimalYellow,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        helpVisible = !helpVisible
+                    }
+                    MinimalOutlinedAction(
+                        label = "继续",
                         color = MinimalBlue,
+                        modifier = Modifier.weight(1f),
                     ) {
                         helpVisible = false
                         if (step == MinimalLessonStep.SUMMARY) onBack()
@@ -375,36 +379,38 @@ private fun MinimalPractice(
         Spacer(Modifier.height(22.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                "提示",
-                modifier = Modifier.clickable { hint = (hint + 1).coerceAtMost(hints.size) },
+            MinimalOutlinedAction(
+                label = "提示",
                 color = MinimalYellow,
-            )
-            Text(
-                "本地检查",
-                modifier = Modifier.clickable(enabled = answer.isNotBlank()) {
-                    val compact = answer.replace(" ", "")
-                    val correct = compact.contains("2") && (compact.contains("大") || compact.contains(">"))
-                    val feedback = if (correct) {
-                        "判断正确。2 位于 -3 的右侧。"
-                    } else {
-                        "再检查两个数在数轴上的左右位置。"
-                    }
-                    result = feedback
-                    mistakeType = if (correct) null else "位置关系"
-                    onRecordAttempt(answer, correct, feedback)
-                },
-                color = if (answer.isBlank()) MinimalMuted else MinimalBlue,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-        Spacer(Modifier.height(18.dp))
-        Text(
-            if (isEvaluating) "批改中…" else "使用 AI 批改",
-            modifier = Modifier.clickable(
+                modifier = Modifier.weight(1f),
+            ) {
+                hint = (hint + 1).coerceAtMost(hints.size)
+            }
+            MinimalOutlinedAction(
+                label = "本地检查",
+                color = MinimalBlue,
+                enabled = answer.isNotBlank(),
+                modifier = Modifier.weight(1f),
+            ) {
+                val compact = answer.replace(" ", "")
+                val correct = compact.contains("2") && (compact.contains("大") || compact.contains(">"))
+                val feedback = if (correct) {
+                    "判断正确。2 位于 -3 的右侧。"
+                } else {
+                    "再检查两个数在数轴上的左右位置。"
+                }
+                result = feedback
+                mistakeType = if (correct) null else "位置关系"
+                onRecordAttempt(answer, correct, feedback)
+            }
+            MinimalOutlinedAction(
+                label = if (isEvaluating) "批改中…" else "AI 批改",
+                color = MinimalWhite.copy(alpha = 0.82f),
                 enabled = answer.isNotBlank() && !isEvaluating && settings.endpoint.isNotBlank() && settings.model.isNotBlank(),
+                modifier = Modifier.weight(1f),
             ) {
                 isEvaluating = true
                 result = "正在理解你的答案…"
@@ -422,10 +428,8 @@ private fun MinimalPractice(
                     onRecordAttempt(answer, evaluation.correct, evaluation.feedback)
                     isEvaluating = false
                 }
-            },
-            color = if (answer.isBlank()) MinimalMuted else MinimalBlue,
-            fontWeight = FontWeight.SemiBold,
-        )
+            }
+        }
         AnimatedVisibility(
             visible = hint > 0,
             enter = fadeIn(tween(220)) + expandVertically(tween(260)),
@@ -776,6 +780,36 @@ private fun MinimalInlineNotice(color: Color, label: String, body: String) {
         Box(Modifier.fillMaxWidth().height(2.dp).background(color))
         Text(label, color = color, fontWeight = FontWeight.Bold)
         Text(body, color = MinimalWhite.copy(alpha = 0.74f), lineHeight = 23.sp)
+    }
+}
+
+@Composable
+private fun MinimalOutlinedAction(
+    label: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    val contentColor = if (enabled) color else MinimalMuted.copy(alpha = 0.52f)
+    val borderColor = if (enabled) color.copy(alpha = 0.82f) else MinimalLine
+    Box(
+        modifier = modifier
+            .height(48.dp)
+            .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = contentColor,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+        )
     }
 }
 
