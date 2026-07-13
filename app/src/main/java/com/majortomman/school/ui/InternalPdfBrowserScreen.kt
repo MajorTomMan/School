@@ -273,7 +273,9 @@ private fun DirectoryRow(
         }
         Text(
             if (confirming) "确认移除" else "移除",
-            modifier = Modifier.clickable(onClick = onRemove).padding(start = 14.dp, vertical = 8.dp),
+            modifier = Modifier
+                .clickable(onClick = onRemove)
+                .padding(start = 14.dp, top = 8.dp, bottom = 8.dp),
             color = BrowserRed,
             fontSize = 12.sp,
         )
