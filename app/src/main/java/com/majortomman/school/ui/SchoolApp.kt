@@ -29,6 +29,7 @@ import com.majortomman.school.data.LearningProgress
 import com.majortomman.school.data.PreferencesRepository
 import com.majortomman.school.data.SampleContent
 import com.majortomman.school.data.ScheduledReview
+import com.majortomman.school.data.recordAttempt
 import kotlinx.coroutines.launch
 
 private enum class MainTab(
@@ -76,9 +77,9 @@ fun SchoolApp(repository: PreferencesRepository) {
                 aiSettings = aiSettings,
                 progress = progress,
                 onBack = { openedLessonId = null },
-                onRecordAttempt = { draft ->
+                onRecordAttempt = { answer, correct, feedback ->
                     scope.launch {
-                        repository.recordAttempt(lesson.id, draft)
+                        repository.recordAttempt(lesson.id, answer, correct, feedback)
                     }
                 },
             )
@@ -122,7 +123,7 @@ fun SchoolApp(repository: PreferencesRepository) {
                                 onOpenLesson = { openedLessonId = it },
                             )
 
-                            MainTab.REVIEW -> ReviewScreen(
+                            MainTab.REVIEW -> RoomReviewScreen(
                                 fallbackItems = SampleContent.reviews,
                                 progress = progress,
                                 scheduledReviews = reviewQueue,
