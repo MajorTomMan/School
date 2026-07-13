@@ -48,13 +48,13 @@ class TextbookAnalysisWorker(
             val lessons = textbook.lessons
             require(lessons.isNotEmpty()) { "教材没有可分析的课程" }
 
-            report(slot, 1, "正在准备本地文字识别")
+            report(slot, 1, "正在准备本地文字识别与知识编译")
             val settings = PreferencesRepository(applicationContext).aiSettings.first()
             val client = OpenAiCompatibleClient(settings)
             var aiEnabled = client.testConnection().isSuccess
+            var localKnowledgeCount = 0
             var textAiCount = 0
             var visionAiCount = 0
-            var ocrFallbackCount = 0
             var packCount = 0
             var catalogFallbackCount = 0
             var ocrPageCount = 0
@@ -68,7 +68,7 @@ class TextbookAnalysisWorker(
                         when (existing.source) {
                             LessonAnalysisSource.AI_TEXT -> textAiCount += 1
                             LessonAnalysisSource.AI_VISION -> visionAiCount += 1
-                            LessonAnalysisSource.OCR_FALLBACK -> ocrFallbackCount += 1
+                            LessonAnalysisSource.OCR_FALLBACK -> localKnowledgeCount += 1
                             LessonAnalysisSource.PACK -> packCount += 1
                             LessonAnalysisSource.CATALOG_FALLBACK -> catalogFallbackCount += 1
                         }
@@ -80,70 +80,80 @@ class TextbookAnalysisWorker(
                         packCount += 1
                         provided
                     } else {
-                        reportLessonProgress(slot, index, lessons.size, "本地 OCR · ${lesson.title}")
+                        reportLessonProgress(slot, index, lessons.size, "识别知识点 · ${lesson.title}")
                         val ocrPages = recognizeRepresentativePages(textbook, lesson, ocrEngine)
                         ocrPageCount += ocrPages.count { it.isUsable }
                         val usablePages = ocrPages.filter { it.isUsable }
+                        val localCompilation = LocalKnowledgeCompiler.compile(slot, lesson, ocrPages)
+                        val confidentLocal = localCompilation
+                            ?.takeIf { it.primary.confidence >= LOCAL_DIRECT_CONFIDENCE }
 
-                        val generatedByText = if (aiEnabled && usablePages.isNotEmpty()) {
-                            runCatching {
-                                val raw = client.analyzeTextbookLessonFromText(
-                                    subject = slot.subjectTitle,
-                                    lessonTitle = lesson.title,
-                                    pageStart = lesson.pageStart,
-                                    pageEnd = lesson.pageEnd,
-                                    pageTexts = usablePages.map { it.printedPage to it.text },
-                                )
-                                LessonAnalysis.fromModelResponse(
-                                    raw = raw,
-                                    lesson = lesson,
-                                    source = LessonAnalysisSource.AI_TEXT,
-                                )
-                            }
+                        if (confidentLocal != null) {
+                            localKnowledgeCount += 1
+                            confidentLocal.analysis
                         } else {
-                            null
-                        }
-                        val textAnalysis = generatedByText?.getOrNull()
-
-                        if (textAnalysis != null) {
-                            textAiCount += 1
-                            textAnalysis
-                        } else {
-                            val generatedByVision = if (aiEnabled) {
+                            val generatedByText = if (aiEnabled && usablePages.isNotEmpty()) {
                                 runCatching {
-                                    val images = renderRepresentativePages(textbook, lesson)
-                                    val raw = client.analyzeTextbookLesson(
+                                    val raw = client.analyzeTextbookLessonFromText(
                                         subject = slot.subjectTitle,
                                         lessonTitle = lesson.title,
                                         pageStart = lesson.pageStart,
                                         pageEnd = lesson.pageEnd,
-                                        pageImages = images,
+                                        pageTexts = usablePages.map { it.printedPage to it.text },
                                     )
                                     LessonAnalysis.fromModelResponse(
                                         raw = raw,
                                         lesson = lesson,
-                                        source = LessonAnalysisSource.AI_VISION,
+                                        source = LessonAnalysisSource.AI_TEXT,
                                     )
                                 }
                             } else {
                                 null
                             }
-                            val visionAnalysis = generatedByVision?.getOrNull()
+                            val textAnalysis = generatedByText?.getOrNull()
 
-                            if (visionAnalysis != null) {
-                                visionAiCount += 1
-                                visionAnalysis
+                            if (textAnalysis != null) {
+                                textAiCount += 1
+                                textAnalysis
                             } else {
-                                if (generatedByText?.isFailure == true && generatedByVision?.isFailure == true) {
-                                    aiEnabled = false
-                                }
-                                val offline = LessonAnalysisFallback.generateFromOcr(slot, lesson, ocrPages)
-                                if (offline.source == LessonAnalysisSource.OCR_FALLBACK) {
-                                    ocrFallbackCount += 1
+                                val generatedByVision = if (aiEnabled && localCompilation == null) {
+                                    runCatching {
+                                        val images = renderRepresentativePages(textbook, lesson)
+                                        val raw = client.analyzeTextbookLesson(
+                                            subject = slot.subjectTitle,
+                                            lessonTitle = lesson.title,
+                                            pageStart = lesson.pageStart,
+                                            pageEnd = lesson.pageEnd,
+                                            pageImages = images,
+                                        )
+                                        LessonAnalysis.fromModelResponse(
+                                            raw = raw,
+                                            lesson = lesson,
+                                            source = LessonAnalysisSource.AI_VISION,
+                                        )
+                                    }
                                 } else {
-                                    catalogFallbackCount += 1
+                                    null
                                 }
-                                offline
+                                val visionAnalysis = generatedByVision?.getOrNull()
+
+                                when {
+                                    visionAnalysis != null -> {
+                                        visionAiCount += 1
+                                        visionAnalysis
+                                    }
+                                    localCompilation != null -> {
+                                        localKnowledgeCount += 1
+                                        localCompilation.analysis
+                                    }
+                                    else -> {
+                                        if (generatedByText?.isFailure == true && generatedByVision?.isFailure == true) {
+                                            aiEnabled = false
+                                        }
+                                        catalogFallbackCount += 1
+                                        LessonAnalysisFallback.generate(slot, lesson)
+                                    }
+                                }
                             }
                         }
                     }
@@ -159,29 +169,29 @@ class TextbookAnalysisWorker(
             }
 
             val body = when {
+                localKnowledgeCount > 0 -> {
+                    "${slot.displayTitle}已从教材正文提取知识点，并生成 $localKnowledgeCount 个本地动态课程"
+                }
                 textAiCount > 0 -> {
                     "${slot.displayTitle}已本地识别 $ocrPageCount 个页面，并由文本模型生成 $textAiCount 个动态课程"
                 }
-                ocrFallbackCount > 0 -> {
-                    "${slot.displayTitle}已在设备上完成文字识别；连接文本模型后可继续生成更完整的动画和练习"
-                }
                 visionAiCount > 0 -> {
-                    "${slot.displayTitle}的本地 OCR 结果不足，已对必要页面使用视觉分析"
+                    "${slot.displayTitle}的文字结构不足，已对必要页面使用视觉分析"
                 }
                 packCount > 0 -> "${slot.displayTitle}已读取教材包扫描结果并生成动态课程"
-                else -> "${slot.displayTitle}已生成 ${lessons.size} 个离线课程模板"
+                else -> "${slot.displayTitle}已根据目录生成 ${lessons.size} 个离线课程模板"
             }
-            report(slot, 100, "教材分析完成")
-            showResult(slot, "教材分析完成", body, success = true)
+            report(slot, 100, "教材知识编译完成")
+            showResult(slot, "教材知识编译完成", body, success = true)
             Result.success(
                 workDataOf(
                     TextbookProcessingContract.KEY_SLOT_KEY to slot.key,
                     TextbookProcessingContract.KEY_STAGE to TextbookProcessingStage.COMPLETED.name,
                     TextbookProcessingContract.KEY_PROGRESS to 100,
-                    TextbookProcessingContract.KEY_MESSAGE to "教材分析完成",
+                    TextbookProcessingContract.KEY_MESSAGE to "教材知识编译完成",
+                    KEY_LOCAL_KNOWLEDGE_COUNT to localKnowledgeCount,
                     KEY_TEXT_AI_COUNT to textAiCount,
                     KEY_VISION_AI_COUNT to visionAiCount,
-                    KEY_OCR_FALLBACK_COUNT to ocrFallbackCount,
                     KEY_PACK_COUNT to packCount,
                     KEY_CATALOG_FALLBACK_COUNT to catalogFallbackCount,
                     KEY_OCR_PAGE_COUNT to ocrPageCount,
@@ -191,7 +201,7 @@ class TextbookAnalysisWorker(
             throw error
         } catch (error: Throwable) {
             val message = error.message ?: error::class.java.simpleName
-            showResult(slot, "教材分析未完成", message, success = false)
+            showResult(slot, "教材知识编译未完成", message, success = false)
             Result.failure(failureData(slot, message))
         }
     }
@@ -319,7 +329,7 @@ class TextbookAnalysisWorker(
     ): ForegroundInfo {
         val notification = Notification.Builder(applicationContext, CHANNEL_PROGRESS)
             .setSmallIcon(android.R.drawable.stat_sys_download)
-            .setContentTitle("正在分析${slot.displayTitle}")
+            .setContentTitle("正在编译${slot.displayTitle}的知识点")
             .setContentText(message)
             .setProgress(100, progress, false)
             .setOnlyAlertOnce(true)
@@ -365,13 +375,13 @@ class TextbookAnalysisWorker(
     private fun createNotificationChannels() {
         notificationManager.createNotificationChannel(
             NotificationChannel(CHANNEL_PROGRESS, "教材处理进度", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "显示教材导入、本地 OCR 和课程生成进度"
+                description = "显示教材 OCR、知识点提取和动态课程生成进度"
                 setSound(null, null)
             },
         )
         notificationManager.createNotificationChannel(
             NotificationChannel(CHANNEL_RESULT, "教材处理结果", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "教材处理完成或失败时发送提醒"
+                description = "教材知识编译完成或失败时发送提醒"
             },
         )
     }
@@ -408,9 +418,10 @@ class TextbookAnalysisWorker(
         const val MIN_OCR_SCALE = 0.35f
         const val MAX_IMAGE_WIDTH = 900
         const val JPEG_QUALITY = 72
+        const val LOCAL_DIRECT_CONFIDENCE = 0.72f
+        const val KEY_LOCAL_KNOWLEDGE_COUNT = "local_knowledge_count"
         const val KEY_TEXT_AI_COUNT = "text_ai_analysis_count"
         const val KEY_VISION_AI_COUNT = "vision_ai_analysis_count"
-        const val KEY_OCR_FALLBACK_COUNT = "ocr_fallback_count"
         const val KEY_PACK_COUNT = "pack_analysis_count"
         const val KEY_CATALOG_FALLBACK_COUNT = "catalog_fallback_count"
         const val KEY_OCR_PAGE_COUNT = "ocr_page_count"

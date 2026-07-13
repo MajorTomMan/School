@@ -3,13 +3,13 @@ package com.majortomman.school.data.material
 import org.json.JSONArray
 import org.json.JSONObject
 
-const val LESSON_ANALYSIS_SCHEMA_VERSION = 2
+const val LESSON_ANALYSIS_SCHEMA_VERSION = 3
 
 enum class LessonAnalysisSource(val label: String) {
     PACK("教材包扫描结果"),
     AI_TEXT("本地 OCR + 文本分析"),
     AI_VISION("教材页面视觉分析"),
-    OCR_FALLBACK("本地 OCR 提取"),
+    OCR_FALLBACK("本地知识编译"),
     CATALOG_FALLBACK("目录生成"),
 }
 
@@ -151,6 +151,7 @@ data class LessonAnalysis(
             expression = scene.expression.take(180),
             conclusion = scene.conclusion.ifBlank { safeSummary }.take(500),
             steps = scene.steps.filter { it.isNotBlank() }.map { it.take(160) }.take(8),
+            sourcePage = scene.sourcePage.coerceIn(sourcePages.first, sourcePages.last),
         )
         val safeExercise = exercise.copy(
             question = exercise.question.ifBlank { "请用自己的话说明本节最重要的结论。" }.take(800),
@@ -228,7 +229,6 @@ object LessonAnalysisFallback {
                 type = LessonSceneType.PROCESS,
                 title = "把教材拆成过程",
                 prompt = "${lesson.title}中，哪些条件会一步一步导向结论？",
-                expression = "",
                 conclusion = "先识别条件与对象，再按照教材顺序建立关系。",
                 steps = listOf("定位教材原页", "找出核心对象", "识别条件或变化", "形成结论", "用例题验证"),
                 sourcePage = page,
@@ -283,25 +283,7 @@ object LessonAnalysisFallback {
         slot: TextbookSlot,
         lesson: GeneratedLesson,
         pages: List<OcrPageResult>,
-    ): LessonAnalysis {
-        val fallback = generate(slot, lesson)
-        val excerpt = pages.asSequence()
-            .filter { it.isUsable }
-            .map { it.compactText }
-            .joinToString(" ")
-            .take(420)
-            .trim()
-        if (excerpt.isBlank()) return fallback
-        return fallback.copy(
-            summary = "教材本地识别内容：$excerpt",
-            objectives = listOf(
-                "结合教材原文理解${lesson.title}",
-                "从识别出的定义、例题或说明中找出关键条件",
-                "回到教材第 ${lesson.pageStart}—${lesson.pageEnd} 页核对结论",
-            ),
-            source = LessonAnalysisSource.OCR_FALLBACK,
-        )
-    }
+    ): LessonAnalysis = LocalKnowledgeCompiler.compile(slot, lesson, pages)?.analysis ?: generate(slot, lesson)
 }
 
 private fun JSONArray?.toStringList(): List<String> = buildList {
