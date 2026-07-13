@@ -8,15 +8,16 @@ import org.junit.Test
 class TextbookOcrModelsTest {
     @Test
     fun `ocr page keeps text coordinates after json round trip`() {
+        val textbookText = "规定了原点、正方向和单位长度的直线叫做数轴，数轴上的点可以表示有理数。"
         val original = OcrPageResult(
             printedPage = 15,
             pdfIndex = 18,
             width = 1600,
             height = 2200,
-            text = "规定了原点、正方向和单位长度的直线叫做数轴。",
+            text = textbookText,
             lines = listOf(
                 OcrTextLine(
-                    text = "规定了原点、正方向和单位长度的直线叫做数轴。",
+                    text = textbookText,
                     left = 0.08f,
                     top = 0.15f,
                     right = 0.91f,
