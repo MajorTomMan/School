@@ -1,12 +1,10 @@
 package com.majortomman.school.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -14,48 +12,34 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val LightColors = lightColorScheme(
-    primary = Color(0xFF9A342D),
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFFFDAD5),
-    onPrimaryContainer = Color(0xFF3C0906),
-    secondary = Color(0xFF725754),
-    onSecondary = Color.White,
-    secondaryContainer = Color(0xFFFFDAD6),
-    onSecondaryContainer = Color(0xFF2A1513),
-    tertiary = Color(0xFF526440),
-    onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFD5E9BE),
-    onTertiaryContainer = Color(0xFF111F08),
-    background = Color(0xFFF8F5F0),
-    onBackground = Color(0xFF211A19),
-    surface = Color(0xFFFFFBF8),
-    onSurface = Color(0xFF211A19),
-    surfaceVariant = Color(0xFFF2DFDC),
-    onSurfaceVariant = Color(0xFF534341),
-    outline = Color(0xFF857370),
-)
+private val TechBlack = Color(0xFF050608)
+private val TechWhite = Color(0xFFF5F7FA)
+private val TechBlue = Color(0xFF2D7BFF)
+private val TechRed = Color(0xFFFF3B30)
+private val TechYellow = Color(0xFFFFCC00)
 
-private val DarkColors = darkColorScheme(
-    primary = Color(0xFFFFB4AC),
-    onPrimary = Color(0xFF5C1713),
-    primaryContainer = Color(0xFF7B2923),
-    onPrimaryContainer = Color(0xFFFFDAD5),
-    secondary = Color(0xFFE3BDB8),
-    onSecondary = Color(0xFF422825),
-    secondaryContainer = Color(0xFF5B3F3C),
-    onSecondaryContainer = Color(0xFFFFDAD6),
-    tertiary = Color(0xFFB9CDA4),
-    onTertiary = Color(0xFF263516),
-    tertiaryContainer = Color(0xFF3C4C2B),
-    onTertiaryContainer = Color(0xFFD5E9BE),
-    background = Color(0xFF171312),
-    onBackground = Color(0xFFEDE0DD),
-    surface = Color(0xFF201A19),
-    onSurface = Color(0xFFEDE0DD),
-    surfaceVariant = Color(0xFF534341),
-    onSurfaceVariant = Color(0xFFD8C2BE),
-    outline = Color(0xFFA08C88),
+private val TechColors = darkColorScheme(
+    primary = TechBlue,
+    onPrimary = TechWhite,
+    primaryContainer = Color(0xFF0A2552),
+    onPrimaryContainer = TechWhite,
+    secondary = TechYellow,
+    onSecondary = TechBlack,
+    secondaryContainer = Color(0xFF3A3000),
+    onSecondaryContainer = TechWhite,
+    tertiary = TechRed,
+    onTertiary = TechWhite,
+    tertiaryContainer = Color(0xFF48110E),
+    onTertiaryContainer = TechWhite,
+    background = TechBlack,
+    onBackground = TechWhite,
+    surface = Color(0xFF090B0F),
+    onSurface = TechWhite,
+    surfaceVariant = Color(0xFF11151C),
+    onSurfaceVariant = Color(0xFFB8C0CC),
+    outline = Color(0xFF56606E),
+    error = TechRed,
+    onError = TechWhite,
 )
 
 private val SchoolTypography = Typography(
@@ -103,20 +87,20 @@ private val SchoolTypography = Typography(
 )
 
 private val SchoolShapes = Shapes(
-    extraSmall = RoundedCornerShape(10.dp),
-    small = RoundedCornerShape(14.dp),
-    medium = RoundedCornerShape(18.dp),
-    large = RoundedCornerShape(24.dp),
-    extraLarge = RoundedCornerShape(30.dp),
+    extraSmall = RoundedCornerShape(4.dp),
+    small = RoundedCornerShape(6.dp),
+    medium = RoundedCornerShape(8.dp),
+    large = RoundedCornerShape(10.dp),
+    extraLarge = RoundedCornerShape(12.dp),
 )
 
 @Composable
 fun SchoolTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
+        colorScheme = TechColors,
         typography = SchoolTypography,
         shapes = SchoolShapes,
         content = content,
