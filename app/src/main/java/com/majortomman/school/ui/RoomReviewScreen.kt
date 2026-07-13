@@ -132,7 +132,11 @@ fun RoomReviewScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                SectionTitle("最近作答")
+                Text(
+                    "最近作答",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
                 Text(
                     "正确率 ${progress.accuracyPercent}%",
                     style = MaterialTheme.typography.labelMedium,
