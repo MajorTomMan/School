@@ -108,10 +108,12 @@ class MaterialPackRepository(
         val active = runCatching {
             BundledMathKnowledgePack.upgradeIfMatched(appContext, textbook)
         }.getOrDefault(textbook)
-        return LessonAnalysisStore.read(File(active.pack.rootPath), lessonSourceId)
-            ?: active.lessons.firstOrNull { it.sourceId == lessonSourceId }
-                ?.let { lesson -> PrebuiltMathAnalysisFactory.create(active.slot, lesson) }
-                ?.also { analysis -> LessonAnalysisStore.write(File(active.pack.rootPath), analysis) }
+        val root = File(active.pack.rootPath)
+        LessonAnalysisStore.read(root, lessonSourceId)?.let { return it }
+        if (active.pack.manifest.version != PREBUILT_MATH_VERSION) return null
+        return active.lessons.firstOrNull { it.sourceId == lessonSourceId }
+            ?.let { lesson -> PrebuiltMathAnalysisFactory.create(active.slot, lesson) }
+            ?.also { analysis -> LessonAnalysisStore.write(root, analysis) }
     }
 
     fun analyzedLessonCount(textbook: InstalledTextbook): Int {
