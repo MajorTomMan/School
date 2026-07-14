@@ -124,13 +124,13 @@ internal object BundledMathKnowledgePack {
                             edition = book.optString("edition", "预制数学知识包"),
                             lessons = buildList {
                                 for (lessonIndex in 0 until lessons.length()) {
-                                    val lesson = lessons.getJSONObject(lessonIndex)
+                                    val lesson = lessons.getJSONArray(lessonIndex)
                                     add(
                                         BundledMathLesson(
-                                            sourceId = lesson.getString("sourceId"),
-                                            title = lesson.getString("title"),
-                                            pageStart = lesson.getInt("pageStart"),
-                                            pageEnd = lesson.getInt("pageEnd"),
+                                            sourceId = lesson.getString(0),
+                                            title = lesson.getString(1),
+                                            pageStart = lesson.getInt(2),
+                                            pageEnd = lesson.getInt(3),
                                         ),
                                     )
                                 }
