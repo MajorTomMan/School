@@ -25,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -43,6 +44,7 @@ import com.majortomman.school.data.LearningProgress
 import com.majortomman.school.data.MasteryStatus
 import com.majortomman.school.data.PreferencesRepository
 import com.majortomman.school.data.ScheduledReview
+import com.majortomman.school.data.material.LessonAnalysis
 import com.majortomman.school.data.material.MaterialPackRepository
 import com.majortomman.school.data.math.MathQuestionBankRepository
 import com.majortomman.school.data.recordAttempt
@@ -74,6 +76,8 @@ fun SchoolApp(
     var openedLessonId by rememberSaveable { mutableStateOf<String?>(null) }
     var openedTextbookKey by rememberSaveable { mutableStateOf<String?>(null) }
     var openedTextbookPage by rememberSaveable { mutableStateOf<Int?>(null) }
+    var openedAnalysis by remember { mutableStateOf<LessonAnalysis?>(null) }
+    var resolvedAnalysisKey by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val progress by repository.learningProgress.collectAsState(initial = LearningProgress())
     val aiSettings by repository.aiSettings.collectAsState(initial = AiSettings())
@@ -104,12 +108,23 @@ fun SchoolApp(
     val openedLessonIndex = lessons.indexOfFirst { it.id == openedLessonId }
     val nextLesson = openedLessonIndex.takeIf { it >= 0 }?.let { lessons.getOrNull(it + 1) }
     val openedGeneratedLesson = activeTextbook?.lessons?.firstOrNull { it.id == openedLessonId }
-    val openedAnalysis = if (activeTextbook != null && openedGeneratedLesson != null) {
-        materialRepository.loadLessonAnalysis(activeTextbook, openedGeneratedLesson.sourceId)
-    } else {
-        null
+    val analysisRequestKey = activeTextbook?.key?.let { textbookKey ->
+        openedGeneratedLesson?.sourceId?.let { sourceId -> "$textbookKey:$sourceId" }
     }
     val openedTextbook = libraryState.installedTextbooks.firstOrNull { it.key == openedTextbookKey }
+
+    LaunchedEffect(analysisRequestKey) {
+        openedAnalysis = null
+        resolvedAnalysisKey = null
+        if (analysisRequestKey != null && activeTextbook != null && openedGeneratedLesson != null) {
+            openedAnalysis = materialRepository.loadLessonAnalysis(
+                activeTextbook,
+                openedGeneratedLesson.sourceId,
+            )
+            resolvedAnalysisKey = analysisRequestKey
+        }
+    }
+    val openedAnalysisLoading = analysisRequestKey != null && resolvedAnalysisKey != analysisRequestKey
 
     LaunchedEffect(libraryState.installedTextbooks.map { it.key }) {
         if (activeTextbookKey != null && activeTextbook == null) {
@@ -168,10 +183,15 @@ fun SchoolApp(
                     selectedTabName = MainTab.PATH.name
                 }
             }
-            if (openedAnalysis != null) {
-                GeneratedLearningScreen(
+            when {
+                openedAnalysisLoading -> LessonAnalysisLoadingScreen(
+                    lessonTitle = lesson.title,
+                    onBack = { openedLessonId = null },
+                )
+
+                openedAnalysis != null -> GeneratedLearningScreen(
                     lesson = lesson,
-                    analysis = openedAnalysis,
+                    analysis = openedAnalysis!!,
                     aiSettings = aiSettings,
                     progress = progress,
                     installedMaterial = activeTextbook.pack,
@@ -181,8 +201,8 @@ fun SchoolApp(
                     onComplete = completeLesson,
                     onRecordAttempt = recordAttempt,
                 )
-            } else {
-                SceneLearningScreen(
+
+                else -> SceneLearningScreen(
                     lesson = lesson,
                     aiSettings = aiSettings,
                     progress = progress,
@@ -290,6 +310,45 @@ fun SchoolApp(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun LessonAnalysisLoadingScreen(
+    lessonTitle: String,
+    onBack: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(NavigationBlack)
+            .padding(horizontal = 28.dp, vertical = 44.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = "返回",
+            modifier = Modifier.clickable(onClick = onBack).padding(vertical = 8.dp),
+            color = NavigationWhite.copy(alpha = 0.56f),
+            fontSize = 14.sp,
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = lessonTitle,
+                color = NavigationWhite,
+                fontSize = 36.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "正在读取预制课程",
+                color = NavigationBlue,
+                fontSize = 15.sp,
+            )
+        }
+        Text(
+            text = "教材与学习记录保持在本机。",
+            color = NavigationWhite.copy(alpha = 0.34f),
+            fontSize = 13.sp,
+        )
     }
 }
 

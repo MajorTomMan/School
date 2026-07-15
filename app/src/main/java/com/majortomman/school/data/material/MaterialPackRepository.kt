@@ -10,11 +10,15 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import java.io.File
+import java.util.UUID
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MaterialPackRepository(
@@ -22,11 +26,34 @@ class MaterialPackRepository(
 ) {
     private val appContext = context.applicationContext
     private val workManager = WorkManager.getInstance(appContext)
-    private val mutableState = MutableStateFlow(
-        MaterialLibraryState(installedTextbooks = MaterialLibraryStore.read(appContext)),
-    )
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val cacheLock = Any()
+
+    @Volatile
+    private var installedCache: List<InstalledTextbook> = emptyList()
+
+    @Volatile
+    private var latestWorkInfos: List<WorkInfo> = emptyList()
+
+    private var observedWorkStates: Map<UUID, WorkInfo.State> = emptyMap()
+    private val mutableState = MutableStateFlow(MaterialLibraryState())
     private val workObserver = Observer<List<WorkInfo>> { workInfos ->
-        refresh(workInfos.orEmpty())
+        val current = workInfos.orEmpty()
+        val shouldReload = synchronized(cacheLock) {
+            val reload = current.any { info ->
+                observedWorkStates[info.id] != info.state && info.state == WorkInfo.State.SUCCEEDED
+            }
+            observedWorkStates = current.associate { it.id to it.state }
+            latestWorkInfos = current
+            reload
+        }
+        publish(current)
+        if (shouldReload) {
+            ioScope.launch {
+                reloadInstalledCache()
+                publish(latestWorkInfos)
+            }
+        }
     }
 
     val state: StateFlow<MaterialLibraryState> = mutableState.asStateFlow()
@@ -34,7 +61,16 @@ class MaterialPackRepository(
     init {
         workManager.getWorkInfosByTagLiveData(TextbookProcessingContract.TAG)
             .observeForever(workObserver)
-        scheduleMissingAnalyses()
+        ioScope.launch {
+            val installed = reloadInstalledCache()
+            scheduleMissingAnalyses(installed)
+            val workInfos = workManager.getWorkInfosByTag(TextbookProcessingContract.TAG).get()
+            synchronized(cacheLock) {
+                observedWorkStates = workInfos.associate { it.id to it.state }
+                latestWorkInfos = workInfos
+            }
+            publish(workInfos)
+        }
     }
 
     fun enqueueImport(
@@ -70,22 +106,33 @@ class MaterialPackRepository(
             ExistingWorkPolicy.KEEP,
             importRequest,
         )
+            .then(prebuiltUpgradeRequest(slot))
             .then(analysisRequest(slot))
             .then(questionExtractionRequest(slot))
             .enqueue()
     }
 
     fun enqueueAnalysis(slot: TextbookSlot) {
-        val installed = MaterialLibraryStore.read(appContext).firstOrNull { it.slot.key == slot.key } ?: return
-        File(installed.pack.rootPath, "generated/analysis").deleteRecursively()
-        File(installed.pack.rootPath, "generated/questions").deleteRecursively()
-        workManager.beginUniqueWork(
-            analysisWorkName(slot),
-            ExistingWorkPolicy.REPLACE,
-            analysisRequest(slot),
-        )
-            .then(questionExtractionRequest(slot))
-            .enqueue()
+        val installed = installedSnapshot().firstOrNull { it.slot.key == slot.key } ?: return
+        ioScope.launch {
+            val upgraded = runCatching {
+                BundledMathKnowledgePack.upgradeIfMatched(appContext, installed)
+            }.getOrDefault(installed)
+            if (upgraded != installed) replaceCachedTextbook(upgraded)
+            if (upgraded.pack.manifest.version == PREBUILT_MATH_VERSION) {
+                publish(latestWorkInfos)
+                return@launch
+            }
+            File(upgraded.pack.rootPath, "generated/analysis").deleteRecursively()
+            File(upgraded.pack.rootPath, "generated/questions").deleteRecursively()
+            workManager.beginUniqueWork(
+                analysisWorkName(slot),
+                ExistingWorkPolicy.REPLACE,
+                analysisRequest(slot),
+            )
+                .then(questionExtractionRequest(slot))
+                .enqueue()
+        }
     }
 
     fun cancelProcessing(slot: TextbookSlot) {
@@ -94,29 +141,73 @@ class MaterialPackRepository(
         workManager.cancelUniqueWork(questionWorkName(slot))
     }
 
-    fun loadLessonAnalysis(
+    suspend fun loadLessonAnalysis(
         textbook: InstalledTextbook,
         lessonSourceId: String,
-    ): LessonAnalysis? = LessonAnalysisStore.read(File(textbook.pack.rootPath), lessonSourceId)
+    ): LessonAnalysis? = withContext(Dispatchers.IO) {
+        val active = runCatching {
+            BundledMathKnowledgePack.upgradeIfMatched(appContext, textbook)
+        }.getOrDefault(textbook)
+        if (active != textbook) replaceCachedTextbook(active)
+        val root = File(active.pack.rootPath)
+        LessonAnalysisStore.read(root, lessonSourceId)?.let { return@withContext it }
+        if (active.pack.manifest.version != PREBUILT_MATH_VERSION) return@withContext null
+        active.lessons.firstOrNull { it.sourceId == lessonSourceId }
+            ?.let { lesson -> PrebuiltMathAnalysisFactory.create(active.slot, lesson) }
+            ?.also { analysis -> LessonAnalysisStore.write(root, analysis) }
+    }
 
-    fun analyzedLessonCount(textbook: InstalledTextbook): Int =
-        LessonAnalysisStore.count(File(textbook.pack.rootPath), textbook.lessons)
+    fun analyzedLessonCount(textbook: InstalledTextbook): Int {
+        val active = installedSnapshot().firstOrNull { it.key == textbook.key } ?: textbook
+        return LessonAnalysisStore.count(File(active.pack.rootPath), active.lessons)
+    }
 
     suspend fun removeInstalled(slot: TextbookSlot) = withContext(Dispatchers.IO) {
         cancelProcessing(slot)
         val removed = MaterialLibraryStore.remove(appContext, slot.key)
         removed?.pack?.rootPath?.let { File(it).deleteRecursively() }
         MaterialLibraryStore.processingRoot(appContext, slot).deleteRecursively()
-        refreshCurrent()
+        reloadInstalledCache()
+        val workInfos = workManager.getWorkInfosByTag(TextbookProcessingContract.TAG).get()
+        publish(workInfos)
     }
 
     fun refreshCurrent() {
-        workManager.getWorkInfosByTag(TextbookProcessingContract.TAG).get()
-            .let(::refresh)
+        ioScope.launch {
+            reloadInstalledCache()
+            val workInfos = workManager.getWorkInfosByTag(TextbookProcessingContract.TAG).get()
+            publish(workInfos)
+        }
     }
 
-    private fun scheduleMissingAnalyses() {
-        MaterialLibraryStore.read(appContext).forEach { textbook ->
+    private fun reloadInstalledCache(): List<InstalledTextbook> {
+        val installed = MaterialLibraryStore.read(appContext).map { textbook ->
+            runCatching {
+                BundledMathKnowledgePack.upgradeIfMatched(appContext, textbook)
+            }.getOrDefault(textbook)
+        }
+        synchronized(cacheLock) {
+            installedCache = installed
+        }
+        return installed
+    }
+
+    private fun replaceCachedTextbook(textbook: InstalledTextbook) {
+        synchronized(cacheLock) {
+            val updated = installedCache.toMutableList()
+            val index = updated.indexOfFirst { it.key == textbook.key }
+            if (index >= 0) updated[index] = textbook else updated += textbook
+            installedCache = updated
+        }
+        publish(latestWorkInfos)
+    }
+
+    private fun installedSnapshot(): List<InstalledTextbook> = synchronized(cacheLock) {
+        installedCache.toList()
+    }
+
+    private fun scheduleMissingAnalyses(textbooks: List<InstalledTextbook>) {
+        textbooks.forEach { textbook ->
             val root = File(textbook.pack.rootPath)
             val completed = LessonAnalysisStore.count(root, textbook.lessons)
             val needsAnalysis = completed < textbook.lessons.size
@@ -127,8 +218,9 @@ class MaterialPackRepository(
                 needsAnalysis -> workManager.beginUniqueWork(
                     TextbookProcessingContract.uniqueWorkName(textbook.slot),
                     ExistingWorkPolicy.KEEP,
-                    analysisRequest(textbook.slot),
+                    prebuiltUpgradeRequest(textbook.slot),
                 )
+                    .then(analysisRequest(textbook.slot))
                     .then(questionExtractionRequest(textbook.slot))
                     .enqueue()
 
@@ -140,6 +232,13 @@ class MaterialPackRepository(
             }
         }
     }
+
+    private fun prebuiltUpgradeRequest(slot: TextbookSlot) =
+        OneTimeWorkRequestBuilder<PrebuiltMathKnowledgeWorker>()
+            .setInputData(slotInput(slot))
+            .addTag(TextbookProcessingContract.TAG)
+            .addTag(TextbookProcessingContract.slotTag(slot))
+            .build()
 
     private fun analysisRequest(slot: TextbookSlot) = OneTimeWorkRequestBuilder<TextbookAnalysisWorker>()
         .setInputData(slotInput(slot))
@@ -170,8 +269,10 @@ class MaterialPackRepository(
         TextbookProcessingContract.KEY_SLOT_KEY to slot.key,
     )
 
-    private fun refresh(workInfos: List<WorkInfo>) {
-        val installed = MaterialLibraryStore.read(appContext)
+    private fun publish(workInfos: List<WorkInfo>) {
+        synchronized(cacheLock) {
+            latestWorkInfos = workInfos
+        }
         val jobs = workInfos
             .mapNotNull(::toProcessingState)
             .groupBy { it.slot.key }
@@ -179,7 +280,7 @@ class MaterialPackRepository(
                 states.maxByOrNull { statePriority(it.status) } ?: states.first()
             }
         mutableState.value = MaterialLibraryState(
-            installedTextbooks = installed,
+            installedTextbooks = installedSnapshot(),
             processing = jobs,
             message = jobs.values.firstOrNull { it.status == TextbookProcessingStatus.FAILED }?.message,
         )
@@ -226,4 +327,8 @@ class MaterialPackRepository(
 
     private fun analysisWorkName(slot: TextbookSlot): String = "textbook-analysis-${slot.key}"
     private fun questionWorkName(slot: TextbookSlot): String = "textbook-question-extraction-${slot.key}"
+
+    private companion object {
+        const val PREBUILT_MATH_VERSION = "prebuilt-math-v1"
+    }
 }
