@@ -278,6 +278,12 @@ object LessonAnalysisFallback {
             source = LessonAnalysisSource.CATALOG_FALLBACK,
         )
     }
+
+    fun generateFromOcr(
+        slot: TextbookSlot,
+        lesson: GeneratedLesson,
+        pages: List<OcrPageResult>,
+    ): LessonAnalysis = LocalKnowledgeCompiler.compile(slot, lesson, pages)?.analysis ?: generate(slot, lesson)
 }
 
 private fun JSONArray?.toStringList(): List<String> = buildList {
@@ -290,6 +296,7 @@ private fun JSONArray?.toStringList(): List<String> = buildList {
 private fun JSONArray?.toDoubleList(): List<Double> = buildList {
     val source = this@toDoubleList ?: return@buildList
     for (index in 0 until source.length()) {
-        add(source.optDouble(index))
+        val value = source.optDouble(index, Double.NaN)
+        if (!value.isNaN() && value.isFinite()) add(value)
     }
 }
