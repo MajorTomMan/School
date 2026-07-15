@@ -83,9 +83,14 @@ class MaterialPackRepository(
                 Intent.FLAG_GRANT_READ_URI_PERMISSION,
             )
         }
-        val input = slotInput(slot).toBuilder()
-            .putString(TextbookProcessingContract.KEY_SOURCE_URI, uri.toString())
-            .build()
+        val input = workDataOf(
+            TextbookProcessingContract.KEY_SOURCE_URI to uri.toString(),
+            TextbookProcessingContract.KEY_SUBJECT_ID to slot.subjectId,
+            TextbookProcessingContract.KEY_SUBJECT_TITLE to slot.subjectTitle,
+            TextbookProcessingContract.KEY_GRADE to slot.grade,
+            TextbookProcessingContract.KEY_VOLUME to slot.volume.id,
+            TextbookProcessingContract.KEY_SLOT_KEY to slot.key,
+        )
         val importRequest = OneTimeWorkRequestBuilder<TextbookProcessingWorker>()
             .setInputData(input)
             .addTag(TextbookProcessingContract.TAG)
