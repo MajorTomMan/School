@@ -2,6 +2,10 @@ package com.majortomman.school.data.material
 
 import android.content.Context
 import java.io.File
+import java.io.IOException
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -64,13 +68,15 @@ internal data class BundledMathKnowledgeBook(
             subject = "数学",
             pdf = textbook.pack.manifest.pdf.copy(pageIndexOffset = pageIndexOffset),
         )
-        File(root, "manifest.json").writeText(
-            MaterialPackManifestParser.toJson(manifest).toString(2),
-            Charsets.UTF_8,
+        writeTextAtomically(
+            file = File(root, "manifest.json"),
+            text = MaterialPackManifestParser.toJson(manifest).toString(2),
+            errorMessage = "无法保存预制教材信息",
         )
-        File(root, manifest.catalogPath).writeText(
-            DirectPdfImportScanner.catalogToJson(scan.catalog).toString(2),
-            Charsets.UTF_8,
+        writeTextAtomically(
+            file = File(root, manifest.catalogPath),
+            text = DirectPdfImportScanner.catalogToJson(scan.catalog).toString(2),
+            errorMessage = "无法保存预制教材目录",
         )
 
         val generatedLessons = TextbookCatalogParser.generateLessons(textbook.slot, scan.catalog)
@@ -82,23 +88,21 @@ internal data class BundledMathKnowledgeBook(
                 PrebuiltMathAnalysisFactory.create(textbook.slot, generated),
             )
         }
-        File(root, "generated/identity.json").apply {
-            parentFile?.mkdirs()
-            writeText(
-                JSONObject()
-                    .put("sourceMode", "PREBUILT_MATH")
-                    .put("title", title)
-                    .put("subject", "数学")
-                    .put("stage", stage.id)
-                    .put("grade", grade)
-                    .put("volume", volume.id)
-                    .put("pageIndexOffset", pageIndexOffset)
-                    .put("knowledgePointCount", generatedLessons.size)
-                    .put("evidence", scan.evidence)
-                    .toString(2),
-                Charsets.UTF_8,
-            )
-        }
+        writeTextAtomically(
+            file = File(root, "generated/identity.json"),
+            text = JSONObject()
+                .put("sourceMode", "PREBUILT_MATH")
+                .put("title", title)
+                .put("subject", "数学")
+                .put("stage", stage.id)
+                .put("grade", grade)
+                .put("volume", volume.id)
+                .put("pageIndexOffset", pageIndexOffset)
+                .put("knowledgePointCount", generatedLessons.size)
+                .put("evidence", scan.evidence)
+                .toString(2),
+            errorMessage = "无法保存预制教材识别信息",
+        )
 
         return InstalledTextbook(
             slot = textbook.slot,
@@ -112,17 +116,15 @@ internal data class BundledMathKnowledgeBook(
     }
 
     private fun writeGeneratedLessons(file: File, generatedLessons: List<GeneratedLesson>) {
-        file.parentFile?.let { parent ->
-            require(parent.mkdirs() || parent.isDirectory) { "无法创建预制课程目录" }
-        }
         val root = JSONObject().put(
             "lessons",
             JSONArray().apply { generatedLessons.forEach { put(it.toJson()) } },
         )
-        val temporary = File(file.parentFile, "${file.name}.tmp")
-        temporary.writeText(root.toString(2), Charsets.UTF_8)
-        if (file.exists()) file.delete()
-        require(temporary.renameTo(file)) { "无法保存预制数学课程" }
+        writeTextAtomically(
+            file = file,
+            text = root.toString(2),
+            errorMessage = "无法保存预制数学课程",
+        )
     }
 
     private companion object {
@@ -158,7 +160,7 @@ internal object BundledMathKnowledgePack {
         context: Context,
         textbook: InstalledTextbook,
     ): InstalledTextbook {
-        if (textbook.pack.manifest.version == "prebuilt-math-v1") return textbook
+        if (textbook.pack.manifest.version == PACK_VERSION) return textbook
         val book = find(
             context = context,
             sha256 = textbook.pack.manifest.pdf.sha256,
@@ -225,6 +227,38 @@ internal object BundledMathKnowledgePack {
         .replace("）", ")")
         .replace(Regex("[\\s_\\-]+"), "")
         .lowercase()
+
+    private const val PACK_VERSION = "prebuilt-math-v1"
+}
+
+private fun writeTextAtomically(
+    file: File,
+    text: String,
+    errorMessage: String,
+) {
+    val parent = file.parentFile ?: throw IOException(errorMessage)
+    require(parent.mkdirs() || parent.isDirectory) { "无法创建 ${parent.absolutePath}" }
+    val temporary = File(parent, ".${file.name}.${System.nanoTime()}.tmp")
+    try {
+        temporary.writeText(text, Charsets.UTF_8)
+        try {
+            Files.move(
+                temporary.toPath(),
+                file.toPath(),
+                StandardCopyOption.REPLACE_EXISTING,
+                StandardCopyOption.ATOMIC_MOVE,
+            )
+        } catch (_: AtomicMoveNotSupportedException) {
+            Files.move(
+                temporary.toPath(),
+                file.toPath(),
+                StandardCopyOption.REPLACE_EXISTING,
+            )
+        }
+    } catch (error: Throwable) {
+        temporary.delete()
+        throw IOException(errorMessage, error)
+    }
 }
 
 private fun JSONArray?.toStringList(): List<String> = buildList {
