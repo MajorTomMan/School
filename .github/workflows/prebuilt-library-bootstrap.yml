@@ -1,0 +1,76 @@
+name: Build prebuilt textbook library
+
+on:
+  push:
+    branches:
+      - agent/all-subject-prebuilt-library
+    paths:
+      - .github/workflows/prebuilt-library-bootstrap.yml
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/all-subject-prebuilt-library
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install PDF compiler
+        run: pip install --disable-pip-version-check gdown pypdf pymupdf
+
+      - name: Download source textbooks
+        run: |
+          mkdir -p build/source-pdfs
+          python - <<'PY'
+          from pathlib import Path
+          import gdown
+          target = Path('build/source-pdfs')
+          ids = Path('tools/prebuilt/drive_ids.txt').read_text().splitlines()
+          for index, file_id in enumerate(filter(None, ids), 1):
+              print(f'[{index}/{len(ids)}] {file_id}', flush=True)
+              result = gdown.download(id=file_id, output=str(target) + '/', quiet=False)
+              if not result:
+                  raise SystemExit(f'download failed: {file_id}')
+          pdfs = list(target.glob('*.pdf'))
+          if len(pdfs) != 45:
+              raise SystemExit(f'expected 45 PDFs, got {len(pdfs)}')
+          PY
+
+      - name: Compile and validate catalog
+        run: |
+          python tools/prebuilt/generate_all_subject_index.py \
+            --input build/source-pdfs \
+            --output app/src/main/assets/prebuilt/all/index.json
+          python tools/prebuilt/patch_repository.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          generic=json.loads(Path('app/src/main/assets/prebuilt/all/index.json').read_text())
+          math=json.loads(Path('app/src/main/assets/prebuilt/math/index.json').read_text())
+          books=generic['books'] + math['books']
+          codes=[b.get('courseCode') or f"math-{b['stage']}-g{b['grade']}-v{b['volume']}" for b in books]
+          lessons=sum(len(b['lessons']) for b in books)
+          assert len(books)==45, len(books)
+          assert len(set(codes))==45, [x for x in codes if codes.count(x)>1]
+          assert lessons==1307, lessons
+          print(f'validated {len(books)} books and {lessons} lessons')
+          PY
+
+      - name: Commit generated library
+        run: |
+          rm .github/workflows/prebuilt-library-bootstrap.yml
+          rm -rf build/source-pdfs
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m '教材：0.20.0 预制四十五册全学科课程'
+          git push origin HEAD:agent/all-subject-prebuilt-library
