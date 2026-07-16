@@ -12,8 +12,8 @@ android {
         applicationId = "com.majortomman.school"
         minSdk = 26
         targetSdk = 36
-        versionCode = 17
-        versionName = "0.18.0"
+        versionCode = 18
+        versionName = "0.18.1"
     }
 
     buildTypes {
@@ -60,7 +60,10 @@ dependencies {
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
     implementation("androidx.work:work-runtime-ktx:2.11.2")
-    implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
+
+    // 中文 OCR 模型不再打包进 APK，仅在未知教材首次需要识别时由 Google Play 服务下载。
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition-chinese:16.0.1")
+
     ksp("androidx.room:room-compiler:$roomVersion")
 
     testImplementation("junit:junit:4.13.2")

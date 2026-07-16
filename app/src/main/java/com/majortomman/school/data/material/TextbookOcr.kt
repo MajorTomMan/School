@@ -5,11 +5,15 @@ import android.graphics.Rect
 import android.os.SystemClock
 import android.util.Log
 import com.google.android.gms.tasks.Task
+import com.google.mlkit.common.MlKitException
 import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
 import java.io.Closeable
 import java.io.File
+import java.io.IOException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.json.JSONArray
 import org.json.JSONObject
@@ -18,6 +22,8 @@ import kotlin.coroutines.resumeWithException
 
 const val TEXTBOOK_OCR_SCHEMA_VERSION = 2
 private const val OCR_LOG_TAG = "SchoolTextbookOCR"
+private const val OCR_MODEL_WAIT_ATTEMPTS = 12
+private const val OCR_MODEL_WAIT_MILLIS = 5_000L
 
 data class OcrTextLine(
     val text: String,
@@ -250,7 +256,10 @@ class TextbookOcrEngine : Closeable {
         pdfIndex: Int,
     ): OcrPageResult {
         val startedAt = SystemClock.elapsedRealtime()
-        val recognized = recognizer.process(InputImage.fromBitmap(bitmap, 0)).awaitResult()
+        val recognized = recognizeAfterOptionalModelDownload(
+            image = InputImage.fromBitmap(bitmap, 0),
+            printedPage = printedPage,
+        )
         val rawLines = recognized.textBlocks.flatMap { block ->
             block.lines.mapNotNull { line ->
                 val bounds = line.boundingBox ?: return@mapNotNull null
@@ -295,7 +304,31 @@ class TextbookOcrEngine : Closeable {
             text = cleanedText,
             rawText = rawText,
             lines = classifiedLines,
+            engine = "ML_KIT_CHINESE_PLAY_SERVICES",
             diagnostics = diagnostics,
+        )
+    }
+
+    private suspend fun recognizeAfterOptionalModelDownload(
+        image: InputImage,
+        printedPage: Int,
+    ): Text {
+        var lastUnavailable: MlKitException? = null
+        repeat(OCR_MODEL_WAIT_ATTEMPTS) { attempt ->
+            try {
+                return recognizer.process(image).awaitResult()
+            } catch (error: MlKitException) {
+                if (error.errorCode != MlKitException.UNAVAILABLE) throw error
+                lastUnavailable = error
+                if (attempt == 0) {
+                    Log.i(OCR_LOG_TAG, "page=$printedPage waitingForOptionalChineseModel=true")
+                }
+                if (attempt < OCR_MODEL_WAIT_ATTEMPTS - 1) delay(OCR_MODEL_WAIT_MILLIS)
+            }
+        }
+        throw IOException(
+            "可选中文 OCR 模型尚未下载完成，请保持联网后重试",
+            lastUnavailable,
         )
     }
 
