@@ -161,6 +161,48 @@ subjectId + knowledgePointId
 
 旧数学尝试、错题和 JSON 问题记录不删除，仍保留 `textbookKey` 作为来源。
 
+### 掌握度历史与趋势
+
+0.19.1 起，当前状态和历史分析分开保存：
+
+```text
+school.db
+└─ knowledge_mastery             当前掌握度真相
+
+school-analytics.db
+├─ knowledge_mastery_history     知识点逐次变化
+└─ subject_mastery_daily         学科每日快照
+```
+
+`MasteryTrendRepository` 在应用进程启动时监听通用 `knowledge_mastery`。任何学科只要更新通用掌握度表，都会自动生成趋势，不需要在数学、英语、物理等评价器中分别复制记录代码。
+
+知识点历史保存：
+
+- 学科与知识点 ID
+- 掌握度分数
+- 作答次数
+- 连续正确与连续错误次数
+- 最近一次是否正确
+- 首次基线、答对或答错事件类型
+- 原掌握度更新时间与实际记录时间
+
+`subject_mastery_daily` 每个学科每天只保留一个最新点，包含：
+
+- 当天最新综合掌握度
+- 已有掌握记录的知识点数
+- 当天非基线练习次数
+- 已到复习时间的知识点数
+
+图表语义固定为：
+
+- X 轴：日期
+- Y 轴：基于练习结果估算的掌握度
+- 黄色点：答对
+- 红色点：答错
+- 蓝色点：首次基线
+
+系统不伪造历史数据。升级后第一次运行只根据当前状态建立基线，后续再记录真实变化。清空通用掌握度时，分析历史与每日快照也同步清空。
+
 ## 教材同步
 
 应用观察教材库变化，并执行：
@@ -180,7 +222,7 @@ subjectId + knowledgePointId
 
 ## 数据库
 
-Room 数据库版本升级为 3，新增：
+Room 核心数据库版本升级为 3，新增：
 
 ```text
 subjects
@@ -197,11 +239,13 @@ knowledge_mastery
 curriculum_node_progress
 ```
 
+掌握度时间序列使用独立 Room 分析库版本 1。独立存储可以避免高频追加历史影响核心课程数据库迁移，也允许以后单独压缩、导出或重建统计数据。
+
 教材生成的数据使用 `origin = MATERIAL`，同步时只替换这一部分；内置知识和未来用户自定义课程不会被教材刷新删除。
 
 ## 兼容边界
 
-0.19.0 暂时保留：
+0.19.x 暂时保留：
 
 - `EducationStage`
 - `TextbookVolume`
