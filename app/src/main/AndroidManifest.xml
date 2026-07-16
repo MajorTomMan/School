@@ -20,6 +20,12 @@
             android:initOrder="100" />
 
         <provider
+            android:name=".data.material.PrebuiltCatalogBootstrapProvider"
+            android:authorities="${applicationId}.prebuilt-catalog"
+            android:exported="false"
+            android:initOrder="95" />
+
+        <provider
             android:name=".data.curriculum.MasteryTrendBootstrapProvider"
             android:authorities="${applicationId}.mastery-trends"
             android:exported="false"
