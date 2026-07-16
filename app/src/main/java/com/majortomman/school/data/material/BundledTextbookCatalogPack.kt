@@ -34,7 +34,7 @@ internal data class BundledCatalogBook(
 
     fun validate(selectedSlot: TextbookSlot, actualPageCount: Int) {
         require(selectedSlot.subjectId == subjectId) {
-            "识别到$title，请从${stage.label} · $subjectTitle导入"
+            "识别到$title，请从${stage.label} · ${subjectTitle}导入"
         }
         require(selectedSlot.stage == stage && selectedSlot.grade == grade && selectedSlot.volume == volume) {
             "识别到$title，请从${stage.label} · ${gradeLabel(grade)} · ${volume.labelFor(stage)}导入"
@@ -300,21 +300,5 @@ private fun writeJson(file: File, json: JSONObject, errorMessage: String) {
     } catch (error: Throwable) {
         temporary.delete()
         throw IOException(errorMessage, error)
-    }
-}
-
-private fun JSONArray?.toStringList(): List<String> = buildList {
-    val source = this@toStringList ?: return@buildList
-    for (index in 0 until source.length()) {
-        source.optString(index).trim().takeIf { it.isNotBlank() }?.let(::add)
-    }
-}
-
-private fun JSONArray?.toPathNodes(): List<CatalogPathNode> = buildList {
-    val source = this@toPathNodes ?: return@buildList
-    for (index in 0 until source.length()) {
-        val root = source.getJSONObject(index)
-        val node = CatalogPathNode.fromJson(root)
-        if (node.id.isNotBlank() && node.title.isNotBlank()) add(node)
     }
 }
