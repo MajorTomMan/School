@@ -124,7 +124,7 @@ jobs:
 
           mkdir -p dist
           cp app/build/outputs/apk/debug/app-debug.apk dist/school-debug.apk
-          sha256sum dist/school-debug.apk > dist/school-debug.apk.sha256
+          (cd dist && sha256sum school-debug.apk > school-debug.apk.sha256)
 
           expected="$(tr -d '[:space:]:' < signing/school-development.cert.sha256 | tr '[:upper:]' '[:lower:]')"
           actual="$(
