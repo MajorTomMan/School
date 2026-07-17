@@ -70,5 +70,5 @@ internal object UpdateSecurity {
 
     private fun ByteArray.sha256(): String = MessageDigest.getInstance("SHA-256").digest(this).toHex()
 
-    private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
+    private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it.toInt() and 0xff) }
 }
