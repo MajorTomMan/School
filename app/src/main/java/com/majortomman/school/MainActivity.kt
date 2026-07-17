@@ -11,6 +11,7 @@ import com.majortomman.school.data.material.MaterialPackRepository
 import com.majortomman.school.data.math.MathQuestionBankRepository
 import com.majortomman.school.ui.SchoolApp
 import com.majortomman.school.ui.theme.SchoolTheme
+import com.majortomman.school.update.UpdateCoordinator
 
 class MainActivity : ComponentActivity() {
     private val curriculumRepository by lazy {
@@ -28,6 +29,9 @@ class MainActivity : ComponentActivity() {
     private val mathQuestionBankRepository by lazy {
         MathQuestionBankRepository(applicationContext, curriculumRepository)
     }
+    private val updateCoordinator by lazy {
+        UpdateCoordinator(applicationContext)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,9 +45,15 @@ class MainActivity : ComponentActivity() {
                     curriculumRepository = curriculumRepository,
                     tutorialRepository = importTutorialRepository,
                     mathQuestionRepository = mathQuestionBankRepository,
+                    updateCoordinator = updateCoordinator,
                     initialTextbookKey = initialTextbookKey,
                 )
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateCoordinator.onAppForeground()
     }
 }
