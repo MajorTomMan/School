@@ -43,7 +43,7 @@ import com.majortomman.school.learning.lab.CellPart
 import com.majortomman.school.learning.lab.ComplexValue
 import com.majortomman.school.learning.lab.OrthographicProjector
 import com.majortomman.school.learning.lab.Point3D
-import com.majortomman.school.learning.lab.WaterEquationBalance
+import com.majortomman.school.learning.lab.WaterEquationDerivation
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -54,7 +54,7 @@ private const val MAX_CHEMICAL_COEFFICIENT = 4
 private enum class LabSample(val label: String, val subtitle: String) {
     COMPLEX("复平面", "z=a+bi"),
     SPACE("三维坐标", "P(x,y,z)"),
-    CHEMISTRY("化学配平", "2H₂+O₂→2H₂O"),
+    CHEMISTRY("化学配平", "左侧输入 → 右侧自动生成"),
     BIOLOGY("细胞标注", "植物细胞示意图"),
 }
 
@@ -193,7 +193,11 @@ private fun ComplexPlaneCanvas(value: ComplexValue) {
         drawCircle(InteractivePurple, 9.dp.toPx(), center)
         drawCircle(InteractiveWhite, 3.dp.toPx(), center)
 
-        val paint = Paint().apply { isAntiAlias = true; textSize = 12.sp.toPx(); color = InteractiveMuted.toArgb() }
+        val paint = Paint().apply {
+            isAntiAlias = true
+            textSize = 12.sp.toPx()
+            color = InteractiveMuted.toArgb()
+        }
         drawContext.canvas.nativeCanvas.drawText("实轴", right - 26.dp.toPx(), sy(0.0) - 8.dp.toPx(), paint)
         drawContext.canvas.nativeCanvas.drawText("虚轴", sx(0.0) + 8.dp.toPx(), top + 12.dp.toPx(), paint)
         paint.color = InteractivePurple.toArgb()
@@ -271,7 +275,11 @@ private fun Coordinate3DCanvas(point: Point3D, yaw: Double, pitch: Double) {
             drawLine(InteractiveLine.copy(alpha = 0.48f), screen(Point3D(-4.0, grid.toDouble(), 0.0)), screen(Point3D(4.0, grid.toDouble(), 0.0)), 1.dp.toPx())
         }
 
-        val clamped = Point3D(point.x.coerceIn(-4.0, 4.0), point.y.coerceIn(-4.0, 4.0), point.z.coerceIn(-4.0, 4.0))
+        val clamped = Point3D(
+            point.x.coerceIn(-4.0, 4.0),
+            point.y.coerceIn(-4.0, 4.0),
+            point.z.coerceIn(-4.0, 4.0),
+        )
         val px = screen(Point3D(clamped.x, 0.0, 0.0))
         val pxy = screen(Point3D(clamped.x, clamped.y, 0.0))
         val p = screen(clamped)
@@ -282,11 +290,19 @@ private fun Coordinate3DCanvas(point: Point3D, yaw: Double, pitch: Double) {
         drawCircle(InteractivePurple, 9.dp.toPx(), p)
         drawCircle(InteractiveWhite, 3.dp.toPx(), p)
 
-        val paint = Paint().apply { isAntiAlias = true; textSize = 13.sp.toPx(); color = InteractiveMuted.toArgb() }
-        paint.color = InteractiveRed.toArgb(); drawContext.canvas.nativeCanvas.drawText("x", xAxis.x, xAxis.y, paint)
-        paint.color = InteractiveGreen.toArgb(); drawContext.canvas.nativeCanvas.drawText("y", yAxis.x, yAxis.y, paint)
-        paint.color = InteractiveBlue.toArgb(); drawContext.canvas.nativeCanvas.drawText("z", zAxis.x, zAxis.y, paint)
-        paint.color = InteractivePurple.toArgb(); drawContext.canvas.nativeCanvas.drawText("P", p.x + 9.dp.toPx(), p.y - 9.dp.toPx(), paint)
+        val paint = Paint().apply {
+            isAntiAlias = true
+            textSize = 13.sp.toPx()
+            color = InteractiveMuted.toArgb()
+        }
+        paint.color = InteractiveRed.toArgb()
+        drawContext.canvas.nativeCanvas.drawText("x", xAxis.x, xAxis.y, paint)
+        paint.color = InteractiveGreen.toArgb()
+        drawContext.canvas.nativeCanvas.drawText("y", yAxis.x, yAxis.y, paint)
+        paint.color = InteractiveBlue.toArgb()
+        drawContext.canvas.nativeCanvas.drawText("z", zAxis.x, zAxis.y, paint)
+        paint.color = InteractivePurple.toArgb()
+        drawContext.canvas.nativeCanvas.drawText("P", p.x + 9.dp.toPx(), p.y - 9.dp.toPx(), paint)
     }
 }
 
@@ -294,47 +310,79 @@ private fun Coordinate3DCanvas(point: Point3D, yaw: Double, pitch: Double) {
 private fun ChemicalBalanceSample() {
     var h2Text by rememberSaveable { mutableStateOf("2") }
     var o2Text by rememberSaveable { mutableStateOf("1") }
-    var h2oText by rememberSaveable { mutableStateOf("2") }
-    val balance = WaterEquationBalance(
+    val derivation = WaterEquationDerivation(
         hydrogenCoefficient = h2Text.toIntOrNull() ?: 0,
         oxygenCoefficient = o2Text.toIntOrNull() ?: 0,
-        waterCoefficient = h2oText.toIntOrNull() ?: 0,
     )
 
-    SectionTitle("化学方程式配平", InteractiveGreen)
+    SectionTitle("化学方程式自动推导", InteractiveGreen)
     Spacer(Modifier.height(12.dp))
     Text(
-        "通过分子中的原子重新组合观察守恒。系数限制为 0～4，避免分子超出绘图区。",
+        "只填写方程式左侧的 H₂ 与 O₂ 系数。系统根据氢、氧原子守恒自动生成右侧 H₂O；左侧比例不成立时会说明原因。",
         color = InteractiveMuted,
         fontSize = 15.sp,
         lineHeight = 23.sp,
     )
     Spacer(Modifier.height(20.dp))
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        LabNumberInput("H₂ 系数", h2Text, "0～4", Modifier.weight(1f)) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+        LabNumberInput("左侧 H₂ 系数", h2Text, "1～4", Modifier.weight(1f)) {
             h2Text = filteredCoefficient(it, MAX_CHEMICAL_COEFFICIENT)
         }
-        LabNumberInput("O₂ 系数", o2Text, "0～4", Modifier.weight(1f)) {
+        LabNumberInput("左侧 O₂ 系数", o2Text, "1～4", Modifier.weight(1f)) {
             o2Text = filteredCoefficient(it, MAX_CHEMICAL_COEFFICIENT)
         }
-        LabNumberInput("H₂O 系数", h2oText, "0～4", Modifier.weight(1f)) {
-            h2oText = filteredCoefficient(it, MAX_CHEMICAL_COEFFICIENT)
-        }
     }
+    Spacer(Modifier.height(18.dp))
+    AutoChemicalProductBlock(derivation)
     Spacer(Modifier.height(22.dp))
-    ChemicalEquationCanvas(balance)
+    ChemicalEquationCanvas(derivation)
     Spacer(Modifier.height(20.dp))
-    val statusColor = if (balance.isBalanced) InteractiveGreen else InteractiveRed
+
+    val statusColor = if (derivation.isValid) InteractiveGreen else InteractiveYellow
+    val leftExpression = "${chemicalTerm(derivation.hydrogenCoefficient, "H₂")} + ${chemicalTerm(derivation.oxygenCoefficient, "O₂")}" 
+    val equation = if (derivation.isValid) {
+        "$leftExpression → ${chemicalTerm(derivation.waterCoefficient ?: 0, "H₂O")}" 
+    } else {
+        "$leftExpression → 无合法的纯 H₂O 右侧"
+    }
+    val detail = derivation.products?.let { products ->
+        "反应物 H=${derivation.reactants.hydrogen}、O=${derivation.reactants.oxygen}；生成物 H=${products.hydrogen}、O=${products.oxygen}。"
+    } ?: derivation.explanation
+
     LabResultBlock(
-        title = if (balance.isBalanced) "原子数相等" else "还没有配平",
-        main = "${balance.hydrogenCoefficient}H₂ + ${balance.oxygenCoefficient}O₂ → ${balance.waterCoefficient}H₂O",
-        detail = "反应物 H=${balance.reactants.hydrogen}、O=${balance.reactants.oxygen}；生成物 H=${balance.products.hydrogen}、O=${balance.products.oxygen}。",
+        title = if (derivation.isValid) "右侧已自动生成" else "左侧比例需要调整",
+        main = equation,
+        detail = detail,
         color = statusColor,
     )
 }
 
 @Composable
-private fun ChemicalEquationCanvas(balance: WaterEquationBalance) {
+private fun AutoChemicalProductBlock(derivation: WaterEquationDerivation) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("自动生成右侧", color = InteractiveMuted, fontSize = 13.sp)
+            Text(
+                if (derivation.isValid) "已通过守恒检查" else "等待合法左侧比例",
+                color = if (derivation.isValid) InteractiveGreen else InteractiveYellow,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = derivation.waterCoefficient?.let { coefficient -> chemicalTerm(coefficient, "H₂O") } ?: "—",
+            color = InteractiveWhite,
+            fontSize = 25.sp,
+            fontWeight = FontWeight.Medium,
+        )
+        Spacer(Modifier.height(10.dp))
+        FlatDivider()
+    }
+}
+
+@Composable
+private fun ChemicalEquationCanvas(derivation: WaterEquationDerivation) {
     Canvas(
         modifier = Modifier
             .fillMaxWidth()
@@ -354,16 +402,21 @@ private fun ChemicalEquationCanvas(balance: WaterEquationBalance) {
             textAlign = Paint.Align.CENTER
         }
         drawContext.canvas.nativeCanvas.drawText("反应物", leftStart + halfWidth / 2f, 28.dp.toPx(), headingPaint)
-        drawContext.canvas.nativeCanvas.drawText("生成物", rightStart + halfWidth / 2f, 28.dp.toPx(), headingPaint)
+        drawContext.canvas.nativeCanvas.drawText("自动生成物", rightStart + halfWidth / 2f, 28.dp.toPx(), headingPaint)
 
         val formulaPaint = Paint().apply {
             isAntiAlias = true
             textSize = 13.sp.toPx()
             color = InteractiveWhite.toArgb()
         }
-        drawContext.canvas.nativeCanvas.drawText("H₂ × ${balance.hydrogenCoefficient}", leftStart, 58.dp.toPx(), formulaPaint)
-        drawContext.canvas.nativeCanvas.drawText("O₂ × ${balance.oxygenCoefficient}", leftStart, 178.dp.toPx(), formulaPaint)
-        drawContext.canvas.nativeCanvas.drawText("H₂O × ${balance.waterCoefficient}", rightStart, 58.dp.toPx(), formulaPaint)
+        drawContext.canvas.nativeCanvas.drawText("H₂ × ${derivation.hydrogenCoefficient}", leftStart, 58.dp.toPx(), formulaPaint)
+        drawContext.canvas.nativeCanvas.drawText("O₂ × ${derivation.oxygenCoefficient}", leftStart, 178.dp.toPx(), formulaPaint)
+        drawContext.canvas.nativeCanvas.drawText(
+            derivation.waterCoefficient?.let { "H₂O × $it" } ?: "H₂O × ?",
+            rightStart,
+            58.dp.toPx(),
+            formulaPaint,
+        )
 
         fun gridPoint(index: Int, startX: Float, startY: Float, areaWidth: Float, rowGap: Float): Offset {
             val column = index % 2
@@ -374,30 +427,41 @@ private fun ChemicalEquationCanvas(balance: WaterEquationBalance) {
             )
         }
 
-        repeat(balance.hydrogenCoefficient) { index ->
+        repeat(derivation.hydrogenCoefficient.coerceIn(0, MAX_CHEMICAL_COEFFICIENT)) { index ->
             drawDiatomicMolecule(
                 center = gridPoint(index, leftStart, 92.dp.toPx(), halfWidth, 42.dp.toPx()),
                 atomColor = InteractiveBlue,
                 label = "H",
             )
         }
-        repeat(balance.oxygenCoefficient) { index ->
+        repeat(derivation.oxygenCoefficient.coerceIn(0, MAX_CHEMICAL_COEFFICIENT)) { index ->
             drawDiatomicMolecule(
                 center = gridPoint(index, leftStart, 212.dp.toPx(), halfWidth, 42.dp.toPx()),
                 atomColor = InteractiveRed,
                 label = "O",
             )
         }
-        repeat(balance.waterCoefficient) { index ->
+        repeat((derivation.waterCoefficient ?: 0).coerceIn(0, MAX_CHEMICAL_COEFFICIENT)) { index ->
             drawWaterMolecule(
                 center = gridPoint(index, rightStart, 108.dp.toPx(), halfWidth, 72.dp.toPx()),
             )
         }
 
+        if (!derivation.isValid) {
+            val invalidPaint = Paint().apply {
+                isAntiAlias = true
+                textSize = 18.sp.toPx()
+                color = InteractiveYellow.toArgb()
+                textAlign = Paint.Align.CENTER
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+            }
+            drawContext.canvas.nativeCanvas.drawText("比例需为 2:1", rightStart + halfWidth / 2f, 155.dp.toPx(), invalidPaint)
+        }
+
         val arrowPaint = Paint().apply {
             isAntiAlias = true
             textSize = 30.sp.toPx()
-            color = (if (balance.isBalanced) InteractiveGreen else InteractiveYellow).toArgb()
+            color = (if (derivation.isValid) InteractiveGreen else InteractiveYellow).toArgb()
             textAlign = Paint.Align.CENTER
         }
         drawContext.canvas.nativeCanvas.drawText("→", mid, 154.dp.toPx(), arrowPaint)
@@ -409,13 +473,16 @@ private fun ChemicalEquationCanvas(balance: WaterEquationBalance) {
             textAlign = Paint.Align.CENTER
         }
         drawContext.canvas.nativeCanvas.drawText(
-            "H ${balance.reactants.hydrogen}  ·  O ${balance.reactants.oxygen}",
+            "H ${derivation.reactants.hydrogen}  ·  O ${derivation.reactants.oxygen}",
             leftStart + halfWidth / 2f,
             size.height - 18.dp.toPx(),
             countPaint,
         )
+        val productCountText = derivation.products?.let { products ->
+            "H ${products.hydrogen}  ·  O ${products.oxygen}"
+        } ?: "H —  ·  O —"
         drawContext.canvas.nativeCanvas.drawText(
-            "H ${balance.products.hydrogen}  ·  O ${balance.products.oxygen}",
+            productCountText,
             rightStart + halfWidth / 2f,
             size.height - 18.dp.toPx(),
             countPaint,
@@ -579,38 +646,43 @@ private fun PlantCellCanvas(selected: CellPart) {
 
         when (selected) {
             CellPart.CELL_WALL -> drawRoundRect(
-                InteractiveYellow,
-                Offset(cellLeft, cellTop),
-                cellSize,
-                CornerRadius(wallRadius),
+                color = InteractiveYellow,
+                topLeft = Offset(cellLeft, cellTop),
+                size = cellSize,
+                cornerRadius = CornerRadius(wallRadius),
                 style = Stroke(4.dp.toPx()),
             )
             CellPart.CELL_MEMBRANE -> drawRoundRect(
-                InteractiveYellow,
-                Offset(membraneLeft, membraneTop),
-                membraneSize,
-                CornerRadius(20.dp.toPx()),
+                color = InteractiveYellow,
+                topLeft = Offset(membraneLeft, membraneTop),
+                size = membraneSize,
+                cornerRadius = CornerRadius(20.dp.toPx()),
                 style = Stroke(4.dp.toPx()),
             )
             CellPart.CYTOPLASM -> drawRoundRect(
-                InteractiveYellow.copy(alpha = 0.16f),
-                Offset(membraneLeft + 3.dp.toPx(), membraneTop + 3.dp.toPx()),
-                Size(membraneSize.width - 6.dp.toPx(), membraneSize.height - 6.dp.toPx()),
-                CornerRadius(18.dp.toPx()),
+                color = InteractiveYellow.copy(alpha = 0.16f),
+                topLeft = Offset(membraneLeft + 3.dp.toPx(), membraneTop + 3.dp.toPx()),
+                size = Size(membraneSize.width - 6.dp.toPx(), membraneSize.height - 6.dp.toPx()),
+                cornerRadius = CornerRadius(18.dp.toPx()),
             )
-            CellPart.NUCLEUS -> drawCircle(InteractiveYellow, nucleusRadius + 5.dp.toPx(), nucleusCenter, style = Stroke(4.dp.toPx()))
+            CellPart.NUCLEUS -> drawCircle(
+                color = InteractiveYellow,
+                radius = nucleusRadius + 5.dp.toPx(),
+                center = nucleusCenter,
+                style = Stroke(4.dp.toPx()),
+            )
             CellPart.VACUOLE -> drawRoundRect(
-                InteractiveYellow,
-                vacuoleTopLeft,
-                vacuoleSize,
-                CornerRadius(34.dp.toPx()),
+                color = InteractiveYellow,
+                topLeft = vacuoleTopLeft,
+                size = vacuoleSize,
+                cornerRadius = CornerRadius(34.dp.toPx()),
                 style = Stroke(4.dp.toPx()),
             )
             CellPart.CHLOROPLAST -> chloroplasts.forEach { center ->
                 drawOval(
-                    InteractiveYellow,
-                    Offset(center.x - 18.dp.toPx(), center.y - 10.dp.toPx()),
-                    Size(36.dp.toPx(), 20.dp.toPx()),
+                    color = InteractiveYellow,
+                    topLeft = Offset(center.x - 18.dp.toPx(), center.y - 10.dp.toPx()),
+                    size = Size(36.dp.toPx(), 20.dp.toPx()),
                     style = Stroke(3.dp.toPx()),
                 )
             }
@@ -651,7 +723,9 @@ private fun LabNumberInput(
     Column(modifier = modifier.padding(vertical = 4.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, color = InteractiveMuted, fontSize = 12.sp)
-            if (rangeHint != null) Text(rangeHint, color = InteractiveMuted.copy(alpha = 0.72f), fontSize = 11.sp)
+            if (rangeHint != null) {
+                Text(rangeHint, color = InteractiveMuted.copy(alpha = 0.72f), fontSize = 11.sp)
+            }
         }
         Spacer(Modifier.height(8.dp))
         BasicTextField(
@@ -743,7 +817,13 @@ private fun filteredBoundedNumber(input: String, min: Double, max: Double): Stri
 private fun filteredCoefficient(input: String, max: Int): String {
     val digits = input.filter(Char::isDigit)
     if (digits.isEmpty()) return ""
-    return (digits.toIntOrNull() ?: 0).coerceIn(0, max).toString()
+    return (digits.toIntOrNull() ?: 1).coerceIn(1, max).toString()
+}
+
+private fun chemicalTerm(coefficient: Int, formula: String): String = when {
+    coefficient <= 0 -> "—$formula"
+    coefficient == 1 -> formula
+    else -> "$coefficient$formula"
 }
 
 private fun signedImaginary(value: Double): String = when {
@@ -754,5 +834,9 @@ private fun signedImaginary(value: Double): String = when {
 
 private fun formatLabNumber(value: Double): String {
     val rounded = kotlin.math.round(value * 1000.0) / 1000.0
-    return if (abs(rounded - rounded.toLong()) < 1e-9) rounded.toLong().toString() else rounded.toString().trimEnd('0').trimEnd('.')
+    return if (abs(rounded - rounded.toLong()) < 1e-9) {
+        rounded.toLong().toString()
+    } else {
+        rounded.toString().trimEnd('0').trimEnd('.')
+    }
 }
