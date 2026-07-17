@@ -197,7 +197,18 @@ fun SchoolApp(
                     selectedTabName = MainTab.PATH.name
                 }
             }
+            val interactiveSpec = InteractiveLessonCatalog.resolve(activeTextbook.slot.subjectId, lesson)
             when {
+                interactiveSpec != null -> InteractiveLessonScreen(
+                    lesson = lesson,
+                    spec = interactiveSpec,
+                    installedMaterial = activeTextbook.pack,
+                    nextLessonTitle = nextLesson?.title,
+                    onOpenTextbook = openTextbook,
+                    onBack = { openedLessonId = null },
+                    onComplete = completeLesson,
+                )
+
                 openedAnalysisLoading -> LessonAnalysisLoadingScreen(
                     lessonTitle = lesson.title,
                     onBack = { openedLessonId = null },
