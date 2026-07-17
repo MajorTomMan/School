@@ -65,7 +65,8 @@ class Polynomial private constructor(
 
     fun render(variable: String = "x"): String {
         if (terms.isEmpty()) return "0"
-        return terms.toSortedMap(compareByDescending { it }).entries.joinToString(" ") { (exponent, coefficient) ->
+        val entries = terms.entries.sortedByDescending { it.key }
+        return entries.mapIndexed { index, (exponent, coefficient) ->
             val negative = coefficient.signum < 0
             val magnitude = coefficient.abs()
             val coefficientText = when {
@@ -79,12 +80,12 @@ class Polynomial private constructor(
             }
             val body = coefficientText + variableText
             when {
-                it == terms.toSortedMap(compareByDescending { key -> key }).entries.first() && negative -> "-$body"
-                it == terms.toSortedMap(compareByDescending { key -> key }).entries.first() -> body
+                index == 0 && negative -> "-$body"
+                index == 0 -> body
                 negative -> "- $body"
                 else -> "+ $body"
             }
-        }
+        }.joinToString(" ")
     }
 
     override fun equals(other: Any?): Boolean = other is Polynomial && terms == other.terms
