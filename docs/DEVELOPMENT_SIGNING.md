@@ -6,6 +6,8 @@ Android 只允许使用同一应用 ID 且同一签名证书的 APK 覆盖安装
 
 原 CI 将 `~/.android/debug.keystore` 放入 GitHub Actions 缓存，并在缓存不存在时生成新密钥。Actions 缓存按 Git 引用隔离：拉取请求运行创建的缓存属于 `refs/pull/<number>/merge`，不能被主分支或其他拉取请求恢复。因此不同 PR、主分支和本地构建可能使用不同的 debug 密钥。
 
+实际抽查此前七个交互测试 APK，七个 APK 使用了七个不同的 `Android Debug` 证书，证实该问题会随 PR 构建重复发生。
+
 这会导致：
 
 ```text
@@ -64,6 +66,16 @@ school-debug.apk.cert-sha256
 - `apk.sha256` 验证 APK 文件是否完全相同。
 - `apk.cert-sha256` 验证 APK 是否使用约定的开发证书。
 
+CI #205 与 #206 已连续构建出逐字节完全相同的 APK：
+
+```text
+APK SHA-256
+7b86b5c7aff012c1c943498a419577ec77f365b0adaed965517debbc45df6ada
+
+证书 SHA-256
+7b816cf2873e5d45320015a80dacbf3e9d303f0513e174d8ddf0e69ef1c421b2
+```
+
 ## 一次性迁移
 
 此前的 APK 已经分别使用多把随机 debug 密钥签名，无法通过新密钥直接覆盖。旧私钥只存在于隔离的 Actions 缓存中，也无法从 APK 证书反推出私钥。
@@ -83,6 +95,10 @@ adb install school-debug.apk
 - GitHub Actions PR 构建产物
 - 对话中转交的 GitHub Actions 原始 APK
 - 从仓库源码进行的本地 `assembleDebug` 构建
+
+## 生效时机
+
+修复代码位于对应 Draft PR 中。PR 合并并触发 `master` 构建后，GitHub 的 `dev-latest` Release 才会换成固定证书。合并前，当前 GitHub Release 仍可能是旧的随机 debug 签名。
 
 ## 安全边界
 
