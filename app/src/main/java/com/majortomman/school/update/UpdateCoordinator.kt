@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
-class UpdateCoordinator(context: Context) {
+class UpdateCoordinator private constructor(context: Context) {
     private val appContext = context.applicationContext
     private val repository = UpdateRepository(appContext)
     private val preferences = UpdatePreferences(appContext)
@@ -128,5 +128,14 @@ class UpdateCoordinator(context: Context) {
             ExistingPeriodicWorkPolicy.UPDATE,
             request,
         )
+    }
+
+    companion object {
+        @Volatile
+        private var instance: UpdateCoordinator? = null
+
+        fun get(context: Context): UpdateCoordinator = instance ?: synchronized(this) {
+            instance ?: UpdateCoordinator(context.applicationContext).also { instance = it }
+        }
     }
 }
