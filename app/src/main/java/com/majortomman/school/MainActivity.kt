@@ -34,7 +34,7 @@ class MainActivity : ComponentActivity() {
         MathQuestionBankRepository(applicationContext, curriculumRepository)
     }
     private val updateCoordinator by lazy {
-        UpdateCoordinator(applicationContext)
+        UpdateCoordinator.get(applicationContext)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
