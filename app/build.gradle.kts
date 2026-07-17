@@ -1,7 +1,22 @@
+import java.util.Base64
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
+}
+
+val developmentKeystoreSource = rootProject.file("signing/school-development.jks.b64")
+val developmentKeystore = rootProject.file("build/signing/school-development.jks")
+
+check(developmentKeystoreSource.isFile) {
+    "缺少固定开发签名源文件：${developmentKeystoreSource.path}"
+}
+
+if (!developmentKeystore.isFile || developmentKeystore.length() == 0L) {
+    developmentKeystore.parentFile.mkdirs()
+    val encoded = developmentKeystoreSource.readText(Charsets.UTF_8).filterNot(Char::isWhitespace)
+    developmentKeystore.writeBytes(Base64.getDecoder().decode(encoded))
 }
 
 android {
@@ -16,7 +31,20 @@ android {
         versionName = "0.20.0"
     }
 
+    signingConfigs {
+        create("schoolDevelopment") {
+            // 仅用于公开开发版和预览版，保证本地、PR 与主分支 APK 可相互覆盖安装。
+            storeFile = developmentKeystore
+            storePassword = "android"
+            keyAlias = "schooldev"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("schoolDevelopment")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
