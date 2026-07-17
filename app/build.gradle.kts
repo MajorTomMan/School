@@ -8,9 +8,17 @@ plugins {
 
 val developmentKeystoreSource = rootProject.file("signing/school-development.jks.b64")
 val developmentKeystore = rootProject.file("build/signing/school-development.jks")
+val updatePublicKeySource = rootProject.file("signing/school-update-development-public.der.b64")
+val developmentCertificateSource = rootProject.file("signing/school-development.cert.sha256")
 
 check(developmentKeystoreSource.isFile) {
     "缺少固定开发签名源文件：${developmentKeystoreSource.path}"
+}
+check(updatePublicKeySource.isFile) {
+    "缺少更新清单验证公钥：${updatePublicKeySource.path}"
+}
+check(developmentCertificateSource.isFile) {
+    "缺少固定开发签名证书指纹：${developmentCertificateSource.path}"
 }
 
 if (!developmentKeystore.isFile || developmentKeystore.length() == 0L) {
@@ -18,6 +26,19 @@ if (!developmentKeystore.isFile || developmentKeystore.length() == 0L) {
     val encoded = developmentKeystoreSource.readText(Charsets.UTF_8).filterNot(Char::isWhitespace)
     developmentKeystore.writeBytes(Base64.getDecoder().decode(encoded))
 }
+
+val resolvedVersionCode = providers.environmentVariable("SCHOOL_VERSION_CODE")
+    .orNull
+    ?.toIntOrNull()
+    ?: 21
+val resolvedVersionName = providers.environmentVariable("SCHOOL_VERSION_NAME")
+    .orNull
+    ?.takeIf(String::isNotBlank)
+    ?: "0.20.0"
+val updatePublicKey = updatePublicKeySource.readText(Charsets.UTF_8).filterNot(Char::isWhitespace)
+val developmentCertificate = developmentCertificateSource.readText(Charsets.UTF_8)
+    .lowercase()
+    .filter(Char::isLetterOrDigit)
 
 android {
     namespace = "com.majortomman.school"
@@ -27,8 +48,20 @@ android {
         applicationId = "com.majortomman.school"
         minSdk = 26
         targetSdk = 36
-        versionCode = 21
-        versionName = "0.20.0"
+        versionCode = resolvedVersionCode
+        versionName = resolvedVersionName
+        buildConfigField(
+            "String",
+            "UPDATE_MANIFEST_URL",
+            "\"https://github.com/MajorTomMan/school/releases/download/dev-latest/update-manifest.json\"",
+        )
+        buildConfigField(
+            "String",
+            "UPDATE_SIGNATURE_URL",
+            "\"https://github.com/MajorTomMan/school/releases/download/dev-latest/update-manifest.sig\"",
+        )
+        buildConfigField("String", "UPDATE_PUBLIC_KEY_BASE64", "\"$updatePublicKey\"")
+        buildConfigField("String", "DEVELOPMENT_CERT_SHA256", "\"$developmentCertificate\"")
     }
 
     signingConfigs {
@@ -79,6 +112,7 @@ dependencies {
 
     implementation(composeBom)
     implementation("androidx.activity:activity-compose:1.13.0")
+    implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.compose.animation:animation")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
