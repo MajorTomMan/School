@@ -14,91 +14,145 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Slider
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.abs
-import kotlin.math.round
 
-private data class CoordinateValidationExample(
+private data class RelationVariable(
+    val symbol: String,
     val label: String,
+    val range: ClosedFloatingPointRange<Double>,
+)
+
+private data class RelationDefinition(
     val formula: String,
-    val coefficient: Float,
-    val constant: Float,
-    val xRange: ClosedFloatingPointRange<Float>,
-    val yRange: ClosedFloatingPointRange<Float>,
-    val initialX: Float,
+    val variables: List<RelationVariable>,
+    val solve: (target: String, known: Map<String, Double>) -> Double?,
 ) {
-    fun valueAt(x: Float): Float = coefficient * x + constant
+    fun requiredInputs(target: String): List<RelationVariable> = variables.filterNot { it.symbol == target }
 }
 
-private val coordinateValidationExamples = listOf(
-    CoordinateValidationExample(
+private data class LinearRelationExample(
+    val label: String,
+    val coefficient: Double,
+    val constant: Double,
+    val xRange: ClosedFloatingPointRange<Double>,
+    val yRange: ClosedFloatingPointRange<Double>,
+    val note: String,
+) {
+    val formula: String = buildString {
+        append("y = ")
+        when {
+            coefficient == 1.0 -> append("x")
+            coefficient == -1.0 -> append("-x")
+            else -> append(formatEquationNumber(coefficient)).append("x")
+        }
+        when {
+            constant > 0.0 -> append(" + ").append(formatEquationNumber(constant))
+            constant < 0.0 -> append(" - ").append(formatEquationNumber(abs(constant)))
+        }
+    }
+
+    val relation = RelationDefinition(
+        formula = formula,
+        variables = listOf(
+            RelationVariable("x", "x", xRange),
+            RelationVariable("y", "y", yRange),
+        ),
+        solve = { target, known ->
+            when (target) {
+                "y" -> known["x"]?.let { coefficient * it + constant }
+                "x" -> known["y"]?.let { if (abs(coefficient) < 1e-9) null else (it - constant) / coefficient }
+                else -> null
+            }
+        },
+    )
+}
+
+private val linearRelationExamples = listOf(
+    LinearRelationExample(
         label = "y=2x",
-        formula = "y = 2x",
-        coefficient = 2f,
-        constant = 0f,
-        xRange = -3f..3f,
-        yRange = -6f..6f,
-        initialX = 1f,
+        coefficient = 2.0,
+        constant = 0.0,
+        xRange = -3.0..3.0,
+        yRange = -6.0..6.0,
+        note = "输入一个 x，就能得到与它对应的 y。",
     ),
-    CoordinateValidationExample(
+    LinearRelationExample(
         label = "y=-1.5x",
-        formula = "y = -1.5x",
-        coefficient = -1.5f,
-        constant = 0f,
-        xRange = -4f..4f,
-        yRange = -6f..6f,
-        initialX = 2f,
+        coefficient = -1.5,
+        constant = 0.0,
+        xRange = -4.0..4.0,
+        yRange = -6.0..6.0,
+        note = "也可以给出 y，再求与它对应的 x。",
     ),
-    CoordinateValidationExample(
+    LinearRelationExample(
         label = "气温问题",
-        formula = "y = -6x + 5",
-        coefficient = -6f,
-        constant = 5f,
-        xRange = 0f..1.5f,
-        yRange = -4f..6f,
-        initialX = 0.5f,
+        coefficient = -6.0,
+        constant = 5.0,
+        xRange = 0.0..1.5,
+        yRange = -4.0..6.0,
+        note = "x 表示登高的千米数，y 表示气温。",
     ),
 )
 
 @Composable
 internal fun LinearCoordinateValidationLab(lessonId: String) {
-    var exampleIndex by rememberSaveable(lessonId, "xy-example") { mutableIntStateOf(0) }
-    val example = coordinateValidationExamples[exampleIndex.coerceIn(coordinateValidationExamples.indices)]
-    var x by rememberSaveable(lessonId, "xy-x") { mutableFloatStateOf(example.initialX) }
-    var y by rememberSaveable(lessonId, "xy-y") { mutableFloatStateOf(example.valueAt(example.initialX)) }
+    var exampleIndex by rememberSaveable(lessonId, "relation-example") { mutableIntStateOf(0) }
+    var targetSymbol by rememberSaveable(lessonId, "relation-target") { mutableStateOf("y") }
+    var inputTexts by remember(exampleIndex, targetSymbol) { mutableStateOf<Map<String, String>>(emptyMap()) }
+    val example = linearRelationExamples[exampleIndex.coerceIn(linearRelationExamples.indices)]
+    val relation = example.relation
+    val requiredInputs = relation.requiredInputs(targetSymbol)
 
-    LaunchedEffect(exampleIndex) {
-        x = example.initialX
-        y = example.valueAt(example.initialX)
+    LaunchedEffect(exampleIndex, targetSymbol) {
+        inputTexts = requiredInputs.associate { variable ->
+            variable.symbol to when (variable.symbol) {
+                "x" -> if (example.xRange.start >= 0.0) "0.5" else "1"
+                "y" -> formatEquationNumber(example.coefficient + example.constant)
+                else -> ""
+            }
+        }
     }
 
-    val expectedY = example.valueAt(x)
-    val error = y - expectedY
-    val matches = abs(error) < 0.051f
+    val knownValues = requiredInputs.mapNotNull { variable ->
+        inputTexts[variable.symbol]?.toDoubleOrNull()?.let { variable.symbol to it }
+    }.toMap()
+    val allInputsReady = knownValues.size == requiredInputs.size
+    val result = if (allInputsReady) relation.solve(targetSymbol, knownValues) else null
+    val pointX = when (targetSymbol) {
+        "x" -> result
+        else -> knownValues["x"]
+    }
+    val pointY = when (targetSymbol) {
+        "y" -> result
+        else -> knownValues["y"]
+    }
 
-    SectionTitle("验证 x 与 y 的对应关系", InteractivePurple)
+    SectionTitle("根据一个量求另一个量", InteractivePurple)
     Spacer(Modifier.height(12.dp))
     Text(
-        "分别调整 x 和 y，观察点 (x, y) 怎样移动。只有当这组数满足所选函数时，这个点才会落在函数图像上。",
+        "先选择要求的量。页面只显示计算时需要填写的已知量，输入后图像中的点会同步移动。",
         color = InteractiveWhite.copy(alpha = 0.75f),
         fontSize = 16.sp,
         lineHeight = 25.sp,
@@ -106,106 +160,122 @@ internal fun LinearCoordinateValidationLab(lessonId: String) {
     Spacer(Modifier.height(16.dp))
 
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        coordinateValidationExamples.forEachIndexed { index, item ->
-            ValidationChoice(
+        linearRelationExamples.forEachIndexed { index, item ->
+            RelationChoice(
                 label = item.label,
                 selected = index == exampleIndex,
                 modifier = Modifier.weight(1f),
             ) { exampleIndex = index }
         }
     }
-    Spacer(Modifier.height(18.dp))
-
-    CoordinateValidationGraph(
-        example = example,
-        x = x,
-        y = y,
-        expectedY = expectedY,
-        matches = matches,
-    )
-    Spacer(Modifier.height(18.dp))
-
-    CoordinateSlider(
-        label = "调整 x",
-        value = x,
-        range = example.xRange,
-        color = InteractiveBlue,
-        onValueChange = { x = snapCoordinate(it) },
-    )
     Spacer(Modifier.height(12.dp))
-    CoordinateSlider(
-        label = "调整 y",
-        value = y,
-        range = example.yRange,
-        color = if (matches) InteractiveGreen else InteractiveRed,
-        onValueChange = { y = snapCoordinate(it) },
-    )
+    Text(example.note, color = InteractiveMuted, fontSize = 14.sp, lineHeight = 21.sp)
     Spacer(Modifier.height(16.dp))
 
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        RelationChoice(
+            label = "已知 x，求 y",
+            selected = targetSymbol == "y",
+            modifier = Modifier.weight(1f),
+        ) { targetSymbol = "y" }
+        RelationChoice(
+            label = "已知 y，求 x",
+            selected = targetSymbol == "x",
+            modifier = Modifier.weight(1f),
+        ) { targetSymbol = "x" }
+    }
+    Spacer(Modifier.height(18.dp))
+
+    RelationGraph(
+        example = example,
+        pointX = pointX,
+        pointY = pointY,
+    )
+    Spacer(Modifier.height(18.dp))
+
+    requiredInputs.forEachIndexed { index, variable ->
+        RelationNumberInput(
+            label = "输入 ${variable.label}",
+            value = inputTexts[variable.symbol].orEmpty(),
+            color = if (variable.symbol == "x") InteractiveBlue else InteractiveYellow,
+            onValueChange = { next ->
+                if (isNumberDraft(next)) {
+                    val number = next.toDoubleOrNull()
+                    if (number == null || number in variable.range) {
+                        inputTexts = inputTexts + (variable.symbol to next)
+                    }
+                }
+            },
+        )
+        if (index != requiredInputs.lastIndex) Spacer(Modifier.height(12.dp))
+    }
+
+    Spacer(Modifier.height(16.dp))
+    RelationResultCard(
+        formula = relation.formula,
+        targetSymbol = targetSymbol,
+        knownValues = knownValues,
+        result = result,
+        allInputsReady = allInputsReady,
+    )
+    Spacer(Modifier.height(12.dp))
+    Text(
+        "当一个关系中有三个或更多量时，要求其中一个量，页面会同时显示其余所有已知量的输入框。",
+        color = InteractiveMuted,
+        fontSize = 13.sp,
+        lineHeight = 20.sp,
+    )
+}
+
+@Composable
+private fun RelationResultCard(
+    formula: String,
+    targetSymbol: String,
+    knownValues: Map<String, Double>,
+    result: Double?,
+    allInputsReady: Boolean,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                if (matches) InteractiveGreen.copy(alpha = 0.10f) else InteractiveRed.copy(alpha = 0.08f),
-                RoundedCornerShape(14.dp),
-            )
-            .border(
-                1.dp,
-                if (matches) InteractiveGreen.copy(alpha = 0.65f) else InteractiveRed.copy(alpha = 0.55f),
-                RoundedCornerShape(14.dp),
-            )
+            .background(InteractivePanel, RoundedCornerShape(14.dp))
+            .border(1.dp, InteractiveLine, RoundedCornerShape(14.dp))
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            "当前点：(${coordinateNumber(x)}, ${coordinateNumber(y)})",
-            color = InteractiveWhite,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Medium,
-        )
-        Text(
-            "当 x=${coordinateNumber(x)} 时，${example.formula} 给出的对应值是 y=${coordinateNumber(expectedY)}。",
-            color = InteractiveMuted,
-            fontSize = 15.sp,
-            lineHeight = 23.sp,
-        )
-        Text(
-            when {
-                matches -> "验证通过：当前点在函数图像上。"
-                error > 0f -> "还不符合：当前 y 偏高 ${coordinateNumber(abs(error))}。"
-                else -> "还不符合：当前 y 偏低 ${coordinateNumber(abs(error))}。"
-            },
-            color = if (matches) InteractiveGreen else InteractiveRed,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-        )
-        if (!matches) {
-            Spacer(Modifier.height(4.dp))
-            InteractiveAction(
-                label = "把 y 调到正确对应值",
-                color = InteractiveYellow,
-            ) { y = snapCoordinate(expectedY) }
+        Text(formula, color = InteractiveYellow, fontSize = 22.sp, fontWeight = FontWeight.Medium)
+        when {
+            !allInputsReady -> Text("请先填写已知量。", color = InteractiveMuted, fontSize = 15.sp)
+            result == null || !result.isFinite() -> Text("当前输入无法得到有效结果。", color = InteractiveRed, fontSize = 15.sp)
+            else -> {
+                val knownText = knownValues.entries.joinToString("，") { "${it.key}=${formatEquationNumber(it.value)}" }
+                Text("已知 $knownText", color = InteractiveMuted, fontSize = 15.sp)
+                Text(
+                    "$targetSymbol=${formatEquationNumber(result)}",
+                    color = InteractiveGreen,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun CoordinateValidationGraph(
-    example: CoordinateValidationExample,
-    x: Float,
-    y: Float,
-    expectedY: Float,
-    matches: Boolean,
+private fun RelationGraph(
+    example: LinearRelationExample,
+    pointX: Double?,
+    pointY: Double?,
 ) {
-    val xMin = example.xRange.start
-    val xMax = example.xRange.endInclusive
-    val yMin = example.yRange.start
-    val yMax = example.yRange.endInclusive
+    val xMin = example.xRange.start.toFloat()
+    val xMax = example.xRange.endInclusive.toFloat()
+    val yMin = example.yRange.start.toFloat()
+    val yMax = example.yRange.endInclusive.toFloat()
 
     Canvas(
         modifier = Modifier
             .fillMaxWidth()
-            .height(320.dp)
+            .height(310.dp)
             .background(InteractivePanel, RoundedCornerShape(18.dp))
             .border(1.dp, InteractiveLine, RoundedCornerShape(18.dp))
             .padding(10.dp),
@@ -214,84 +284,52 @@ private fun CoordinateValidationGraph(
         val right = size.width - 18.dp.toPx()
         val top = 18.dp.toPx()
         val bottom = size.height - 34.dp.toPx()
-        fun sx(worldX: Float): Float = left + (worldX - xMin) / (xMax - xMin) * (right - left)
-        fun sy(worldY: Float): Float = bottom - (worldY - yMin) / (yMax - yMin) * (bottom - top)
+        fun sx(value: Float): Float = left + (value - xMin) / (xMax - xMin) * (right - left)
+        fun sy(value: Float): Float = bottom - (value - yMin) / (yMax - yMin) * (bottom - top)
 
         repeat(9) { index ->
             val ratio = index / 8f
-            val gx = left + ratio * (right - left)
-            val gy = top + ratio * (bottom - top)
-            drawLine(InteractiveLine.copy(alpha = 0.62f), Offset(gx, top), Offset(gx, bottom), 1.dp.toPx())
-            drawLine(InteractiveLine.copy(alpha = 0.62f), Offset(left, gy), Offset(right, gy), 1.dp.toPx())
+            val gridX = left + ratio * (right - left)
+            val gridY = top + ratio * (bottom - top)
+            drawLine(InteractiveLine.copy(alpha = 0.62f), Offset(gridX, top), Offset(gridX, bottom), 1.dp.toPx())
+            drawLine(InteractiveLine.copy(alpha = 0.62f), Offset(left, gridY), Offset(right, gridY), 1.dp.toPx())
         }
-
         if (0f in xMin..xMax) {
-            drawLine(
-                InteractiveWhite.copy(alpha = 0.68f),
-                Offset(sx(0f), top),
-                Offset(sx(0f), bottom),
-                2.dp.toPx(),
-                StrokeCap.Round,
-            )
+            drawLine(InteractiveWhite.copy(alpha = 0.68f), Offset(sx(0f), top), Offset(sx(0f), bottom), 2.dp.toPx())
         }
         if (0f in yMin..yMax) {
-            drawLine(
-                InteractiveWhite.copy(alpha = 0.68f),
-                Offset(left, sy(0f)),
-                Offset(right, sy(0f)),
-                2.dp.toPx(),
-                StrokeCap.Round,
-            )
+            drawLine(InteractiveWhite.copy(alpha = 0.68f), Offset(left, sy(0f)), Offset(right, sy(0f)), 2.dp.toPx())
         }
 
         clipRect(left = left, top = top, right = right, bottom = bottom) {
             drawLine(
                 color = InteractiveBlue,
-                start = Offset(sx(xMin), sy(example.valueAt(xMin))),
-                end = Offset(sx(xMax), sy(example.valueAt(xMax))),
+                start = Offset(sx(xMin), sy((example.coefficient * xMin + example.constant).toFloat())),
+                end = Offset(sx(xMax), sy((example.coefficient * xMax + example.constant).toFloat())),
                 strokeWidth = 4.dp.toPx(),
                 cap = StrokeCap.Round,
             )
-
-            val correctCenter = Offset(sx(x), sy(expectedY))
-            if (!matches) {
-                drawLine(
-                    color = InteractiveYellow.copy(alpha = 0.45f),
-                    start = Offset(sx(x), sy(y)),
-                    end = correctCenter,
-                    strokeWidth = 2.dp.toPx(),
-                )
-                drawCircle(
-                    color = InteractiveYellow.copy(alpha = 0.82f),
-                    radius = 8.dp.toPx(),
-                    center = correctCenter,
-                    style = Stroke(width = 2.dp.toPx()),
-                )
+            if (pointX != null && pointY != null && pointX.isFinite() && pointY.isFinite()) {
+                val x = pointX.toFloat()
+                val y = pointY.toFloat()
+                if (x in xMin..xMax && y in yMin..yMax) {
+                    val center = Offset(sx(x), sy(y))
+                    drawLine(
+                        InteractiveYellow.copy(alpha = 0.4f),
+                        Offset(sx(x), if (0f in yMin..yMax) sy(0f) else bottom),
+                        center,
+                        2.dp.toPx(),
+                    )
+                    drawLine(
+                        InteractiveYellow.copy(alpha = 0.4f),
+                        Offset(if (0f in xMin..xMax) sx(0f) else left, sy(y)),
+                        center,
+                        2.dp.toPx(),
+                    )
+                    drawCircle(InteractiveGreen, 8.dp.toPx(), center)
+                    drawCircle(InteractiveWhite, 3.dp.toPx(), center)
+                }
             }
-
-            val candidateCenter = Offset(sx(x), sy(y))
-            drawLine(
-                color = (if (matches) InteractiveGreen else InteractiveRed).copy(alpha = 0.34f),
-                start = Offset(sx(x), if (0f in yMin..yMax) sy(0f) else bottom),
-                end = candidateCenter,
-                strokeWidth = 2.dp.toPx(),
-            )
-            drawLine(
-                color = (if (matches) InteractiveGreen else InteractiveRed).copy(alpha = 0.34f),
-                start = Offset(if (0f in xMin..xMax) sx(0f) else left, sy(y)),
-                end = candidateCenter,
-                strokeWidth = 2.dp.toPx(),
-            )
-            drawCircle(
-                color = if (matches) InteractiveGreen else InteractiveRed,
-                radius = 8.dp.toPx(),
-                center = candidateCenter,
-            )
-            drawCircle(
-                color = InteractiveWhite.copy(alpha = 0.85f),
-                radius = 3.dp.toPx(),
-                center = candidateCenter,
-            )
         }
 
         val paint = Paint().apply {
@@ -299,7 +337,7 @@ private fun CoordinateValidationGraph(
             textSize = 12.sp.toPx()
             color = InteractiveMuted.toArgb()
         }
-        drawContext.canvas.nativeCanvas.drawText(example.formula, left, 17.dp.toPx(), paint)
+        drawContext.canvas.nativeCanvas.drawText(example.formula, left, 16.dp.toPx(), paint)
         paint.textAlign = Paint.Align.RIGHT
         drawContext.canvas.nativeCanvas.drawText("x", right, bottom + 25.dp.toPx(), paint)
         paint.textAlign = Paint.Align.LEFT
@@ -308,43 +346,34 @@ private fun CoordinateValidationGraph(
 }
 
 @Composable
-private fun CoordinateSlider(
+private fun RelationNumberInput(
     label: String,
-    value: Float,
-    range: ClosedFloatingPointRange<Float>,
+    value: String,
     color: Color,
-    onValueChange: (Float) -> Unit,
+    onValueChange: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(InteractivePanel, RoundedCornerShape(14.dp))
-            .border(1.dp, InteractiveLine, RoundedCornerShape(14.dp))
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .border(1.dp, color.copy(alpha = 0.42f), RoundedCornerShape(14.dp))
+            .padding(16.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(label, color = InteractiveMuted, fontSize = 14.sp)
-            Text(
-                coordinateNumber(value),
-                color = color,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-            )
-        }
-        Slider(
-            value = value.coerceIn(range),
+        Text(label, color = InteractiveMuted, fontSize = 14.sp)
+        Spacer(Modifier.height(10.dp))
+        BasicTextField(
+            value = value,
             onValueChange = onValueChange,
-            valueRange = range,
+            modifier = Modifier.fillMaxWidth(),
+            textStyle = TextStyle(color = InteractiveWhite, fontSize = 25.sp, fontWeight = FontWeight.Medium),
+            cursorBrush = SolidColor(color),
+            singleLine = true,
         )
     }
 }
 
 @Composable
-private fun ValidationChoice(
+private fun RelationChoice(
     label: String,
     selected: Boolean,
     modifier: Modifier = Modifier,
@@ -352,16 +381,12 @@ private fun ValidationChoice(
 ) {
     Box(
         modifier = modifier
-            .height(46.dp)
+            .height(48.dp)
             .background(
                 if (selected) InteractivePurple.copy(alpha = 0.17f) else InteractivePanel,
                 RoundedCornerShape(12.dp),
             )
-            .border(
-                1.dp,
-                if (selected) InteractivePurple else InteractiveLine,
-                RoundedCornerShape(12.dp),
-            )
+            .border(1.dp, if (selected) InteractivePurple else InteractiveLine, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -374,13 +399,5 @@ private fun ValidationChoice(
     }
 }
 
-private fun snapCoordinate(value: Float): Float = round(value * 10f) / 10f
-
-private fun coordinateNumber(value: Float): String {
-    val rounded = snapCoordinate(value)
-    return if (abs(rounded - rounded.toInt()) < 0.001f) {
-        rounded.toInt().toString()
-    } else {
-        rounded.toString().trimEnd('0').trimEnd('.')
-    }
-}
+private fun isNumberDraft(value: String): Boolean =
+    value.length <= 12 && value.matches(Regex("-?\\d*(\\.\\d*)?"))
