@@ -64,36 +64,35 @@ jobs:
       - name: Install Android SDK
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Restore stable development signing key
-        id: signing-key-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.android/debug.keystore
-          key: school-development-keystore-v1-${{ runner.os }}
-
-      - name: Prepare stable development signing key
+      - name: Verify fixed development signing key
         shell: bash
         run: |
           set -euo pipefail
-          keystore="$HOME/.android/debug.keystore"
-          mkdir -p "$(dirname "$keystore")"
-          if [ ! -s "$keystore" ]; then
-            keytool -genkeypair \
+          source_file="signing/school-development.jks.b64"
+          expected_file="signing/school-development.cert.sha256"
+          keystore="$RUNNER_TEMP/school-development.jks"
+
+          test -s "$source_file"
+          test -s "$expected_file"
+          base64 --decode "$source_file" > "$keystore"
+
+          expected="$(tr -d '[:space:]:' < "$expected_file" | tr '[:upper:]' '[:lower:]')"
+          actual="$(
+            keytool -list -v \
               -keystore "$keystore" \
               -storepass android \
-              -alias androiddebugkey \
-              -keypass android \
-              -dname "CN=School Development,O=MajorTomMan,C=CN" \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000
+              -alias schooldev \
+              | sed -n 's/^[[:space:]]*SHA256:[[:space:]]*//p' \
+              | tr -d '[:space:]:' \
+              | tr '[:upper:]' '[:lower:]'
+          )"
+
+          if [ -z "$actual" ] || [ "$actual" != "$expected" ]; then
+            echo "固定开发签名证书指纹不一致：expected=$expected actual=$actual" >&2
+            exit 1
           fi
-          chmod 600 "$keystore"
-          keytool -list -v \
-            -keystore "$keystore" \
-            -storepass android \
-            -alias androiddebugkey \
-            | grep -E "SHA256:|Valid from:" || true
+
+          echo "Fixed development certificate SHA-256: $actual"
 
       - uses: gradle/actions/setup-gradle@v4
         with:
@@ -109,7 +108,7 @@ jobs:
           tail -n 240 build.log
           exit $status
 
-      - name: Prepare APK and checksum
+      - name: Prepare APK and verify signature
         id: package
         if: success()
         shell: bash
@@ -127,6 +126,21 @@ jobs:
           cp app/build/outputs/apk/debug/app-debug.apk dist/school-debug.apk
           sha256sum dist/school-debug.apk > dist/school-debug.apk.sha256
 
+          expected="$(tr -d '[:space:]:' < signing/school-development.cert.sha256 | tr '[:upper:]' '[:lower:]')"
+          actual="$(
+            "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs dist/school-debug.apk \
+              | sed -n 's/^Signer #1 certificate SHA-256 digest:[[:space:]]*//p' \
+              | tr -d '[:space:]:' \
+              | tr '[:upper:]' '[:lower:]'
+          )"
+
+          if [ -z "$actual" ] || [ "$actual" != "$expected" ]; then
+            echo "APK 签名证书指纹不一致：expected=$expected actual=$actual" >&2
+            exit 1
+          fi
+
+          printf '%s  school-debug.apk\n' "$actual" > dist/school-debug.apk.cert-sha256
+          echo "APK certificate SHA-256: $actual"
           echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
           echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT"
 
@@ -153,6 +167,7 @@ jobs:
           path: |
             dist/school-debug.apk
             dist/school-debug.apk.sha256
+            dist/school-debug.apk.cert-sha256
 
       - name: Publish rolling development release
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
@@ -189,12 +204,14 @@ jobs:
             gh release upload "$tag" \
               dist/school-debug.apk \
               dist/school-debug.apk.sha256 \
+              dist/school-debug.apk.cert-sha256 \
               --repo "$GITHUB_REPOSITORY" \
               --clobber
           else
             gh release create "$tag" \
               dist/school-debug.apk \
               dist/school-debug.apk.sha256 \
+              dist/school-debug.apk.cert-sha256 \
               --repo "$GITHUB_REPOSITORY" \
               --target "$GITHUB_SHA" \
               --title "$title" \
