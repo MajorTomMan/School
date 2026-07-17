@@ -67,12 +67,18 @@ class SchoolUpdateMessagingService : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
+        val settings = UpdatePreferences(applicationContext).settings()
         val data = message.data
-        if (data["type"] != "school_update") return
-        if (!UpdatePreferences(applicationContext).settings().autoCheck) return
-        val advertisedVersion = data["versionCode"]?.toLongOrNull()
-        if (advertisedVersion != null && advertisedVersion <= BuildConfig.VERSION_CODE.toLong()) return
-        enqueuePushUpdateCheck(applicationContext)
+        if (
+            shouldSchedulePushCheck(
+                type = data["type"],
+                advertisedVersion = data["versionCode"]?.toLongOrNull(),
+                currentVersion = BuildConfig.VERSION_CODE.toLong(),
+                autoCheck = settings.autoCheck,
+            )
+        ) {
+            enqueuePushUpdateCheck(applicationContext)
+        }
     }
 
     override fun onDeletedMessages() {
@@ -81,6 +87,15 @@ class SchoolUpdateMessagingService : FirebaseMessagingService() {
         }
     }
 }
+
+internal fun shouldSchedulePushCheck(
+    type: String?,
+    advertisedVersion: Long?,
+    currentVersion: Long,
+    autoCheck: Boolean,
+): Boolean = autoCheck &&
+    type == "school_update" &&
+    (advertisedVersion == null || advertisedVersion > currentVersion)
 
 internal fun enqueuePushUpdateCheck(context: Context) {
     val request = OneTimeWorkRequestBuilder<UpdateCheckWorker>()
