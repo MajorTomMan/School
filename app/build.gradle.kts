@@ -16,7 +16,20 @@ android {
         versionName = "0.20.0"
     }
 
+    signingConfigs {
+        create("schoolDevelopment") {
+            // 仅用于公开开发版和预览版，保证本地、PR 与主分支 APK 可相互覆盖安装。
+            storeFile = rootProject.file("signing/school-development.jks")
+            storePassword = "android"
+            keyAlias = "schooldev"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("schoolDevelopment")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
