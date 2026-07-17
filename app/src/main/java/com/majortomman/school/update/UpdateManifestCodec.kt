@@ -55,21 +55,26 @@ internal object UpdateManifestCodec {
         require(manifest.versionName.isNotBlank()) { "更新版本名称为空。" }
         require(manifest.apk.fileName.endsWith(".apk")) { "更新文件不是 APK。" }
         require(manifest.apk.size > 0L) { "更新文件大小无效。" }
-        require(manifest.apk.sha256.length == 64) { "APK SHA-256 无效。" }
-        require(manifest.apk.certificateSha256.length == 64) { "APK 证书 SHA-256 无效。" }
+        require(SHA256_REGEX.matches(manifest.apk.sha256)) { "APK SHA-256 无效。" }
+        require(SHA256_REGEX.matches(manifest.apk.certificateSha256)) { "APK 证书 SHA-256 无效。" }
         val url = java.net.URI(manifest.apk.downloadUrl)
         require(url.scheme == "https") { "更新地址必须使用 HTTPS。" }
         require(url.host == "github.com") { "更新地址不是允许的 GitHub Release 地址。" }
+        require(url.path.contains("/MajorTomMan/school/releases/download/dev-latest/")) {
+            "更新地址不是 School 的 dev-latest Release。"
+        }
     }
 
     private fun JSONArray?.toStringList(): List<String> {
         if (this == null) return emptyList()
         return buildList {
             for (index in 0 until length()) {
-                optString(index).trim().takeIf(String::isNotEmpty)?.let(::add)
+                optString(index).trim().takeIf { it.isNotEmpty() }?.let(::add)
             }
         }
     }
+
+    private val SHA256_REGEX = Regex("^[0-9a-f]{64}$")
 }
 
-internal fun String.normalizedSha256(): String = lowercase().filter(Char::isLetterOrDigit)
+internal fun String.normalizedSha256(): String = lowercase().filter { it in '0'..'9' || it in 'a'..'f' }
