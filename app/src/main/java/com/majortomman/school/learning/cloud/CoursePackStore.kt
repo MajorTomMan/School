@@ -61,8 +61,9 @@ internal class CoursePackStore(context: Context) {
             plan.deletedFiles.forEach { path -> safeResolve(staging, path).deleteRecursively() }
             plan.changedFiles.forEach { file ->
                 val destination = safeResolve(staging, file.path)
-                destination.parentFile?.mkdirs()
-                val partial = File(destination.parentFile, "${destination.name}.part")
+                val destinationParent = requireNotNull(destination.parentFile) { "课程文件缺少父目录" }
+                destinationParent.mkdirs()
+                val partial = File(destinationParent, "${destination.name}.part")
                 partial.delete()
                 download(file, partial)
                 verifyFile(partial, file)
@@ -118,7 +119,12 @@ internal class CoursePackStore(context: Context) {
         ZipInputStream(FileInputStream(zipFile).buffered()).use { input ->
             while (true) {
                 val entry = input.nextEntry ?: break
-                val entryPath = validateRelativePath(entry.name)
+                val rawEntryPath = entry.name.trimEnd('/')
+                if (rawEntryPath.isBlank()) {
+                    input.closeEntry()
+                    continue
+                }
+                val entryPath = validateRelativePath(rawEntryPath)
                 val target = safeResolve(destination, entryPath)
                 if (entry.isDirectory) {
                     target.mkdirs()
