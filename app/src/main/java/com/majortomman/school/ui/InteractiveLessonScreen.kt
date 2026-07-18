@@ -60,6 +60,18 @@ fun InteractiveLessonScreen(
     onBack: () -> Unit,
     onComplete: () -> Unit,
 ) {
+    if (spec.kind == InteractiveLessonKind.RATIONAL_NUMBERS) {
+        RationalNumbersLessonScreen(
+            lesson = lesson,
+            installedMaterial = installedMaterial,
+            nextLessonTitle = nextLessonTitle,
+            onOpenTextbook = onOpenTextbook,
+            onBack = onBack,
+            onComplete = onComplete,
+        )
+        return
+    }
+
     var sourceExpanded by rememberSaveable(lesson.id) { mutableStateOf(true) }
     val pageLabel = if (spec.sourcePage == spec.sourcePageEnd) "第 ${spec.sourcePage} 页" else "第 ${spec.sourcePage}—${spec.sourcePageEnd} 页"
 
@@ -101,6 +113,7 @@ fun InteractiveLessonScreen(
             Spacer(Modifier.height(30.dp))
 
             when (spec.kind) {
+                InteractiveLessonKind.RATIONAL_NUMBERS -> Unit
                 InteractiveLessonKind.LINEAR_FUNCTION -> {
                     LinearFunctionLab(lesson.id)
                     Spacer(Modifier.height(32.dp))
@@ -173,7 +186,7 @@ private fun SourceSummarySection(
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("教材内容依据", color = InteractiveBlue, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text("教材内容", color = InteractiveBlue, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(5.dp))
                 Text("$title · $pageLabel", color = InteractiveMuted, fontSize = 13.sp)
             }
@@ -185,11 +198,12 @@ private fun SourceSummarySection(
                 Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveBlue.copy(alpha = 0.35f)))
                 Spacer(Modifier.height(14.dp))
                 Text(summary, color = InteractiveWhite, fontSize = 17.sp, lineHeight = 28.sp)
-                Spacer(Modifier.height(12.dp))
-                Text(if (sourceAvailable) "School 解释与教材原文分开；可打开原页核对。" else "尚未绑定 PDF；当前只展示页码约束下的 School 自有解释。", color = InteractiveMuted, fontSize = 13.sp, lineHeight = 20.sp)
                 if (sourceAvailable) {
                     Spacer(Modifier.height(10.dp))
                     TextAction("打开教材原页 →", InteractiveYellow, onOpenTextbook)
+                } else {
+                    Spacer(Modifier.height(10.dp))
+                    Text("教材 PDF 尚未绑定。", color = InteractiveMuted, fontSize = 13.sp)
                 }
             }
         }
