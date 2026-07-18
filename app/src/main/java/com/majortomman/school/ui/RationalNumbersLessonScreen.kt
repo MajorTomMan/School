@@ -38,7 +38,6 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.majortomman.school.data.Lesson
@@ -83,7 +82,10 @@ fun RationalNumbersLessonScreen(
         ) {
             PagerTextAction("返回", InteractiveMuted, onBack)
             Text("有理数", color = InteractiveWhite, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-            PagerTextAction("教材第 ${currentPage.sourcePage} 页", InteractiveYellow) {
+            PagerTextAction(
+                label = "教材第 ${currentPage.sourcePage} 页",
+                color = if (installedMaterial.pdfFile.isFile) InteractiveYellow else InteractiveMuted,
+            ) {
                 if (installedMaterial.pdfFile.isFile) onOpenTextbook(currentPage.sourcePage)
             }
         }
@@ -147,10 +149,12 @@ private fun RationalLessonPageContent(
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize().padding(horizontal = 22.dp, vertical = 18.dp),
     ) {
+        val availableHeight = maxHeight
+        val compact = availableHeight < 560.dp
         val visualHeight = when {
-            maxHeight < 520.dp -> 150.dp
-            maxHeight < 640.dp -> 190.dp
-            maxHeight < 760.dp -> 230.dp
+            availableHeight < 520.dp -> 150.dp
+            availableHeight < 640.dp -> 190.dp
+            availableHeight < 760.dp -> 230.dp
             else -> 270.dp
         }
         Column(modifier = Modifier.fillMaxSize()) {
@@ -159,8 +163,8 @@ private fun RationalLessonPageContent(
             Text(
                 page.title,
                 color = InteractiveWhite,
-                fontSize = if (maxHeight < 560.dp) 27.sp else 32.sp,
-                lineHeight = if (maxHeight < 560.dp) 33.sp else 39.sp,
+                fontSize = if (compact) 27.sp else 32.sp,
+                lineHeight = if (compact) 33.sp else 39.sp,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(Modifier.height(14.dp))
@@ -168,8 +172,8 @@ private fun RationalLessonPageContent(
                 Text(
                     paragraph,
                     color = InteractiveWhite.copy(alpha = 0.84f),
-                    fontSize = if (maxHeight < 560.dp) 14.sp else 16.sp,
-                    lineHeight = if (maxHeight < 560.dp) 21.sp else 25.sp,
+                    fontSize = if (compact) 14.sp else 16.sp,
+                    lineHeight = if (compact) 21.sp else 25.sp,
                 )
                 if (index != page.paragraphs.lastIndex) Spacer(Modifier.height(7.dp))
             }
@@ -179,7 +183,7 @@ private fun RationalLessonPageContent(
                     page.formula,
                     modifier = Modifier.fillMaxWidth().padding(vertical = 7.dp),
                     color = InteractiveYellow,
-                    fontSize = if (maxHeight < 560.dp) 18.sp else 22.sp,
+                    fontSize = if (compact) 18.sp else 22.sp,
                     lineHeight = 28.sp,
                     fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center,
@@ -197,7 +201,7 @@ private fun RationalLessonPageContent(
                 Text(
                     page.conclusion,
                     color = InteractiveWhite,
-                    fontSize = if (maxHeight < 560.dp) 14.sp else 16.sp,
+                    fontSize = if (compact) 14.sp else 16.sp,
                     lineHeight = 23.sp,
                     fontWeight = FontWeight.Medium,
                 )
@@ -450,11 +454,8 @@ private fun PowerProcessVisual() {
     var exponent by rememberSaveable { mutableStateOf(3f) }
     val exponentInt = exponent.roundToInt().coerceIn(1, 6)
     val factors = List(exponentInt) { "(−2)" }.joinToString("×")
-    val result = (-2.0).let { base ->
-        var value = 1.0
-        repeat(exponentInt) { value *= base }
-        value.toInt()
-    }
+    var result = 1
+    repeat(exponentInt) { result *= -2 }
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.SpaceEvenly,
