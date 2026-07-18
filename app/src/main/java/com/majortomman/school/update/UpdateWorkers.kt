@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
@@ -184,7 +185,11 @@ class UpdateDownloadWorker(
             .setOngoing(true)
             .setProgress(100, progress, false)
             .build()
-        return ForegroundInfo(UPDATE_NOTIFICATION_ID, notification)
+        return ForegroundInfo(
+            UPDATE_NOTIFICATION_ID,
+            notification,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+        )
     }
 
     private fun showReadyNotification(versionName: String) {
