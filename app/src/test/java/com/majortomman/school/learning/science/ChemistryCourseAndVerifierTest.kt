@@ -12,7 +12,8 @@ import org.junit.Test
 class ChemistryCourseAndVerifierTest {
     @Test
     fun classifiesCommonChemistryTextbookThemes() {
-        assertEquals(ChemistryCourseCategory.FORMULA, ChemistryCourseContentFactory.classify("化学式与化合价"))
+        assertEquals(ChemistryCourseCategory.FORMULA, ChemistryCourseContentFactory.classify("化学式的书写"))
+        assertEquals(ChemistryCourseCategory.ION_REDOX, ChemistryCourseContentFactory.classify("化合价与氧化还原"))
         assertEquals(ChemistryCourseCategory.EQUATION, ChemistryCourseContentFactory.classify("如何正确书写化学方程式"))
         assertEquals(ChemistryCourseCategory.STOICHIOMETRY, ChemistryCourseContentFactory.classify("物质的量在化学反应中的应用"))
         assertEquals(ChemistryCourseCategory.ORGANIC, ChemistryCourseContentFactory.classify("乙醇与乙酸"))
