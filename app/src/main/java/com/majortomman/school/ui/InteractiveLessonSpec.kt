@@ -6,8 +6,10 @@ import com.majortomman.school.learning.course.ChemistryCourseContentFactory
 import com.majortomman.school.learning.course.LessonEnrichment
 import com.majortomman.school.learning.course.MathCourseContentFactory
 import com.majortomman.school.learning.course.PhysicsCourseContentFactory
+import com.majortomman.school.learning.course.RationalNumbersCourseFactory
 
 enum class InteractiveLessonKind {
+    RATIONAL_NUMBERS,
     LINEAR_FUNCTION,
     NEWTON_FIRST_LAW,
     MATH_GENERAL,
@@ -37,6 +39,7 @@ object InteractiveLessonCatalog {
         val firstPage = lesson.textbookPages.first.coerceAtLeast(1)
         val lastPage = lesson.textbookPages.last.coerceAtLeast(firstPage)
         return when {
+            subjectId == "math" && RationalNumbersCourseFactory.supports(title) -> rationalNumbers(lesson, firstPage, lastPage)
             subjectId == "math" && isLinearFunctionLesson(title) -> linearFunction(lesson, firstPage, lastPage)
             subjectId == "physics" && title.contains("牛顿第一定律") -> newtonFirstLaw(firstPage, lastPage)
             subjectId == "math" -> generalMath(lesson, firstPage, lastPage)
@@ -45,6 +48,25 @@ object InteractiveLessonCatalog {
             subjectId == "biology" -> generalBiology(lesson, firstPage, lastPage)
             else -> null
         }
+    }
+
+    private fun rationalNumbers(lesson: Lesson, firstPage: Int, lastPage: Int): InteractiveLessonSpec {
+        val pages = RationalNumbersCourseFactory.pagesFor(lesson.title, firstPage..lastPage)
+        val first = pages.first()
+        return InteractiveLessonSpec(
+            kind = InteractiveLessonKind.RATIONAL_NUMBERS,
+            badge = "数学 · 有理数",
+            title = lesson.title,
+            subtitle = first.section,
+            formula = first.formula.orEmpty(),
+            sourceSummary = first.paragraphs.joinToString("\n\n"),
+            derivationTitle = first.title,
+            derivationSteps = first.paragraphs,
+            background = emptyList(),
+            misconception = first.conclusion.orEmpty(),
+            sourcePage = firstPage,
+            sourcePageEnd = lastPage,
+        )
     }
 
     private fun linearFunction(lesson: Lesson, firstPage: Int, lastPage: Int): InteractiveLessonSpec {
