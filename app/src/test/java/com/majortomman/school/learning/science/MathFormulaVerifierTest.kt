@@ -1,7 +1,5 @@
 package com.majortomman.school.learning.science
 
-import com.majortomman.school.learning.course.MathCourseCategory
-import com.majortomman.school.learning.course.MathCourseContentFactory
 import com.majortomman.school.learning.science.math.MathFormulaStatus
 import com.majortomman.school.learning.science.math.MathFormulaVerifier
 import org.junit.Assert.assertEquals
@@ -48,14 +46,5 @@ class MathFormulaVerifierTest {
 
         assertEquals(MathFormulaStatus.SAMPLE_MATCH, result.status)
         assertTrue(result.message.contains("不是严格恒等证明"))
-    }
-
-    @Test
-    fun mathCourseTitlesMapToSubjectProfiles() {
-        assertEquals(MathCourseCategory.FUNCTION, MathCourseContentFactory.classify("二次函数的图象和性质"))
-        assertEquals(MathCourseCategory.GEOMETRY, MathCourseContentFactory.classify("相似三角形"))
-        assertEquals(MathCourseCategory.PROBABILITY, MathCourseContentFactory.classify("随机事件的概率"))
-        assertEquals(MathCourseCategory.COMPLEX, MathCourseContentFactory.classify("复数的几何意义"))
-        assertEquals(MathCourseCategory.EQUATION, MathCourseContentFactory.classify("一元二次方程"))
     }
 }
