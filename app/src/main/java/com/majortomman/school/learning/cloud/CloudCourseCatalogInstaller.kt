@@ -19,15 +19,16 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Converts cached cloud course metadata into the local navigation model. No catalogue is bundled in
- * the APK; every title, chapter and section handled here comes from course.json.
+ * Converts a verified cloud package into the local navigation model.
+ *
+ * The course JSON, textbook PDF and every other asset live under the same active course directory.
+ * No local PDF binding or user-selected file is consulted.
  */
 internal object CloudCourseCatalogInstaller {
     private const val ACTIVE_DIRECTORY = "course-packs/active"
     private const val COURSE_FILE_NAME = "course.json"
     private const val GENERATED_LESSONS_PATH = "generated/lessons.json"
     private const val CLOUD_VERSION_PREFIX = "cloud-course-"
-    private const val UNBOUND_PDF_PATH = "binding/textbook.pdf"
 
     fun refreshFromCache(context: Context): Int {
         val activeRoot = File(context.filesDir, ACTIVE_DIRECTORY)
@@ -54,6 +55,16 @@ internal object CloudCourseCatalogInstaller {
         val lessons = buildCatalogLessons(course.getJSONArray("chapters"))
         require(lessons.isNotEmpty()) { "课程包不包含可导航的小节" }
 
+        val pdf = textbook.optJSONObject("pdf") ?: error("课程包缺少 textbook.pdf")
+        val pdfPath = validateRelativePath(pdf.getString("path"))
+        val pdfSha256 = validateSha256(pdf.getString("sha256"))
+        val pageCount = pdf.getInt("pageCount")
+        val pageIndexOffset = pdf.optInt("pageIndexOffset", 0)
+        val pdfFile = File(root, pdfPath)
+        require(pdfFile.isFile) { "课程包缺少教材 PDF：$pdfPath" }
+        require(CoursePackStore.sha256(pdfFile) == pdfSha256) { "教材 PDF 摘要校验失败" }
+        require(pageCount > 0) { "教材 PDF 页数必须大于 0" }
+
         val title = textbook.getString("title").trim()
         val catalog = TextbookCatalog(
             book = CatalogBook(
@@ -78,42 +89,31 @@ internal object CloudCourseCatalogInstaller {
             Charsets.UTF_8,
         )
 
-        val existing = MaterialLibraryStore.read(context).firstOrNull { it.slot.key == slot.key }
-        val target = if (existing?.pack?.pdfFile?.isFile == true) {
-            InstalledTextbook(
-                slot = slot,
-                pack = existing.pack,
-                pageCount = existing.pageCount,
-                lessons = generated,
-            )
-        } else {
-            val courseFile = File(root, COURSE_FILE_NAME)
-            val sha256 = CoursePackStore.sha256(courseFile)
-            val manifest = MaterialPackManifest(
-                schemaVersion = MATERIAL_PACK_SCHEMA_VERSION,
-                packId = "cloud-${textbook.optString("id", root.name)}",
-                version = "$CLOUD_VERSION_PREFIX${courseFile.lastModified()}",
-                title = title,
-                subject = subject.title,
-                catalogPath = COURSE_FILE_NAME,
-                pdf = MaterialPdfAsset(
-                    path = UNBOUND_PDF_PATH,
-                    sha256 = sha256,
-                    pageIndexOffset = 0,
-                ),
-            )
-            InstalledTextbook(
-                slot = slot,
-                pack = InstalledMaterialPack(
-                    manifest = manifest,
-                    rootPath = root.absolutePath,
-                    installedAt = System.currentTimeMillis(),
-                    sizeBytes = MaterialLibraryStore.directorySize(root),
-                ),
-                pageCount = lessons.maxOf(CatalogLesson::pageEnd),
-                lessons = generated,
-            )
-        }
+        val courseFile = File(root, COURSE_FILE_NAME)
+        val manifest = MaterialPackManifest(
+            schemaVersion = MATERIAL_PACK_SCHEMA_VERSION,
+            packId = "cloud-${textbook.optString("id", root.name)}",
+            version = "$CLOUD_VERSION_PREFIX${courseFile.lastModified()}",
+            title = title,
+            subject = subject.title,
+            catalogPath = COURSE_FILE_NAME,
+            pdf = MaterialPdfAsset(
+                path = pdfPath,
+                sha256 = pdfSha256,
+                pageIndexOffset = pageIndexOffset,
+            ),
+        )
+        val target = InstalledTextbook(
+            slot = slot,
+            pack = InstalledMaterialPack(
+                manifest = manifest,
+                rootPath = root.absolutePath,
+                installedAt = System.currentTimeMillis(),
+                sizeBytes = MaterialLibraryStore.directorySize(root),
+            ),
+            pageCount = pageCount,
+            lessons = generated,
+        )
         MaterialLibraryStore.upsert(context, target)
     }
 

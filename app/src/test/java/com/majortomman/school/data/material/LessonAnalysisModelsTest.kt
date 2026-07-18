@@ -1,11 +1,9 @@
 package com.majortomman.school.data.material
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LessonAnalysisModelsTest {
-    private val slot = TextbookSlot("math", "数学", 7, TextbookVolume.FIRST)
     private val lesson = GeneratedLesson(
         id = "math-7-1:number-line",
         sourceId = "number-line",
@@ -20,19 +18,8 @@ class LessonAnalysisModelsTest {
     )
 
     @Test
-    fun fallbackBuildsNumberLineScene() {
-        val analysis = LessonAnalysisFallback.generate(slot, lesson)
-
-        assertEquals(LessonSceneType.NUMBER_LINE, analysis.scene.type)
-        assertEquals(listOf(-3.0, 2.0), analysis.scene.values)
-        assertEquals(15, analysis.scene.sourcePage)
-        assertTrue(analysis.exercise.acceptedAnswers.isNotEmpty())
-    }
-
-    @Test
-    fun modelResponseIsNormalizedAndBoundToLesson() {
+    fun `cloud pack analysis is parsed and bound to lesson`() {
         val raw = """
-            ```json
             {
               "summary":"数轴把数表示为位置。",
               "objectives":["认识原点","认识正方向"],
@@ -55,13 +42,12 @@ class LessonAnalysisModelsTest {
                 "explanation":"1 在右边"
               }
             }
-            ```
         """.trimIndent()
 
-        val analysis = LessonAnalysis.fromModelResponse(raw, lesson)
+        val analysis = LessonAnalysis.fromModelResponse(raw, lesson, LessonAnalysisSource.PACK)
 
         assertEquals("number-line", analysis.lessonSourceId)
-        assertEquals(LessonAnalysisSource.AI_VISION, analysis.source)
+        assertEquals(LessonAnalysisSource.PACK, analysis.source)
         assertEquals(15..20, analysis.sourcePages)
         assertEquals(LessonSceneType.NUMBER_LINE, analysis.scene.type)
         assertEquals(16, analysis.scene.sourcePage)

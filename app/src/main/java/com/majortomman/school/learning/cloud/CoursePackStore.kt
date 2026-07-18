@@ -1,6 +1,8 @@
 package com.majortomman.school.learning.cloud
 
 import android.content.Context
+import android.graphics.pdf.PdfRenderer
+import android.os.ParcelFileDescriptor
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -89,7 +91,44 @@ internal class CoursePackStore(context: Context) {
         remote.files.forEach { spec -> verifyFile(safeResolve(staging, spec.path), spec) }
         val courseFile = File(staging, COURSE_FILE_NAME)
         require(courseFile.isFile) { "课程包缺少 $COURSE_FILE_NAME" }
-        CloudCourseCodec.validate(JSONObject(courseFile.readText(Charsets.UTF_8)))
+        val course = JSONObject(courseFile.readText(Charsets.UTF_8))
+        CloudCourseCodec.validate(course)
+        validatePdfAsset(remote, staging, course)
+    }
+
+    private fun validatePdfAsset(
+        remote: CourseTextbookManifest,
+        staging: File,
+        course: JSONObject,
+    ) {
+        val textbook = course.getJSONObject("textbook")
+        val pdf = textbook.optJSONObject("pdf")
+            ?: error("课程包缺少 textbook.pdf")
+        val path = validateRelativePath(pdf.getString("path"))
+        require(path.endsWith(".pdf", ignoreCase = true)) { "textbook.pdf.path 必须指向 PDF 文件" }
+        val expectedSha = validateSha256(pdf.getString("sha256"))
+        val expectedPageCount = pdf.getInt("pageCount")
+        require(expectedPageCount > 0) { "textbook.pdf.pageCount 必须大于 0" }
+        require(pdf.optInt("pageIndexOffset", 0) in -10_000..10_000) {
+            "textbook.pdf.pageIndexOffset 超出允许范围"
+        }
+
+        val spec = remote.files.firstOrNull { it.path == path }
+            ?: error("课程清单未声明教材 PDF：$path")
+        require(spec.sha256 == expectedSha) { "课程文件与教材 PDF 摘要不一致" }
+        val file = safeResolve(staging, path)
+        verifyFile(file, spec)
+        require(file.inputStream().buffered().use { input ->
+            val header = ByteArray(5)
+            input.read(header) == header.size && header.contentEquals("%PDF-".toByteArray(Charsets.US_ASCII))
+        }) { "教材文件不是有效 PDF" }
+
+        val actualPageCount = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
+            PdfRenderer(descriptor).use { renderer -> renderer.pageCount }
+        }
+        require(actualPageCount == expectedPageCount) {
+            "教材 PDF 页数不一致：清单 $expectedPageCount，实际 $actualPageCount"
+        }
     }
 
     private fun writeState(remote: CourseTextbookManifest, staging: File) {
@@ -166,7 +205,7 @@ internal class CoursePackStore(context: Context) {
     companion object {
         private const val COURSE_FILE_NAME = "course.json"
         private const val STATE_FILE_NAME = ".course-state.json"
-        private const val MAX_UNCOMPRESSED_PACKAGE_BYTES = 256L * 1024L * 1024L
+        private const val MAX_UNCOMPRESSED_PACKAGE_BYTES = 2L * 1024L * 1024L * 1024L
 
         fun sha256(file: File): String {
             val digest = MessageDigest.getInstance("SHA-256")
