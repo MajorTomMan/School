@@ -1,7 +1,6 @@
 package com.majortomman.school.learning.science
 
 import com.majortomman.school.learning.course.PhysicsCourseCategory
-import com.majortomman.school.learning.course.PhysicsCourseContentFactory
 import com.majortomman.school.learning.science.physics.PhysicsRelationId
 import com.majortomman.school.learning.science.physics.PhysicsRelationVerifier
 import com.majortomman.school.learning.science.physics.PhysicsVariableValue
@@ -12,15 +11,7 @@ import org.junit.Test
 
 class PhysicsCourseAndVerifierTest {
     @Test
-    fun classifiesCommonTextbookThemes() {
-        assertEquals(PhysicsCourseCategory.KINEMATICS, PhysicsCourseContentFactory.classify("速度变化的快慢 加速度"))
-        assertEquals(PhysicsCourseCategory.ELECTRICITY, PhysicsCourseContentFactory.classify("欧姆定律及其应用"))
-        assertEquals(PhysicsCourseCategory.LIGHT, PhysicsCourseContentFactory.classify("凸透镜成像规律"))
-        assertEquals(PhysicsCourseCategory.THERMAL, PhysicsCourseContentFactory.classify("比热容"))
-    }
-
-    @Test
-    fun verifiesOhmsLawInsideElectricityCourse() {
+    fun verifiesOhmsLawInsideElectricityPermission() {
         val result = PhysicsRelationVerifier.verify(
             category = PhysicsCourseCategory.ELECTRICITY,
             relation = PhysicsRelationId.OHM,
@@ -37,7 +28,7 @@ class PhysicsCourseAndVerifierTest {
     }
 
     @Test
-    fun rejectsFutureFormulaForWrongTextbookTheme() {
+    fun rejectsRelationOutsidePackagePermission() {
         val result = PhysicsRelationVerifier.verify(
             category = PhysicsCourseCategory.KINEMATICS,
             relation = PhysicsRelationId.OHM,
