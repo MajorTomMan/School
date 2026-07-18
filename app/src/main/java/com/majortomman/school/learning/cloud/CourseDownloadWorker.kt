@@ -46,9 +46,10 @@ class CourseDownloadWorker(
                 Result.failure(workDataOf(KEY_ERROR to message))
             }
             is CourseSyncResult.Failed -> {
-                CourseDownloadCoordinator.reportFailure(result.message)
-                showResultNotification(success = false, message = result.message)
-                Result.failure(workDataOf(KEY_ERROR to result.message))
+                val message = userFacingFailure(result.message)
+                CourseDownloadCoordinator.reportFailure(message)
+                showResultNotification(success = false, message = message)
+                Result.failure(workDataOf(KEY_ERROR to message))
             }
             is CourseSyncResult.Success -> {
                 CloudCourseCatalogInstaller.refreshFromCache(applicationContext)
@@ -165,6 +166,13 @@ class CourseDownloadWorker(
 
     private fun notifySafely(id: Int, notification: android.app.Notification) {
         runCatching { NotificationManagerCompat.from(applicationContext).notify(id, notification) }
+    }
+
+    private fun userFacingFailure(message: String): String = when {
+        message.contains("课程文件下载不完整") && message.contains("textbook.pdf") ->
+            "教材 PDF 下载地址返回的内容不完整。Google Drive 文件可能未开放公开访问；" +
+                "请将共享权限设置为“知道链接的任何人可查看”后重试。"
+        else -> message
     }
 
     private val CourseSyncProgress.percent: Int
