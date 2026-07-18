@@ -8,7 +8,7 @@ import org.junit.Test
 class RationalNumbersCourseFactoryTest {
     @Test
     fun followsTextbookChapterOrder() {
-        val pages = RationalNumbersCourseFactory.pagesFor("第一章 有理数", 1..21)
+        val pages = RationalNumbersCourseFactory.pagesFor("有理数", 1..21)
 
         assertEquals("具有相反意义的量", pages.first().title)
         assertTrue(pages.indexOfFirst { it.title == "数轴" } < pages.indexOfFirst { it.title == "相反数" })
@@ -46,7 +46,7 @@ class RationalNumbersCourseFactoryTest {
 
     @Test
     fun courseTextContainsNoDevelopmentConversation() {
-        val pages = RationalNumbersCourseFactory.pagesFor("第二章 有理数的运算", 24..59)
+        val pages = RationalNumbersCourseFactory.pagesFor("有理数的运算", 24..59)
         val text = pages.joinToString("\n") { page ->
             listOf(page.section, page.title, page.paragraphs.joinToString("\n"), page.formula, page.conclusion)
                 .joinToString("\n")
