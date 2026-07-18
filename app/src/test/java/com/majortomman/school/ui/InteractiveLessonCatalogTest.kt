@@ -22,8 +22,16 @@ class InteractiveLessonCatalogTest {
     }
 
     @Test
-    fun doesNotHijackUnrelatedLesson() {
-        assertNull(InteractiveLessonCatalog.resolve("math", lesson("二次函数", 1..5)))
+    fun routesOtherMathLessonsToGeneralMathCourse() {
+        val spec = InteractiveLessonCatalog.resolve("math", lesson("二次函数", 1..5))
+        assertEquals(InteractiveLessonKind.MATH_GENERAL, spec?.kind)
+        assertEquals(1, spec?.sourcePage)
+        assertEquals(5, spec?.sourcePageEnd)
+    }
+
+    @Test
+    fun doesNotHijackUnrelatedSubjects() {
+        assertNull(InteractiveLessonCatalog.resolve("english", lesson("Unit 1", 1..5)))
     }
 
     private fun lesson(title: String, pages: IntRange) = Lesson(
