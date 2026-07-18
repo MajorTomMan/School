@@ -24,7 +24,7 @@ object CourseSyncManager {
         syncMutex.withLock {
             val manifestUrl = BuildConfig.COURSE_MANIFEST_URL.trim()
             if (manifestUrl.isBlank()) {
-                Log.i(LOG_TAG, "course manifest URL is empty; bundled fallback remains active")
+                Log.i(LOG_TAG, "course manifest URL is empty; no cloud course can be installed")
                 return@withLock CourseSyncResult.Disabled
             }
 
@@ -77,7 +77,7 @@ object CourseSyncManager {
                 if (updatedCount > 0) CloudCourseRepository.markContentChanged()
                 CourseSyncResult.Success(updatedCount, manifest.contentVersion)
             }.getOrElse { error ->
-                Log.e(LOG_TAG, "course sync failed; keep existing cache or bundled fallback", error)
+                Log.e(LOG_TAG, "course sync failed; keep the previous verified cloud cache", error)
                 CourseSyncResult.Failed(error.message ?: error::class.java.simpleName)
             }
         }
