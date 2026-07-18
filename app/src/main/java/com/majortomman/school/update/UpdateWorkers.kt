@@ -12,10 +12,10 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.majortomman.school.MainActivity
+import com.majortomman.school.network.AppProxy
+import com.majortomman.school.network.ProxyRoute
 import java.io.File
 import java.io.FileOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
 import java.security.MessageDigest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -126,7 +126,11 @@ class UpdateDownloadWorker(
     }
 
     private suspend fun download(manifest: UpdateManifest, destination: File) {
-        val connection = (URL(manifest.apk.downloadUrl).openConnection() as HttpURLConnection).apply {
+        val connection = AppProxy.openConnection(
+            applicationContext,
+            manifest.apk.downloadUrl,
+            ProxyRoute.UPDATES,
+        ).apply {
             instanceFollowRedirects = true
             connectTimeout = 20_000
             readTimeout = 30_000
