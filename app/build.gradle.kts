@@ -177,12 +177,10 @@ dependencies {
 
     // 最新 Lucene Kuromoji 负责日语形态素切分、词性、原形、读音和活用信息。
     implementation("org.apache.lucene:lucene-analysis-kuromoji:10.5.0")
-    implementation("org.apache.lucene:lucene-core:10.5.0")
-    implementation("org.apache.lucene:lucene-analysis-common:10.5.0")
 
     ksp("androidx.room:room-compiler:$roomVersion")
 
-    debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.json:json:20250517")
+    testImplementation("org.json:json:20240303")
+    debugImplementation("androidx.compose.ui:ui-tooling")
 }
