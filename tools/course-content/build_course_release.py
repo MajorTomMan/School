@@ -46,6 +46,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", type=Path, required=True, help="Path to source course.json")
     parser.add_argument("--pdf", type=Path, required=True, help="Path to the textbook PDF")
+    parser.add_argument("--pdf-page-count", type=int, default=0, help="PDF page count; overrides course.json when non-zero")
+    parser.add_argument("--pdf-page-index-offset", type=int, default=None, help="Printed-page to PDF-index offset")
     parser.add_argument("--output", type=Path, required=True, help="Release output directory")
     parser.add_argument("--textbook-version", type=int, default=1)
     parser.add_argument("--content-version", type=int, default=1)
@@ -81,10 +83,14 @@ def main() -> int:
     pdf_path = safe_relative_path(str(pdf_metadata.get("path") or "assets/textbook.pdf"))
     if not pdf_path.lower().endswith(".pdf"):
         raise SystemExit("textbook.pdf.path must end with .pdf")
-    page_count = int(pdf_metadata.get("pageCount") or 0)
+    page_count = args.pdf_page_count or int(pdf_metadata.get("pageCount") or 0)
     if page_count <= 0:
-        raise SystemExit("textbook.pdf.pageCount must be greater than zero")
-    page_index_offset = int(pdf_metadata.get("pageIndexOffset") or 0)
+        raise SystemExit("provide textbook.pdf.pageCount or --pdf-page-count")
+    page_index_offset = (
+        args.pdf_page_index_offset
+        if args.pdf_page_index_offset is not None
+        else int(pdf_metadata.get("pageIndexOffset") or 0)
+    )
     if not -10_000 <= page_index_offset <= 10_000:
         raise SystemExit("textbook.pdf.pageIndexOffset is out of range")
 
