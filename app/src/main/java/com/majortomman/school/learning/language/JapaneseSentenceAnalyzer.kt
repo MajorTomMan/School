@@ -26,7 +26,7 @@ object JapaneseSentenceAnalyzer {
             issues += SentenceIssue("terminal_punctuation", "文末記号がありません。", "$normalized。")
         }
 
-        val predicateStart = lexical.indexOfLast(::isMainPredicate)
+        val predicateStart = findPredicateStart(lexical)
         val predicateEnd = predicateEndIndex(lexical, predicateStart)
         if (predicateStart < 0) {
             issues += SentenceIssue(
@@ -69,6 +69,13 @@ object JapaneseSentenceAnalyzer {
             summary = summary,
             limitation = JAPANESE_LIMITATION,
         )
+    }
+
+    private fun findPredicateStart(tokens: List<JapaneseMorpheme>): Int {
+        var cursor = tokens.lastIndex
+        while (cursor >= 0 && isAuxiliary(tokens[cursor])) cursor--
+        if (cursor >= 0 && isLexicalPredicate(tokens[cursor])) return cursor
+        return tokens.indexOfLast { (it.baseForm ?: it.surface) in copulas }
     }
 
     private fun predicateEndIndex(tokens: List<JapaneseMorpheme>, predicateStart: Int): Int {
@@ -218,12 +225,9 @@ object JapaneseSentenceAnalyzer {
         else -> "語句同士の文法関係を示す助詞。"
     }
 
-    private fun isMainPredicate(token: JapaneseMorpheme): Boolean {
+    private fun isLexicalPredicate(token: JapaneseMorpheme): Boolean {
         val partOfSpeech = token.partOfSpeech.orEmpty()
-        val base = token.baseForm ?: token.surface
-        return partOfSpeech.startsWith("動詞") ||
-            partOfSpeech.startsWith("形容詞") ||
-            base in copulas
+        return partOfSpeech.startsWith("動詞") || partOfSpeech.startsWith("形容詞")
     }
 
     private fun isParticle(token: JapaneseMorpheme): Boolean = token.partOfSpeech.orEmpty().startsWith("助詞")
