@@ -127,6 +127,7 @@ fun InteractiveLessonScreen(
                 }
                 InteractiveLessonKind.NEWTON_FIRST_LAW -> NewtonFirstLawLab(lesson.id)
                 InteractiveLessonKind.MATH_GENERAL -> MathCourseWorkbench(spec)
+                InteractiveLessonKind.PHYSICS_GENERAL -> PhysicsCourseWorkbench(spec)
             }
 
             Spacer(Modifier.height(36.dp))
