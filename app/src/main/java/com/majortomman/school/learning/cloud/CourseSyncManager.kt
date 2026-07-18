@@ -91,7 +91,9 @@ object CourseSyncManager {
         val packageFile = store.temporaryDownloadFile(remote.id, "full")
         try {
             downloadToFile(context, remote.fullPackage, packageFile)
-            store.installFull(remote, packageFile)
+            store.installFull(remote, packageFile) { file, destination ->
+                downloadToFile(context, file, destination)
+            }
         } finally {
             packageFile.delete()
         }
@@ -196,7 +198,7 @@ object CourseSyncManager {
 
     private const val MAX_MANIFEST_BYTES = 2 * 1024 * 1024
     private const val CONNECT_TIMEOUT_MS = 15_000
-    private const val READ_TIMEOUT_MS = 45_000
+    private const val READ_TIMEOUT_MS = 120_000
 }
 
 sealed interface CourseSyncResult {
