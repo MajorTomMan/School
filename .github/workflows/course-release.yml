@@ -1,0 +1,85 @@
+name: Course Release
+
+on:
+  pull_request:
+    paths:
+      - "tools/course-content/**"
+      - ".github/workflows/course-release.yml"
+  push:
+    branches:
+      - master
+    paths:
+      - "tools/course-content/**"
+      - ".github/workflows/course-release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: course-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-course:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build course release
+        run: |
+          python3 tools/course-content/build_course_release.py \
+            --source tools/course-content/pep-math-7-1/course.json \
+            --output build/course-release/pep-math-7-1 \
+            --textbook-version "${GITHUB_RUN_NUMBER}" \
+            --content-version "${GITHUB_RUN_NUMBER}" \
+            --minimum-app-version 22 \
+            --release-base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/course-latest" \
+            --pdf-file-id "1zPJIoh7Ora3AOMLXfDll8YbAZ8u1v78N" \
+            --pdf-size 12915486 \
+            --pdf-sha256 "11b6f1fbfa46eee4158953ef745ae1e6fbe6b9527a1423d55cbe75729e8210b9" \
+            --pdf-page-count 202 \
+            --pdf-page-index-offset 7
+
+      - name: Validate release output
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          import zipfile
+
+          root = Path("build/course-release/pep-math-7-1")
+          manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+          textbook = manifest["textbooks"][0]
+          files = {item["path"]: item for item in textbook["files"]}
+          assert files["course.json"]["inFullPackage"] is True
+          assert files["assets/textbook.pdf"]["inFullPackage"] is False
+          assert files["assets/textbook.pdf"]["url"].startswith("https://drive.google.com/")
+          with zipfile.ZipFile(root / "pep-math-7-1.zip") as archive:
+              assert archive.namelist() == ["course.json"]
+          print("course release validated")
+          PY
+
+      - name: Publish stable course release
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view course-latest >/dev/null 2>&1; then
+            gh release create course-latest \
+              --target "${GITHUB_SHA}" \
+              --title "School 课程包" \
+              --notes "APK 使用的结构化课程数据。教材 PDF 保留在 Google Drive，不包含在此 Release 中。" \
+              --prerelease
+          fi
+          gh release upload course-latest \
+            build/course-release/pep-math-7-1/manifest.json \
+            build/course-release/pep-math-7-1/pep-math-7-1-course.json \
+            build/course-release/pep-math-7-1/pep-math-7-1.zip \
+            --clobber

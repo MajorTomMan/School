@@ -45,11 +45,11 @@ if (!developmentKeystore.isFile || developmentKeystore.length() == 0L) {
 val resolvedVersionCode = providers.environmentVariable("SCHOOL_VERSION_CODE")
     .orNull
     ?.toIntOrNull()
-    ?: 21
+    ?: 22
 val resolvedVersionName = providers.environmentVariable("SCHOOL_VERSION_NAME")
     .orNull
     ?.takeIf(String::isNotBlank)
-    ?: "0.20.0"
+    ?: "0.21.0"
 val updatePublicKey = updatePublicKeySource.readText(Charsets.UTF_8).filterNot(Char::isWhitespace)
 val developmentCertificate = developmentCertificateSource.readText(Charsets.UTF_8)
     .lowercase()
@@ -62,6 +62,9 @@ val firebaseSenderId = resolvedSetting("SCHOOL_FIREBASE_SENDER_ID", "schoolFireb
 val firebaseUpdateTopic = resolvedSetting("SCHOOL_FIREBASE_UPDATE_TOPIC", "schoolFirebaseUpdateTopic")
     .ifBlank { "school_dev_update" }
 val courseManifestUrl = resolvedSetting("SCHOOL_COURSE_MANIFEST_URL", "schoolCourseManifestUrl")
+    .ifBlank {
+        "https://github.com/MajorTomMan/School/releases/download/course-latest/manifest.json"
+    }
 val updatePushEnabled = listOf(
     firebaseProjectId,
     firebaseApplicationId,

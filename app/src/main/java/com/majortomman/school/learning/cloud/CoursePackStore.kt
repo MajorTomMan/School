@@ -37,10 +37,15 @@ internal class CoursePackStore(context: Context) {
         return File(downloadsRoot, "$textbookId-$suffix.part").apply { delete() }
     }
 
-    fun installFull(remote: CourseTextbookManifest, packageFile: File) {
+    fun installFull(
+        remote: CourseTextbookManifest,
+        packageFile: File,
+        download: (CourseFileSpec, File) -> Unit,
+    ) {
         val staging = prepareStaging(remote.id)
         try {
             unzip(packageFile, staging)
+            materializeRemoteFiles(remote, staging, download)
             validateStaging(remote, staging)
             writeState(remote, staging)
             activate(remote.id, staging)
@@ -62,15 +67,7 @@ internal class CoursePackStore(context: Context) {
             require(active.copyRecursively(staging, overwrite = true)) { "无法复制本地课程缓存" }
             plan.deletedFiles.forEach { path -> safeResolve(staging, path).deleteRecursively() }
             plan.changedFiles.forEach { file ->
-                val destination = safeResolve(staging, file.path)
-                val destinationParent = requireNotNull(destination.parentFile) { "课程文件缺少父目录" }
-                destinationParent.mkdirs()
-                val partial = File(destinationParent, "${destination.name}.part")
-                partial.delete()
-                download(file, partial)
-                verifyFile(partial, file)
-                destination.delete()
-                require(partial.renameTo(destination)) { "无法保存课程文件 ${file.path}" }
+                installDownloadedFile(file, safeResolve(staging, file.path), download)
             }
             validateStaging(remote, staging)
             writeState(remote, staging)
@@ -80,6 +77,55 @@ internal class CoursePackStore(context: Context) {
             throw error
         }
     }
+
+    private fun materializeRemoteFiles(
+        remote: CourseTextbookManifest,
+        staging: File,
+        download: (CourseFileSpec, File) -> Unit,
+    ) {
+        val active = File(activeRoot, remote.id)
+        remote.files.forEach { spec ->
+            val target = safeResolve(staging, spec.path)
+            if (isVerified(target, spec)) return@forEach
+
+            target.deleteRecursively()
+            val previous = active.takeIf(File::isDirectory)?.let { safeResolve(it, spec.path) }
+            if (previous != null && isVerified(previous, spec)) {
+                target.parentFile?.mkdirs()
+                previous.copyTo(target, overwrite = true)
+                verifyFile(target, spec)
+                return@forEach
+            }
+
+            installDownloadedFile(spec, target, download)
+        }
+    }
+
+    private fun installDownloadedFile(
+        spec: CourseFileSpec,
+        destination: File,
+        download: (CourseFileSpec, File) -> Unit,
+    ) {
+        require(spec.url.isNotBlank()) { "课程文件 ${spec.path} 缺少下载地址" }
+        val destinationParent = requireNotNull(destination.parentFile) { "课程文件缺少父目录" }
+        destinationParent.mkdirs()
+        val partial = File(destinationParent, "${destination.name}.part")
+        partial.delete()
+        try {
+            download(spec, partial)
+            verifyFile(partial, spec)
+            destination.deleteRecursively()
+            require(partial.renameTo(destination)) { "无法保存课程文件 ${spec.path}" }
+        } finally {
+            partial.delete()
+        }
+    }
+
+    private fun isVerified(file: File, spec: CourseFileSpec): Boolean =
+        runCatching {
+            verifyFile(file, spec)
+            true
+        }.getOrDefault(false)
 
     private fun prepareStaging(textbookId: String): File =
         File(stagingRoot, textbookId).apply {
