@@ -25,7 +25,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -39,16 +38,13 @@ import androidx.compose.ui.unit.sp
 import com.majortomman.school.data.AiSettings
 import com.majortomman.school.data.AttemptRecord
 import com.majortomman.school.data.DailyPlan
-import com.majortomman.school.data.ImportTutorialRepository
 import com.majortomman.school.data.LearningProgress
 import com.majortomman.school.data.MasteryStatus
 import com.majortomman.school.data.PreferencesRepository
 import com.majortomman.school.data.ScheduledReview
 import com.majortomman.school.data.curriculum.CurriculumRepository
-import com.majortomman.school.data.material.LessonAnalysis
 import com.majortomman.school.data.material.MaterialPackRepository
 import com.majortomman.school.data.math.MathQuestionBankRepository
-import com.majortomman.school.data.recordAttempt
 import kotlinx.coroutines.launch
 
 private val NavigationBlack = Color.Black
@@ -70,7 +66,6 @@ fun SchoolApp(
     repository: PreferencesRepository,
     materialRepository: MaterialPackRepository,
     curriculumRepository: CurriculumRepository,
-    tutorialRepository: ImportTutorialRepository,
     mathQuestionRepository: MathQuestionBankRepository,
     initialTextbookKey: String? = null,
 ) {
@@ -79,8 +74,6 @@ fun SchoolApp(
     var openedLessonId by rememberSaveable { mutableStateOf<String?>(null) }
     var openedTextbookKey by rememberSaveable { mutableStateOf<String?>(null) }
     var openedTextbookPage by rememberSaveable { mutableStateOf<Int?>(null) }
-    var openedAnalysis by remember { mutableStateOf<LessonAnalysis?>(null) }
-    var resolvedAnalysisKey by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val progress by repository.learningProgress.collectAsState(initial = LearningProgress())
     val aiSettings by repository.aiSettings.collectAsState(initial = AiSettings())
@@ -89,7 +82,6 @@ fun SchoolApp(
     val libraryState by materialRepository.state.collectAsState()
     val curriculumState by curriculumRepository.state.collectAsState()
     val curriculumProgress by curriculumRepository.nodeProgress.collectAsState()
-    val completedTutorials by tutorialRepository.completedTutorials.collectAsState(initial = emptySet())
 
     val activeTextbook = libraryState.installedTextbooks.firstOrNull { it.key == activeTextbookKey }
     val activeCurriculumId = activeTextbook?.let(curriculumRepository::curriculumIdFor)
@@ -116,10 +108,6 @@ fun SchoolApp(
     val openedLesson = lessons.firstOrNull { it.id == openedLessonId }
     val openedLessonIndex = lessons.indexOfFirst { it.id == openedLessonId }
     val nextLesson = openedLessonIndex.takeIf { it >= 0 }?.let { lessons.getOrNull(it + 1) }
-    val openedGeneratedLesson = activeTextbook?.lessons?.firstOrNull { it.id == openedLessonId }
-    val analysisRequestKey = activeTextbook?.key?.let { textbookKey ->
-        openedGeneratedLesson?.sourceId?.let { sourceId -> "$textbookKey:$sourceId" }
-    }
     val openedTextbook = libraryState.installedTextbooks.firstOrNull { it.key == openedTextbookKey }
 
     LaunchedEffect(libraryState.installedTextbooks.map { textbook ->
@@ -127,19 +115,6 @@ fun SchoolApp(
     }) {
         runCatching { curriculumRepository.synchronizeInstalledTextbooks(libraryState.installedTextbooks) }
     }
-
-    LaunchedEffect(analysisRequestKey) {
-        openedAnalysis = null
-        resolvedAnalysisKey = null
-        if (analysisRequestKey != null && activeTextbook != null && openedGeneratedLesson != null) {
-            openedAnalysis = materialRepository.loadLessonAnalysis(
-                activeTextbook,
-                openedGeneratedLesson.sourceId,
-            )
-            resolvedAnalysisKey = analysisRequestKey
-        }
-    }
-    val openedAnalysisLoading = analysisRequestKey != null && resolvedAnalysisKey != analysisRequestKey
 
     LaunchedEffect(libraryState.installedTextbooks.map { it.key }) {
         if (activeTextbookKey != null && activeTextbook == null) {
@@ -183,9 +158,6 @@ fun SchoolApp(
                 openedTextbookKey = activeTextbook.key
                 openedTextbookPage = printedPage
             }
-            val recordAttempt: (String, Boolean, String) -> Unit = { answer, correct, feedback ->
-                scope.launch { repository.recordAttempt(lesson.id, answer, correct, feedback) }
-            }
             val completeLesson: () -> Unit = {
                 val nextId = nextLesson?.id
                 scope.launch {
@@ -199,8 +171,8 @@ fun SchoolApp(
                 }
             }
             val interactiveSpec = InteractiveLessonCatalog.resolve(activeTextbook.slot.subjectId, lesson)
-            when {
-                interactiveSpec != null -> InteractiveLessonScreen(
+            if (interactiveSpec != null) {
+                InteractiveLessonScreen(
                     lesson = lesson,
                     spec = interactiveSpec,
                     installedMaterial = activeTextbook.pack,
@@ -209,33 +181,10 @@ fun SchoolApp(
                     onBack = { openedLessonId = null },
                     onComplete = completeLesson,
                 )
-
-                openedAnalysisLoading -> LessonAnalysisLoadingScreen(
+            } else {
+                CourseDataUnavailableScreen(
                     lessonTitle = lesson.title,
                     onBack = { openedLessonId = null },
-                )
-
-                openedAnalysis != null -> GeneratedLearningScreen(
-                    lesson = lesson,
-                    analysis = openedAnalysis!!,
-                    aiSettings = aiSettings,
-                    progress = progress,
-                    installedMaterial = activeTextbook.pack,
-                    nextLessonTitle = nextLesson?.title,
-                    onOpenTextbook = openTextbook,
-                    onBack = { openedLessonId = null },
-                    onComplete = completeLesson,
-                    onRecordAttempt = recordAttempt,
-                )
-
-                else -> SceneLearningScreen(
-                    lesson = lesson,
-                    aiSettings = aiSettings,
-                    progress = progress,
-                    installedMaterial = activeTextbook.pack,
-                    onOpenTextbook = openTextbook,
-                    onBack = { openedLessonId = null },
-                    onRecordAttempt = recordAttempt,
                 )
             }
         } else {
@@ -260,13 +209,6 @@ fun SchoolApp(
                         when (tab) {
                             MainTab.SUBJECTS -> SubjectTextbookCenterScreen(
                                 libraryState = libraryState,
-                                completedTutorials = completedTutorials,
-                                onTutorialCompleted = { subjectId, version ->
-                                    scope.launch { tutorialRepository.markCompleted(subjectId, version) }
-                                },
-                                onImport = { slot, uri -> materialRepository.enqueueImport(slot, uri) },
-                                onCancelProcessing = materialRepository::cancelProcessing,
-                                onRemove = { slot -> scope.launch { materialRepository.removeInstalled(slot) } },
                                 onEnterCourse = { textbook ->
                                     activeTextbookKey = textbook.key
                                     openedLessonId = null
@@ -354,7 +296,7 @@ fun SchoolApp(
 }
 
 @Composable
-private fun LessonAnalysisLoadingScreen(
+private fun CourseDataUnavailableScreen(
     lessonTitle: String,
     onBack: () -> Unit,
 ) {
@@ -379,13 +321,13 @@ private fun LessonAnalysisLoadingScreen(
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = "正在读取课程数据",
+                text = "课程数据不可用",
                 color = NavigationBlue,
                 fontSize = 15.sp,
             )
         }
         Text(
-            text = "课程树、教材与学习记录保持在本机。",
+            text = "请重新同步云端课程包。",
             color = NavigationWhite.copy(alpha = 0.34f),
             fontSize = 13.sp,
         )
