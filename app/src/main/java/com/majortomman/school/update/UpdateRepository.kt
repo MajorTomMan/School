@@ -2,9 +2,9 @@ package com.majortomman.school.update
 
 import android.content.Context
 import com.majortomman.school.BuildConfig
+import com.majortomman.school.network.AppProxy
+import com.majortomman.school.network.ProxyRoute
 import java.io.ByteArrayOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -100,7 +100,7 @@ internal class UpdateRepository(context: Context) {
     }
 
     private fun downloadBytes(url: String, maxBytes: Int): ByteArray {
-        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+        val connection = AppProxy.openConnection(appContext, url, ProxyRoute.UPDATES).apply {
             instanceFollowRedirects = true
             connectTimeout = 15_000
             readTimeout = 20_000
