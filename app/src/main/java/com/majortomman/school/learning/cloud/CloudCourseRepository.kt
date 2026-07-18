@@ -30,7 +30,7 @@ object CloudCourseRepository {
 
     fun pagesFor(title: String, sourcePages: IntRange): List<RationalLessonPage> =
         courseDocuments().firstNotNullOfOrNull { document ->
-            CloudCourseCodec.pagesFor(document.root, title, sourcePages).takeIf(List<RationalLessonPage>::isNotEmpty)
+            CloudCourseCodec.pagesFor(document.root, title, sourcePages).takeIf { it.isNotEmpty() }
         }.orEmpty()
 
     internal fun markContentChanged() {
@@ -167,7 +167,7 @@ internal object CloudCourseCodec {
         val paragraphs = mutableListOf<String>()
         var formula: String? = null
         var conclusion: String? = page.optString("conclusion").takeIf(String::isNotBlank)
-        var visualization = RationalVisualizationKind.NONE
+        var visualization = RationalVisualizationKind.HISTORY
         val blocks = page.optJSONArray("blocks") ?: JSONArray()
 
         for (index in 0 until blocks.length()) {
@@ -228,8 +228,7 @@ internal object CloudCourseCodec {
         "multiplication_sign", "sign_rule" -> RationalVisualizationKind.MULTIPLICATION_SIGN
         "division_transform" -> RationalVisualizationKind.DIVISION_TRANSFORM
         "power_process" -> RationalVisualizationKind.POWER_PROCESS
-        "history" -> RationalVisualizationKind.HISTORY
-        else -> RationalVisualizationKind.NONE
+        else -> RationalVisualizationKind.HISTORY
     }
 
     private fun namesOf(json: JSONObject, vararg defaults: String): List<String> = buildList {
