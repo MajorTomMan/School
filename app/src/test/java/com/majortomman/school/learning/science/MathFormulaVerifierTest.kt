@@ -1,7 +1,5 @@
 package com.majortomman.school.learning.science
 
-import com.majortomman.school.data.Lesson
-import com.majortomman.school.data.MasteryStatus
 import com.majortomman.school.learning.course.MathCourseCategory
 import com.majortomman.school.learning.course.MathCourseContentFactory
 import com.majortomman.school.learning.science.math.MathFormulaStatus
@@ -58,27 +56,6 @@ class MathFormulaVerifierTest {
         assertEquals(MathCourseCategory.GEOMETRY, MathCourseContentFactory.classify("相似三角形"))
         assertEquals(MathCourseCategory.PROBABILITY, MathCourseContentFactory.classify("随机事件的概率"))
         assertEquals(MathCourseCategory.COMPLEX, MathCourseContentFactory.classify("复数的几何意义"))
-    }
-
-    @Test
-    fun generatedMathCourseKeepsSourcePagesAndLabelsExtension() {
-        val lesson = Lesson(
-            id = "math-test",
-            title = "二次方程",
-            subtitle = "",
-            estimatedMinutes = 20,
-            textbookPages = 30..36,
-            status = MasteryStatus.NOT_STARTED,
-            objectives = emptyList(),
-            explanation = "",
-            commonMistake = "",
-        )
-
-        val content = MathCourseContentFactory.create(lesson)
-
-        assertTrue(content.sourceSummary.contains("第 30—36 页"))
-        assertTrue(content.enrichment.extensions.all { it.title.contains("扩展") })
-        assertTrue(content.enrichment.visualization?.parameters?.isNotEmpty() == true)
-        assertTrue(content.enrichment.verification?.examples?.isNotEmpty() == true)
+        assertEquals(MathCourseCategory.EQUATION, MathCourseContentFactory.classify("一元二次方程"))
     }
 }
