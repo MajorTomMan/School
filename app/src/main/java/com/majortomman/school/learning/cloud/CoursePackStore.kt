@@ -124,7 +124,7 @@ internal class CoursePackStore(context: Context) {
         }) { "教材文件不是有效 PDF" }
 
         val actualPageCount = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
-            PdfRenderer(descriptor).use(PdfRenderer::getPageCount)
+            PdfRenderer(descriptor).use { renderer -> renderer.pageCount }
         }
         require(actualPageCount == expectedPageCount) {
             "教材 PDF 页数不一致：清单 $expectedPageCount，实际 $actualPageCount"
