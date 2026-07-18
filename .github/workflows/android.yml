@@ -64,17 +64,16 @@ jobs:
       - name: Install Android SDK
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Resolve development version
+      - name: Resolve app version
         id: version
         shell: bash
         run: |
           set -euo pipefail
-          base_version="0.20.0"
+          version_name="0.21.1"
           version_code=$((100000 + GITHUB_RUN_NUMBER))
-          version_name="${base_version}+dev.${GITHUB_RUN_NUMBER}"
           echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
           echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
-          echo "Development version: $version_name ($version_code)"
+          echo "App version: $version_name ($version_code)"
 
       - name: Verify fixed development signing key
         shell: bash

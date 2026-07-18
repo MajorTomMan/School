@@ -45,11 +45,11 @@ if (!developmentKeystore.isFile || developmentKeystore.length() == 0L) {
 val resolvedVersionCode = providers.environmentVariable("SCHOOL_VERSION_CODE")
     .orNull
     ?.toIntOrNull()
-    ?: 22
+    ?: 23
 val resolvedVersionName = providers.environmentVariable("SCHOOL_VERSION_NAME")
     .orNull
     ?.takeIf(String::isNotBlank)
-    ?: "0.21.0"
+    ?: "0.21.1"
 val updatePublicKey = updatePublicKeySource.readText(Charsets.UTF_8).filterNot(Char::isWhitespace)
 val developmentCertificate = developmentCertificateSource.readText(Charsets.UTF_8)
     .lowercase()
