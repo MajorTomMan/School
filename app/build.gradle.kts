@@ -6,11 +6,28 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+fun String.asBuildConfigString(): String = "\"" + replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
+fun resolvedSetting(environmentName: String, propertyName: String): String =
+    providers.environmentVariable(environmentName)
+        .orElse(providers.gradleProperty(propertyName))
+        .orNull
+        ?.trim()
+        .orEmpty()
+
 val developmentKeystoreSource = rootProject.file("signing/school-development.jks.b64")
 val developmentKeystore = rootProject.file("build/signing/school-development.jks")
+val updatePublicKeySource = rootProject.file("signing/school-update-development-public.der.b64")
+val developmentCertificateSource = rootProject.file("signing/school-development.cert.sha256")
 
 check(developmentKeystoreSource.isFile) {
     "缺少固定开发签名源文件：${developmentKeystoreSource.path}"
+}
+check(updatePublicKeySource.isFile) {
+    "缺少更新清单验证公钥：${updatePublicKeySource.path}"
+}
+check(developmentCertificateSource.isFile) {
+    "缺少固定开发签名证书指纹：${developmentCertificateSource.path}"
 }
 
 if (!developmentKeystore.isFile || developmentKeystore.length() == 0L) {
@@ -18,6 +35,32 @@ if (!developmentKeystore.isFile || developmentKeystore.length() == 0L) {
     val encoded = developmentKeystoreSource.readText(Charsets.UTF_8).filterNot(Char::isWhitespace)
     developmentKeystore.writeBytes(Base64.getDecoder().decode(encoded))
 }
+
+val resolvedVersionCode = providers.environmentVariable("SCHOOL_VERSION_CODE")
+    .orNull
+    ?.toIntOrNull()
+    ?: 21
+val resolvedVersionName = providers.environmentVariable("SCHOOL_VERSION_NAME")
+    .orNull
+    ?.takeIf(String::isNotBlank)
+    ?: "0.20.0"
+val updatePublicKey = updatePublicKeySource.readText(Charsets.UTF_8).filterNot(Char::isWhitespace)
+val developmentCertificate = developmentCertificateSource.readText(Charsets.UTF_8)
+    .lowercase()
+    .filter(Char::isLetterOrDigit)
+
+val firebaseProjectId = resolvedSetting("SCHOOL_FIREBASE_PROJECT_ID", "schoolFirebaseProjectId")
+val firebaseApplicationId = resolvedSetting("SCHOOL_FIREBASE_APPLICATION_ID", "schoolFirebaseApplicationId")
+val firebaseApiKey = resolvedSetting("SCHOOL_FIREBASE_API_KEY", "schoolFirebaseApiKey")
+val firebaseSenderId = resolvedSetting("SCHOOL_FIREBASE_SENDER_ID", "schoolFirebaseSenderId")
+val firebaseUpdateTopic = resolvedSetting("SCHOOL_FIREBASE_UPDATE_TOPIC", "schoolFirebaseUpdateTopic")
+    .ifBlank { "school_dev_update" }
+val updatePushEnabled = listOf(
+    firebaseProjectId,
+    firebaseApplicationId,
+    firebaseApiKey,
+    firebaseSenderId,
+).all(String::isNotBlank)
 
 android {
     namespace = "com.majortomman.school"
@@ -27,8 +70,35 @@ android {
         applicationId = "com.majortomman.school"
         minSdk = 26
         targetSdk = 36
-        versionCode = 21
-        versionName = "0.20.0"
+        versionCode = resolvedVersionCode
+        versionName = resolvedVersionName
+        buildConfigField(
+            "String",
+            "UPDATE_MANIFEST_URL",
+            "https://github.com/MajorTomMan/school/releases/download/dev-latest/update-manifest.json".asBuildConfigString(),
+        )
+        buildConfigField(
+            "String",
+            "UPDATE_SIGNATURE_URL",
+            "https://github.com/MajorTomMan/school/releases/download/dev-latest/update-manifest.sig".asBuildConfigString(),
+        )
+        buildConfigField("String", "UPDATE_PUBLIC_KEY_BASE64", updatePublicKey.asBuildConfigString())
+        buildConfigField("String", "DEVELOPMENT_CERT_SHA256", developmentCertificate.asBuildConfigString())
+        buildConfigField("boolean", "UPDATE_PUSH_ENABLED", updatePushEnabled.toString())
+        buildConfigField("String", "FCM_PROJECT_ID", firebaseProjectId.asBuildConfigString())
+        buildConfigField("String", "FCM_APPLICATION_ID", firebaseApplicationId.asBuildConfigString())
+        buildConfigField("String", "FCM_API_KEY", firebaseApiKey.asBuildConfigString())
+        buildConfigField("String", "FCM_SENDER_ID", firebaseSenderId.asBuildConfigString())
+        buildConfigField("String", "FCM_UPDATE_TOPIC", firebaseUpdateTopic.asBuildConfigString())
+
+        if (updatePushEnabled) {
+            // FirebaseInitProvider reads these resources when Google Play services starts the process
+            // for a background data message. No google-services.json is stored in the repository.
+            resValue("string", "google_app_id", firebaseApplicationId)
+            resValue("string", "google_api_key", firebaseApiKey)
+            resValue("string", "gcm_defaultSenderId", firebaseSenderId)
+            resValue("string", "project_id", firebaseProjectId)
+        }
     }
 
     signingConfigs {
@@ -75,10 +145,13 @@ ksp {
 
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2026.06.00")
+    val firebaseBom = platform("com.google.firebase:firebase-bom:34.15.0")
     val roomVersion = "2.8.4"
 
     implementation(composeBom)
+    implementation(firebaseBom)
     implementation("androidx.activity:activity-compose:1.13.0")
+    implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.compose.animation:animation")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
@@ -88,6 +161,7 @@ dependencies {
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
     implementation("androidx.work:work-runtime-ktx:2.11.2")
+    implementation("com.google.firebase:firebase-messaging")
 
     // 中文 OCR 模型不再打包进 APK，仅在未知教材首次需要识别时由 Google Play 服务下载。
     implementation("com.google.android.gms:play-services-mlkit-text-recognition-chinese:16.0.1")

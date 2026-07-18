@@ -26,8 +26,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -35,14 +37,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.majortomman.school.BuildConfig
 import com.majortomman.school.ai.OpenAiCompatibleClient
 import com.majortomman.school.data.AiSettings
+import com.majortomman.school.update.UpdateCoordinator
+import com.majortomman.school.update.UpdateState
+import java.text.DateFormat
+import java.util.Date
 import kotlinx.coroutines.launch
 
 private val SettingsBlack = Color(0xFF050608)
@@ -67,6 +75,10 @@ fun MaterialSettingsScreen(
     var isTesting by rememberSaveable { mutableStateOf(false) }
     var confirmClearProgress by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val appContext = LocalContext.current.applicationContext
+    val updateCoordinator = remember(appContext) { UpdateCoordinator.get(appContext) }
+    val updateState by updateCoordinator.state.collectAsState()
+    val updateSettings by updateCoordinator.settings.collectAsState()
 
     LaunchedEffect(settings) {
         endpoint = settings.endpoint
@@ -98,6 +110,78 @@ fun MaterialSettingsScreen(
             modifier = Modifier.clickable(onClick = onOpenSubjects),
             color = SettingsBlue,
             fontWeight = FontWeight.SemiBold,
+        )
+
+        Spacer(Modifier.height(48.dp))
+        SettingsSectionTitle("应用更新")
+        Text(
+            "${BuildConfig.VERSION_NAME}（${BuildConfig.VERSION_CODE}）",
+            color = SettingsWhite,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Medium,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text("开发通道 · GitHub dev-latest", color = SettingsMuted, lineHeight = 22.sp)
+        Spacer(Modifier.height(7.dp))
+        Text(
+            if (BuildConfig.UPDATE_PUSH_ENABLED) {
+                "即时发布提醒：已启用 · ${BuildConfig.FCM_UPDATE_TOPIC}"
+            } else {
+                "即时发布提醒：待配置 · 当前使用启动检查和每日兜底"
+            },
+            color = if (BuildConfig.UPDATE_PUSH_ENABLED) SettingsBlue else SettingsMuted,
+            fontSize = 12.sp,
+            lineHeight = 19.sp,
+        )
+        Spacer(Modifier.height(20.dp))
+        SettingsToggleRow("自动检查更新", updateSettings.autoCheck) {
+            updateCoordinator.setAutoCheck(!updateSettings.autoCheck)
+        }
+        SettingsToggleRow("仅在 Wi-Fi 下载", updateSettings.wifiOnly) {
+            updateCoordinator.setWifiOnly(!updateSettings.wifiOnly)
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = "上次检查：${formatUpdateCheckTime(updateSettings.lastCheckedAt)}",
+            color = SettingsMuted,
+            fontSize = 12.sp,
+        )
+        Spacer(Modifier.height(16.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(
+                "检查更新",
+                modifier = Modifier.clickable(enabled = updateState !is UpdateState.Checking) {
+                    updateCoordinator.checkNow(force = true)
+                },
+                color = if (updateState is UpdateState.Checking) SettingsMuted else SettingsBlue,
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (
+                updateState is UpdateState.Available ||
+                updateState is UpdateState.Downloading ||
+                updateState is UpdateState.Ready ||
+                updateState is UpdateState.Error ||
+                updateState is UpdateState.UpToDate
+            ) {
+                Text(
+                    "查看状态",
+                    modifier = Modifier.clickable(onClick = updateCoordinator::showDialog),
+                    color = SettingsWhite.copy(alpha = 0.72f),
+                )
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        SettingsInlineNotice(
+            color = when (updateState) {
+                is UpdateState.Error -> SettingsRed
+                is UpdateState.Available,
+                is UpdateState.Downloading,
+                is UpdateState.Ready,
+                -> SettingsBlue
+                else -> SettingsYellow
+            },
+            label = "更新状态",
+            body = updateState.settingsDescription(),
         )
 
         Spacer(Modifier.height(48.dp))
@@ -187,6 +271,23 @@ fun MaterialSettingsScreen(
 }
 
 @Composable
+private fun SettingsToggleRow(label: String, enabled: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, color = SettingsWhite.copy(alpha = 0.78f))
+        Text(
+            if (enabled) "开启" else "关闭",
+            color = if (enabled) SettingsBlue else SettingsMuted,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+    Box(Modifier.fillMaxWidth().height(1.dp).background(SettingsLine))
+}
+
+@Composable
 private fun SettingsInput(
     label: String,
     value: String,
@@ -237,4 +338,19 @@ private fun SettingsInlineNotice(color: Color, label: String, body: String) {
         Text(label, color = color, fontWeight = FontWeight.Bold)
         Text(body, color = SettingsWhite.copy(alpha = 0.72f), lineHeight = 23.sp)
     }
+}
+
+private fun UpdateState.settingsDescription(): String = when (this) {
+    UpdateState.Idle -> "尚未发现可用更新。"
+    UpdateState.Checking -> "正在获取并验证更新清单。"
+    is UpdateState.UpToDate -> "当前版本已是最新版本。"
+    is UpdateState.Available -> "发现 ${manifest.versionName}，可查看变更并下载。"
+    is UpdateState.Downloading -> "正在下载 ${manifest.versionName}：$progress%。"
+    is UpdateState.Ready -> "${manifest.versionName} 已下载并通过校验，可立即安装。"
+    is UpdateState.Error -> message
+}
+
+private fun formatUpdateCheckTime(timestamp: Long): String {
+    if (timestamp <= 0L) return "尚未检查"
+    return DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(timestamp))
 }
