@@ -1,0 +1,22 @@
+name: Source Export Temp
+
+on:
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  export-source:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Archive repository source
+        run: |
+          git archive --format=zip --output=school-source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: school-source-temp
+          path: school-source.zip
+          if-no-files-found: error
+          retention-days: 1
