@@ -11,7 +11,7 @@ jobs:
   screenshot:
     if: github.head_ref == 'agent/full-math-course-pack-v1'
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,6 +27,15 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "9.4.1"
+
+      - name: Enable KVM
+        shell: bash
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm || true
+          ls -l /dev/kvm || true
 
       - name: Add screenshot-only direct lesson entry
         shell: bash
@@ -73,7 +82,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p build/ui-textbooks
+          mkdir -p build/ui-textbooks build/ui-screenshots
+          echo "screenshot workflow reached emulator stage" > build/ui-screenshots/diagnostic.txt
           download() {
             local id="$1" name="$2" size="$3" digest="$4"
             local target="build/ui-textbooks/$name"
@@ -92,24 +102,25 @@ jobs:
       - name: Run app and capture representative screens
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
-          target: google_apis
+          api-level: 30
+          target: default
           arch: x86_64
-          profile: pixel_6
+          profile: pixel_2
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
           script: |
-            set -euo pipefail
+            exec > >(tee -a build/ui-screenshots/diagnostic.txt) 2>&1
+            set -euxo pipefail
+            trap 'adb logcat -d > build/ui-screenshots/logcat-on-error.txt 2>&1 || true; adb shell dumpsys window windows > build/ui-screenshots/window-on-error.txt 2>&1 || true' ERR
             pkg=com.majortomman.school
             apk=app/build/outputs/apk/debug/app-debug.apk
-            mkdir -p build/ui-screenshots
             adb install -r "$apk"
 
             seed_book() {
               local id="$1" pdf="$2"
               adb shell "run-as $pkg mkdir -p files/course-packs/active/$id/assets"
-              adb push "tools/course-content/$id/course.json" "/data/local/tmp/$id-course.json" >/dev/null
-              adb push "build/ui-textbooks/$pdf" "/data/local/tmp/$id-textbook.pdf" >/dev/null
+              adb push "tools/course-content/$id/course.json" "/data/local/tmp/$id-course.json"
+              adb push "build/ui-textbooks/$pdf" "/data/local/tmp/$id-textbook.pdf"
               adb shell "run-as $pkg cp /data/local/tmp/$id-course.json files/course-packs/active/$id/course.json"
               adb shell "run-as $pkg cp /data/local/tmp/$id-textbook.pdf files/course-packs/active/$id/assets/textbook.pdf"
             }
@@ -130,9 +141,9 @@ jobs:
             width="${size##* }"; width="${width%x*}"
             height="${size##*x}"
             next_x=$((width * 88 / 100))
-            next_y=$((height * 92 / 100))
+            next_y=$((height * 91 / 100))
             center_x=$((width / 2))
-            swipe_from=$((height * 78 / 100))
+            swipe_from=$((height * 76 / 100))
             swipe_to=$((height * 28 / 100))
 
             open_lesson() {
@@ -140,13 +151,14 @@ jobs:
               adb shell am force-stop "$pkg"
               adb shell am start -W -n "$pkg/.MainActivity" \
                 --es open_textbook_slot "$slot" \
-                --es open_lesson_title "$title" >/dev/null
-              sleep 8
+                --es open_lesson_title "$title"
+              sleep 7
             }
 
             shot() {
               local name="$1"
               adb exec-out screencap -p > "build/ui-screenshots/$name.png"
+              test -s "build/ui-screenshots/$name.png"
             }
 
             open_lesson math-7-1 '1.2.1有理数的概念'
