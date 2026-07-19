@@ -31,8 +31,6 @@ jobs:
             '920638bf4c3021b65df2ae1ea169a03c0d533db3578215234653af15f51bf32a' \
             '/tmp/math-course-changes.tar.gz' | sha256sum --check --strict
           tar -xzf /tmp/math-course-changes.tar.gz -C .
-          rm -rf .github/payload
-          rm -f .github/workflows/source-export-temp.yml
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -94,15 +92,17 @@ jobs:
             --source-root tools/course-content \
             --pdf-dir build/course-source
 
-      - name: Commit generated source and remove transfer files
+      - name: Commit generated source without workflow files
         shell: bash
         env:
           HEAD_BRANCH: ${{ github.head_ref }}
         run: |
           set -euo pipefail
+          git restore .github/workflows
+          git restore .github/payload
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
+          git add -A -- ':!.github/workflows/**' ':!.github/payload/**'
           if git diff --cached --quiet; then
             echo 'No generated changes to commit.'
             exit 0
