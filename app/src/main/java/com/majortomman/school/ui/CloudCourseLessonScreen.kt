@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -237,14 +239,26 @@ private fun CloudCoursePager(
 
 @Composable
 private fun CloudCoursePageContent(page: RationalLessonPage, pageNumber: Int, pageCount: Int) {
-    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 22.dp, vertical = 18.dp)) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
         val compact = maxHeight < 620.dp
         val hasVisualization = page.visualization !in setOf(
             RationalVisualizationKind.NONE,
             RationalVisualizationKind.HISTORY,
         )
-        val visualHeight = if (compact) 180.dp else 245.dp
-        Column(Modifier.fillMaxSize()) {
+        val visualHeight = when {
+            page.visualization == RationalVisualizationKind.RATIONAL_CLASSIFICATION && compact -> 260.dp
+            page.visualization == RationalVisualizationKind.RATIONAL_CLASSIFICATION -> 310.dp
+            compact -> 210.dp
+            else -> 270.dp
+        }
+        val scrollState = rememberScrollState()
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 22.dp, vertical = 18.dp),
+        ) {
             Text(page.section, color = InteractiveBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             Text(
@@ -268,7 +282,10 @@ private fun CloudCoursePageContent(page: RationalLessonPage, pageNumber: Int, pa
                 Spacer(Modifier.height(12.dp))
                 Text(
                     page.formula,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, InteractiveYellow.copy(alpha = 0.22f))
+                        .padding(horizontal = 10.dp, vertical = 12.dp),
                     color = InteractiveYellow,
                     fontSize = if (compact) 18.sp else 22.sp,
                     lineHeight = 28.sp,
@@ -277,13 +294,13 @@ private fun CloudCoursePageContent(page: RationalLessonPage, pageNumber: Int, pa
                 )
             }
             if (hasVisualization) {
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(14.dp))
                 CloudVisualization(page, Modifier.fillMaxWidth().height(visualHeight))
             }
             if (!page.conclusion.isNullOrBlank()) {
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(16.dp))
                 Box(Modifier.fillMaxWidth().height(2.dp).background(InteractiveBlue.copy(alpha = 0.68f)))
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(10.dp))
                 Text(
                     page.conclusion,
                     color = InteractiveWhite,
@@ -292,7 +309,7 @@ private fun CloudCoursePageContent(page: RationalLessonPage, pageNumber: Int, pa
                     fontWeight = FontWeight.Medium,
                 )
             }
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(24.dp))
             Text(
                 "第 $pageNumber 页，共 $pageCount 页",
                 modifier = Modifier.fillMaxWidth(),
@@ -300,6 +317,7 @@ private fun CloudCoursePageContent(page: RationalLessonPage, pageNumber: Int, pa
                 fontSize = 11.sp,
                 textAlign = TextAlign.End,
             )
+            Spacer(Modifier.height(6.dp))
         }
     }
 }
@@ -315,7 +333,7 @@ private fun CloudVisualization(page: RationalLessonPage, modifier: Modifier) {
             RationalVisualizationKind.HISTORY,
             -> Unit
             RationalVisualizationKind.OPPOSITE_QUANTITIES -> SignedMovementNumberLineVisual()
-            RationalVisualizationKind.RATIONAL_CLASSIFICATION -> ClassificationVisual()
+            RationalVisualizationKind.RATIONAL_CLASSIFICATION -> RationalExamplesVisual()
             RationalVisualizationKind.NUMBER_LINE -> AdjustableNumberLine(NumberLineMode.VALUE)
             RationalVisualizationKind.OPPOSITE_NUMBERS -> AdjustableNumberLine(NumberLineMode.OPPOSITE)
             RationalVisualizationKind.ABSOLUTE_VALUE -> AbsoluteValueNumberLineVisual()
