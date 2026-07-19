@@ -21,7 +21,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base64 --decode .bootstrap/full-math-code.tar.gz.b64 > "$RUNNER_TEMP/full-math-code.tar.gz"
+          cat \
+            .bootstrap/full-math-code.part00 \
+            .bootstrap/full-math-code.part01 \
+            .bootstrap/full-math-code.part02 \
+            .bootstrap/full-math-code.part03 \
+            > "$RUNNER_TEMP/full-math-code.tar.gz.b64"
+          printf '%s  %s\n' \
+            8f669992829ea083407b0002fa04cae10f071f3093b6b4d26c92d00740abe9e8 \
+            "$RUNNER_TEMP/full-math-code.tar.gz.b64" \
+            | sha256sum --check --strict
+          base64 --decode "$RUNNER_TEMP/full-math-code.tar.gz.b64" \
+            > "$RUNNER_TEMP/full-math-code.tar.gz"
+          printf '%s  %s\n' \
+            dded0384113d46053e1f769ee8f4d7c051e63be11e3b1397a1bc30243fd1a0ce \
+            "$RUNNER_TEMP/full-math-code.tar.gz" \
+            | sha256sum --check --strict
           tar -xzf "$RUNNER_TEMP/full-math-code.tar.gz" -C .
 
       - uses: actions/setup-python@v5
