@@ -13,3 +13,5 @@
 .env
 materials/raw/
 materials/processed/
+__pycache__/
+*.py[cod]
