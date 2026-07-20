@@ -11,7 +11,7 @@ jobs:
   export-android-env:
     if: github.head_ref == 'agent/full-math-course-pack-v1'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
@@ -28,7 +28,7 @@ jobs:
             "cmdline-tools;latest" \
             "system-images;android-30;aosp_atd;x86_64"
 
-      - name: Package portable environment
+      - name: Package portable environment into downloadable parts
         shell: bash
         run: |
           set -euxo pipefail
@@ -43,15 +43,76 @@ jobs:
           if [ -d "$root/licenses" ]; then paths+=(licenses); fi
           printf '%s\n' "${paths[@]}"
           du -sh "${paths[@]/#/$root/}"
-          tar -C "$root" -cf build/android-local-env.tar "${paths[@]}"
-          sha256sum build/android-local-env.tar > build/android-local-env.tar.sha256
-          du -sh build/android-local-env.tar
+          tar -C "$root" -cf - "${paths[@]}" \
+            | gzip -1 \
+            | split -b 400M -d -a 2 - build/android-local-env.tar.gz.part-
+          sha256sum build/android-local-env.tar.gz.part-* > build/android-local-env.parts.sha256
+          ls -lh build/android-local-env.tar.gz.part-* build/android-local-env.parts.sha256
 
       - uses: actions/upload-artifact@v4
         with:
-          name: android-local-env
-          path: |
-            build/android-local-env.tar
-            build/android-local-env.tar.sha256
+          name: android-local-env-meta
+          path: build/android-local-env.parts.sha256
           compression-level: 0
           if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ hashFiles('build/android-local-env.tar.gz.part-00') != '' }}
+        with:
+          name: android-local-env-part-00
+          path: build/android-local-env.tar.gz.part-00
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        if: ${{ hashFiles('build/android-local-env.tar.gz.part-01') != '' }}
+        with:
+          name: android-local-env-part-01
+          path: build/android-local-env.tar.gz.part-01
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        if: ${{ hashFiles('build/android-local-env.tar.gz.part-02') != '' }}
+        with:
+          name: android-local-env-part-02
+          path: build/android-local-env.tar.gz.part-02
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        if: ${{ hashFiles('build/android-local-env.tar.gz.part-03') != '' }}
+        with:
+          name: android-local-env-part-03
+          path: build/android-local-env.tar.gz.part-03
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        if: ${{ hashFiles('build/android-local-env.tar.gz.part-04') != '' }}
+        with:
+          name: android-local-env-part-04
+          path: build/android-local-env.tar.gz.part-04
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        if: ${{ hashFiles('build/android-local-env.tar.gz.part-05') != '' }}
+        with:
+          name: android-local-env-part-05
+          path: build/android-local-env.tar.gz.part-05
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        if: ${{ hashFiles('build/android-local-env.tar.gz.part-06') != '' }}
+        with:
+          name: android-local-env-part-06
+          path: build/android-local-env.tar.gz.part-06
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        if: ${{ hashFiles('build/android-local-env.tar.gz.part-07') != '' }}
+        with:
+          name: android-local-env-part-07
+          path: build/android-local-env.tar.gz.part-07
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        if: ${{ hashFiles('build/android-local-env.tar.gz.part-08') != '' }}
+        with:
+          name: android-local-env-part-08
+          path: build/android-local-env.tar.gz.part-08
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        if: ${{ hashFiles('build/android-local-env.tar.gz.part-09') != '' }}
+        with:
+          name: android-local-env-part-09
+          path: build/android-local-env.tar.gz.part-09
+          compression-level: 0
