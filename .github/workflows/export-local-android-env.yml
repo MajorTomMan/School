@@ -33,25 +33,25 @@ jobs:
         run: |
           set -euxo pipefail
           root="$ANDROID_HOME"
-          find "$root" -maxdepth 5 -type d | sort | tail -n 120
-          mkdir -p build/android-local-env
-          cp -a "$root/platform-tools" build/android-local-env/
-          cp -a "$root/emulator" build/android-local-env/
-          mkdir -p build/android-local-env/cmdline-tools
-          cp -a "$root/cmdline-tools/latest" build/android-local-env/cmdline-tools/
-          mkdir -p build/android-local-env/system-images/android-30/aosp_atd
-          cp -a "$root/system-images/android-30/aosp_atd/x86_64" \
-            build/android-local-env/system-images/android-30/aosp_atd/
-          if [ -d "$root/licenses" ]; then cp -a "$root/licenses" build/android-local-env/; fi
-          tar -C build -czf android-local-env.tar.gz android-local-env
-          sha256sum build/android-local-env.tar.gz > build/android-local-env.tar.gz.sha256
-          du -sh build/android-local-env build/android-local-env.tar.gz
+          mkdir -p build
+          paths=(
+            platform-tools
+            emulator
+            cmdline-tools/latest
+            system-images/android-30/aosp_atd/x86_64
+          )
+          if [ -d "$root/licenses" ]; then paths+=(licenses); fi
+          printf '%s\n' "${paths[@]}"
+          du -sh "${paths[@]/#/$root/}"
+          tar -C "$root" -cf build/android-local-env.tar "${paths[@]}"
+          sha256sum build/android-local-env.tar > build/android-local-env.tar.sha256
+          du -sh build/android-local-env.tar
 
       - uses: actions/upload-artifact@v4
         with:
           name: android-local-env
           path: |
-            build/android-local-env.tar.gz
-            build/android-local-env.tar.gz.sha256
+            build/android-local-env.tar
+            build/android-local-env.tar.sha256
           compression-level: 0
           if-no-files-found: error
