@@ -41,11 +41,22 @@ class UpdateCoordinator private constructor(context: Context) {
 
     fun onAppForeground() {
         UpdateRuntimeBus.setAppForeground(true)
-        val restored = repository.restoreCachedState()
+        val current = state.value
+        val restored = if (current is UpdateState.Checking || current is UpdateState.Downloading) {
+            current
+        } else {
+            repository.restoreCachedState()
+        }
         if (restored is UpdateState.Available || restored is UpdateState.Ready) {
             UpdateRuntimeBus.showDialog()
         }
-        if (repository.shouldCheckOnForeground()) checkNow(force = false)
+        if (
+            restored !is UpdateState.Checking &&
+            restored !is UpdateState.Downloading &&
+            repository.shouldCheckOnForeground()
+        ) {
+            checkNow(force = false)
+        }
     }
 
     fun onAppBackground() {
@@ -58,6 +69,7 @@ class UpdateCoordinator private constructor(context: Context) {
             mutableSettings.value = repository.settings()
             val shouldShow = when (result) {
                 is UpdateState.Available,
+                is UpdateState.Downloading,
                 is UpdateState.Ready,
                 -> true
                 is UpdateState.Error,
