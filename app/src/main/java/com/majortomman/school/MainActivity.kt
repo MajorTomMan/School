@@ -82,11 +82,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val initialTextbookKey = intent.getStringExtra("open_textbook_slot")
         val courseContentInstalled = CloudCourseRepository.hasInstalledCourseContent()
+        val courseSyncConfigured = BuildConfig.COURSE_MANIFEST_URL.isNotBlank()
         setContent {
             val courseUpdateOffer by pendingCourseUpdate.collectAsState()
             val courseDownloadState by CourseDownloadCoordinator.state.collectAsState()
             var showInitialCoursePrompt by rememberSaveable {
-                mutableStateOf(!courseContentInstalled)
+                mutableStateOf(!courseContentInstalled && courseSyncConfigured)
             }
             var hiddenProgressOperationId by rememberSaveable { mutableStateOf<Long?>(null) }
 
@@ -119,7 +120,7 @@ class MainActivity : ComponentActivity() {
                         showInitialCoursePrompt && !downloadActive -> {
                             CourseDownloadConfirmationDialog(
                                 title = "下载课程包",
-                                message = "学习内容尚未下载。课程包和教材 PDF 共约 13 MB，" +
+                                message = "学习内容尚未下载。确认后将从已配置的课程源获取课程包和教材，" +
                                     "下载完成后可以离线使用；后续更新只会获取发生变化的内容。",
                                 confirmLabel = "下载课程",
                                 onConfirm = {
@@ -177,7 +178,7 @@ class MainActivity : ComponentActivity() {
         }
         StartupInitializationCoordinator.start(
             context = applicationContext,
-            checkCourseUpdatesOnStartup = courseContentInstalled,
+            checkCourseUpdatesOnStartup = courseContentInstalled && courseSyncConfigured,
             onCourseCatalogChanged = {
                 materialPackRepository.refreshCurrent()
             },
