@@ -27,25 +27,33 @@ jobs:
         run: |
           set -euo pipefail
           export PATH="$ANDROID_SDK_ROOT/emulator:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH"
-          mkdir -p "$HOME/.android"
-          touch "$HOME/.android/repositories.cfg"
+          export ANDROID_USER_HOME="$RUNNER_TEMP/android-user"
+          export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          touch "$ANDROID_USER_HOME/repositories.cfg"
+          echo "ANDROID_USER_HOME=$ANDROID_USER_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
+
           echo no | avdmanager create avd \
             -n school_api26_ready \
             -k "system-images;android-26;default;x86_64" \
             --device pixel \
             --force
+
           sudo chmod 666 /dev/kvm || true
           nohup "$ANDROID_SDK_ROOT/emulator/emulator" -avd school_api26_ready \
             -no-window -no-audio -no-boot-anim -no-metrics \
             -gpu swiftshader_indirect -no-snapshot \
             > "$RUNNER_TEMP/preboot-emulator.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/preboot-emulator.pid"
+
           timeout 360 bash -c '
             adb wait-for-device
             until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ]; do
               sleep 2
             done
           '
+
           adb shell wm size 480x800
           adb shell wm density 240
           adb shell settings put global window_animation_scale 0
@@ -62,7 +70,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p export
-          tar -C "$HOME/.android" -czf export/prebooted-avd.tar.gz \
+          tar -C "$ANDROID_USER_HOME" -czf export/prebooted-avd.tar.gz \
             avd/school_api26_ready.ini \
             avd/school_api26_ready.avd
           sha256sum export/prebooted-avd.tar.gz > export/SHA256SUMS
