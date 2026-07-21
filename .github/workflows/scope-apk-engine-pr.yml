@@ -3,6 +3,9 @@ name: Scope APK engine PR
 on:
   push:
     branches: [agent/course-engine-rebuild]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
 
 permissions:
   contents: write
