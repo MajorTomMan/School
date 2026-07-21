@@ -87,8 +87,11 @@ private fun RoadScene(signed: Boolean) {
         Canvas(Modifier.fillMaxWidth().weight(1f)) {
             val left = 24f
             val right = size.width - 24f
-            val roadY = size.height * 0.61f
-            fun xFor(value: Float): Float = left + (value + 8f) / 16f * (right - left)
+            val roadY = size.height * 0.58f
+            val minimum = -5.5f
+            val maximum = 8f
+            fun xFor(value: Float): Float =
+                left + (value - minimum) / (maximum - minimum) * (right - left)
 
             drawLine(
                 color = InteractiveWhite.copy(alpha = 0.72f),
@@ -116,12 +119,32 @@ private fun RoadScene(signed: Boolean) {
                 }
                 label(positionText, x, roadY + 38f, accent, 18f)
             }
+
+            val originX = xFor(0f)
+            val unitX = xFor(1f)
+            drawLine(InteractiveMuted, Offset(unitX, roadY - 9f), Offset(unitX, roadY + 9f), 2f)
+            label("A", unitX, roadY - 18f, InteractiveMuted, 17f)
+            if (signed) {
+                label("+1", unitX, roadY + 38f, InteractiveMuted, 17f)
+            } else {
+                val unitY = roadY + 66f
+                drawLine(
+                    color = InteractiveYellow,
+                    start = Offset(originX, unitY),
+                    end = Offset(unitX, unitY),
+                    strokeWidth = 3f,
+                    cap = StrokeCap.Round,
+                )
+                drawLine(InteractiveYellow, Offset(originX, unitY - 5f), Offset(originX, unitY + 5f), 2f)
+                drawLine(InteractiveYellow, Offset(unitX, unitY - 5f), Offset(unitX, unitY + 5f), 2f)
+                label("OA = 1 m", (originX + unitX) / 2f, unitY + 24f, InteractiveYellow, 17f)
+            }
         }
         Text(
             text = if (signed) {
                 "符号说明位于站牌哪一侧，数值说明离站牌有多远。"
             } else {
-                "先确定共同基准，再分别观察方向和距离。"
+                "线段OA表示1 m；先确定共同基准，再观察方向和距离。"
             },
             modifier = Modifier.fillMaxWidth(),
             color = InteractiveWhite.copy(alpha = 0.84f),
