@@ -1,7 +1,6 @@
 package com.majortomman.school.ui
 
 import com.majortomman.school.data.Lesson
-import com.majortomman.school.learning.course.LessonEnrichment
 
 enum class InteractiveLessonKind {
     CLOUD_COURSE,
@@ -23,7 +22,6 @@ data class InteractiveLessonSpec(
     val misconception: String = "",
     val sourcePage: Int,
     val sourcePageEnd: Int,
-    val enrichment: LessonEnrichment = LessonEnrichment(),
 )
 
 object InteractiveLessonCatalog {
