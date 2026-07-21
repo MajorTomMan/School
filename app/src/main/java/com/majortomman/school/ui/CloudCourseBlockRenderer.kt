@@ -233,7 +233,7 @@ private fun CloudVisualizationBlock(
 ) {
     val isNumberLineLesson = block.renderer.equals("number_line_lesson", ignoreCase = true)
     val height = if (isNumberLineLesson) {
-        if (compact) 360.dp else 420.dp
+        numberLineLessonHeight(block.params["mode"], compact)
     } else {
         visualizationHeight(block.kind, compact)
     }
@@ -262,6 +262,12 @@ private fun CloudVisualizationBlock(
             }
         }
     }
+}
+
+private fun numberLineLessonHeight(mode: String?, compact: Boolean) = when (mode) {
+    "read_points" -> if (compact) 230.dp else 280.dp
+    "example" -> if (compact) 290.dp else 340.dp
+    else -> if (compact) 360.dp else 420.dp
 }
 
 private fun visualizationHeight(kind: RationalVisualizationKind, compact: Boolean) = when (kind) {
