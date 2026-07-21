@@ -3,7 +3,29 @@ name: Android CI/CD
 on:
   push:
     branches: [master]
+    paths:
+      - "app/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - "gradlew"
+      - "gradlew.bat"
+      - "gradle/**"
+      - "signing/**"
+      - "scripts/send_update_fcm.py"
+      - ".release-notes/current.md"
   pull_request:
+    paths:
+      - "app/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - "gradlew"
+      - "gradlew.bat"
+      - "gradle/**"
+      - "signing/**"
+      - "scripts/send_update_fcm.py"
+      - ".release-notes/current.md"
 
 permissions:
   contents: write
