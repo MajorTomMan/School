@@ -249,7 +249,7 @@ private fun CloudVisualizationBlock(
                 RationalVisualizationKind.RATIONAL_CLASSIFICATION -> RationalConceptFlowVisual(block.params)
                 RationalVisualizationKind.INTEGER_TO_FRACTION -> IntegerToFractionTextbookVisual()
                 RationalVisualizationKind.NUMBER_LINE -> NumberLineLessonVisual(block.params)
-                RationalVisualizationKind.OPPOSITE_NUMBERS -> AdjustableNumberLine(NumberLineMode.OPPOSITE)
+                RationalVisualizationKind.OPPOSITE_NUMBERS -> OppositeNumberLessonVisual(block.params)
                 RationalVisualizationKind.ABSOLUTE_VALUE -> AbsoluteValueNumberLineVisual()
                 RationalVisualizationKind.NUMBER_COMPARISON -> ComparisonVisual()
                 RationalVisualizationKind.ADDITION_PROCESS -> SignedUnitVisual()
@@ -275,6 +275,7 @@ private fun visualizationHeight(kind: RationalVisualizationKind, compact: Boolea
     RationalVisualizationKind.INTEGER_TO_FRACTION,
     RationalVisualizationKind.RATIONAL_CLASSIFICATION,
     RationalVisualizationKind.NUMBER_LINE,
+    RationalVisualizationKind.OPPOSITE_NUMBERS,
     -> if (compact) 360.dp else 420.dp
     RationalVisualizationKind.FUNCTION_GRAPH,
     RationalVisualizationKind.CARTESIAN_PLANE,
