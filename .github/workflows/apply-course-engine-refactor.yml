@@ -93,7 +93,7 @@ jobs:
           PY
           git diff --check
 
-      - name: Commit final source
+      - name: Create final commit
         shell: bash
         run: |
           set -euo pipefail
@@ -103,4 +103,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "refactor: rebuild course engine"
+          git rev-parse HEAD
+
+      - name: Push final commit
+        shell: bash
+        run: |
+          set -euo pipefail
           git push origin HEAD:agent/course-engine-rebuild
