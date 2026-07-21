@@ -1,0 +1,25 @@
+name: Export course engine source
+
+on:
+  push:
+    branches:
+      - agent/course-engine-rebuild
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package source
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar --exclude=.git -czf school-source.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: school-course-engine-source
+          path: school-source.tar.gz
+          compression-level: 0
