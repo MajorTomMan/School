@@ -56,7 +56,7 @@ object StartupInitializationCoordinator {
             if (checkCourseUpdatesOnStartup) {
                 checkCourseUpdates(appContext, onCourseUpdateAvailable)
             } else {
-                Log.i(LOG_TAG, "initial course download waits for user confirmation")
+                Log.i(LOG_TAG, "startup course update check skipped")
             }
 
             delay(ANALYTICS_GRACE_MILLIS)
@@ -91,10 +91,9 @@ object StartupInitializationCoordinator {
         val startedAt = SystemClock.elapsedRealtime()
         when (val result = CourseSyncManager.checkForUpdates(appContext)) {
             CourseUpdateCheckResult.Disabled -> Log.i(LOG_TAG, "cloud course synchronization is not configured")
-            is CourseUpdateCheckResult.NoUpdate -> Log.i(
+            CourseUpdateCheckResult.NoUpdate -> Log.i(
                 LOG_TAG,
-                "course content is current at ${result.contentVersion}; checked in " +
-                    "${SystemClock.elapsedRealtime() - startedAt} ms",
+                "course content is current; checked in ${SystemClock.elapsedRealtime() - startedAt} ms",
             )
             is CourseUpdateCheckResult.Available -> {
                 Log.i(

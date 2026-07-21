@@ -61,10 +61,9 @@ val firebaseApiKey = resolvedSetting("SCHOOL_FIREBASE_API_KEY", "schoolFirebaseA
 val firebaseSenderId = resolvedSetting("SCHOOL_FIREBASE_SENDER_ID", "schoolFirebaseSenderId")
 val firebaseUpdateTopic = resolvedSetting("SCHOOL_FIREBASE_UPDATE_TOPIC", "schoolFirebaseUpdateTopic")
     .ifBlank { "school_dev_update" }
+// Course distribution is independent from APK publication. Cloud synchronization is disabled unless
+// a manifest endpoint is explicitly injected by the selected distribution environment.
 val courseManifestUrl = resolvedSetting("SCHOOL_COURSE_MANIFEST_URL", "schoolCourseManifestUrl")
-    .ifBlank {
-        "https://github.com/MajorTomMan/School/releases/download/course-latest/manifest.json"
-    }
 val updatePushEnabled = listOf(
     firebaseProjectId,
     firebaseApplicationId,
