@@ -15,6 +15,17 @@ APK 是唯一课程运行引擎，也是在设备上判断课程包是否可用�
 
 下载地址、文件大小和 SHA-256 不属于课程业务，统一放在包外的分发清单 `manifest.json` 中。APK 下载到暂存目录后，会再次校验文件、课程结构、场景参数、教材 PDF 与业务关系，全部通过后才启用。
 
+课程包可以只包含原有讲解课程。需要答题、判题和掌握度时，必须同时增加：
+
+```text
+course.json
+assessments.json
+knowledge-points.json
+assets/
+```
+
+`assessments.json` 与 `knowledge-points.json` 必须同时存在，不能只提供其中一个。这样支持新契约的 APK 仍可读取当前纯讲解课程，而带题目的新课程必须通过完整关系校验。
+
 课程托管与 APK 发布相互独立。APK 默认不内置课程清单地址；只有构建或运行环境明确提供 `SCHOOL_COURSE_MANIFEST_URL`（或 Gradle 属性 `schoolCourseManifestUrl`）时，云端课程下载和更新检查才启用。未配置分发源时，APK 只读取设备上已经通过校验的本地课程。
 
 ## 教材
@@ -63,10 +74,12 @@ APK 只接受以下内容块：
 - `text`：教材原文、解释、历史说明、问题或图注
 - `formula`：公式及成立条件
 - `list`：知识点列表
-- `example`：例题、步骤与结果
-- `exercise`：题号、题干、选项与提示
+- `example`：只展示教材例题、步骤与结果
+- `exercise`：只展示题号、题干、选项与提示
 - `conclusion`：本页结论
 - `scene`：由 APK 渲染的交互或图示
+
+`course.json` 中的 `example` 和 `exercise` 不保存标准答案，也不参与正确率和掌握度。需要用户独立作答的题目统一放在 `assessments.json`，避免展示内容与运行状态混在一起。
 
 文本样式只有 `textbook`、`explanation`、`history`、`prompt`、`caption`。未知字段、未知块类型和错误数据不会被忽略或降级，而会使整个暂存课程安装失败。
 
@@ -89,6 +102,104 @@ APK 只接受以下内容块：
 
 `diagram` 是通用声明式图示，由线、箭头、点、圆、矩形、文字、折线和数轴等受限图元组成。它不能访问网络、文件、系统 API，也不能执行表达式或任意代码。
 
+## 答题文件
+
+`assessments.json` 根节点只有：
+
+```json
+{
+  "courseId": "pep-math-7-1",
+  "assets": [],
+  "questionSets": [],
+  "placements": []
+}
+```
+
+`placements` 把题组放到 `course.json` 中已经存在的小节。每个题组必须且只能放置一次，不能成为孤立数据，也不能同时出现在多个小节。
+
+每道题必须包含：
+
+- 稳定的 `id` 和正整数 `revision`
+- 题号 `number`
+- 题干内容数组 `stem`
+- 输入规格 `input`
+- 声明式答案规则 `answer`
+- 知识点权重 `knowledgeBindings`
+- `0.0` 到 `1.0` 的难度 `difficulty`
+- 提示 `hints`
+- 单选项内容 `choices`
+- 解题说明 `explanation`
+
+首批输入与答案规则只有：
+
+| 输入类型 | 答案规则 |
+|---|---|
+| `integer` | `exact_integer` |
+| `decimal` | `decimal` |
+| `rational` | `rational_equivalent` |
+| `single_choice` | `single_choice` |
+| `coordinate` | `coordinate` |
+
+输入类型和答案规则必须匹配。分数与坐标使用明确的分子、分母对象，不使用需要执行的表达式。
+
+题干、选项和解析共享以下声明式内容：
+
+- `heading`
+- `text`
+- `formula`
+- `list`
+- `image`
+- `table`
+- `scene`
+
+每道题在 App 中独立成页，但题干区域可以纵向滚动。图片、表格与原生场景可以混合使用。
+
+## 图片和表格资产
+
+`assessments.assets` 只保存业务引用与显示校验信息：
+
+```json
+{
+  "id": "number-line-source",
+  "path": "assets/figures/number-line-source.webp",
+  "mediaType": "image/webp",
+  "width": 1200,
+  "height": 600
+}
+```
+
+文件大小和 SHA-256 仍然只存在于分发清单。APK 会同时验证：
+
+- 路径位于 `assets/` 且不能越界；
+- 文件已在分发清单中声明；
+- 下载大小和 SHA-256 正确；
+- 图片真实格式与 `mediaType` 一致；
+- 图片真实尺寸与课程声明一致；
+- 单边尺寸和总像素数量不超过限制；
+- 所有资产都被题目实际引用，不允许未声明或未使用资产。
+
+简单表格使用结构化 `columns` 和 `rows`。需要保留教材原表时，可通过 `sourceAssetId` 关联裁剪图。复杂图表可以直接作为图片；数轴、坐标系和简单几何图优先使用 APK 原生 `scene`。
+
+## 知识点文件
+
+`knowledge-points.json` 根节点只有：
+
+```json
+{
+  "courseId": "pep-math-7-1",
+  "knowledgePoints": []
+}
+```
+
+每个知识点包含：
+
+- 稳定 ID；
+- 标题和说明；
+- 前置知识点 ID；
+- 所属课程小节 ID。
+
+APK 会拒绝不存在的前置知识、循环依赖、不存在的小节，以及题目中未声明的知识点引用。题目通过 `knowledgeBindings.weight` 表示对各知识点提供证据的相对权重。
+
 ## APK 校验
 
 课程进入 `active` 前，APK 必须完成：
@@ -102,6 +213,10 @@ APK 只接受以下内容块：
 7. 场景模板存在，参数类型、范围和图元关系有效；
 8. 教材 ID 与更新清单一致；
 9. PDF 文件头与页数正确；
-10. 暂存目录通过全部检查后再原子切换到 `active`，失败时保留旧缓存。
+10. 题目文件和知识点文件必须同时存在或同时不存在；
+11. 题组、题目、选项、答案规则和知识点字段严格匹配；
+12. 题组位置、知识点前置关系、课程小节和资产引用完整且无循环；
+13. 图片实际格式、尺寸与像素上限正确；
+14. 暂存目录通过全部检查后再原子切换到 `active`，失败时保留旧缓存。
 
 课程包不依靠自报版本获得信任。只要业务内容或文件变化，分发清单中的大小和 SHA-256 就会变化，APK 据此决定下载哪些文件。
