@@ -1,12 +1,8 @@
 package com.majortomman.school.learning.assessment.contract
 
 import com.majortomman.school.learning.assessment.domain.AnswerInputSpec
-import com.majortomman.school.learning.assessment.domain.Difficulty
-import com.majortomman.school.learning.assessment.domain.KnowledgeBinding
 import com.majortomman.school.learning.assessment.domain.KnowledgePointId
 import com.majortomman.school.learning.assessment.domain.QuestionDefinition
-import com.majortomman.school.learning.assessment.domain.QuestionHint
-import com.majortomman.school.learning.assessment.domain.QuestionKey
 import com.majortomman.school.learning.assessment.domain.QuestionSetDefinition
 import com.majortomman.school.learning.assessment.domain.QuestionSetId
 import com.majortomman.school.learning.content.ContentAssetId
@@ -18,7 +14,6 @@ internal const val KNOWLEDGE_POINTS_FILE_NAME = "knowledge-points.json"
 
 private val COURSE_IDENTIFIER = Regex("^[a-z][a-z0-9_-]{0,95}$")
 private val SECTION_IDENTIFIER = Regex("^[a-z0-9][a-z0-9._-]{0,95}$")
-private val SHA256 = Regex("^[0-9a-f]{64}$")
 
 internal fun requireCourseIdentifier(value: String, label: String): String = value.trim().also {
     require(COURSE_IDENTIFIER.matches(it)) { "$label 格式无效：$value" }
@@ -53,14 +48,12 @@ enum class ContentAssetMediaType(
 data class ContentAssetDefinition(
     val id: ContentAssetId,
     val path: String,
-    val sha256: String,
     val mediaType: ContentAssetMediaType,
     val width: Int,
     val height: Int,
 ) {
     init {
         requireSafeAssetPath(path)
-        require(SHA256.matches(sha256)) { "asset sha256 格式无效：$sha256" }
         require(width in 1..MAX_IMAGE_DIMENSION) { "asset width 超出允许范围：$width" }
         require(height in 1..MAX_IMAGE_DIMENSION) { "asset height 超出允许范围：$height" }
         require(width.toLong() * height.toLong() <= MAX_IMAGE_PIXELS) { "asset 像素数量超过限制" }
@@ -182,7 +175,7 @@ data class KnowledgePointDefinition(
         require(prerequisiteIds.distinct().size == prerequisiteIds.size) { "prerequisiteIds 不能重复" }
         require(id !in prerequisiteIds) { "知识点不能把自己作为前置知识" }
         require(sectionIds.isNotEmpty()) { "知识点至少需要关联一个 section" }
-        require(sectionIds.all { requireSectionIdentifier(it, "knowledgePoint.sectionId").isNotBlank() })
+        sectionIds.forEach { requireSectionIdentifier(it, "knowledgePoint.sectionId") }
         require(sectionIds.distinct().size == sectionIds.size) { "knowledgePoint.sectionIds 不能重复" }
     }
 }
@@ -199,11 +192,3 @@ data class KnowledgePointDocument(
         }
     }
 }
-
-@Suppress("unused")
-private fun contractTypeAnchors(
-    key: QuestionKey,
-    binding: KnowledgeBinding,
-    difficulty: Difficulty,
-    hint: QuestionHint,
-) = listOf(key, binding, difficulty, hint)
