@@ -1,31 +1,16 @@
 #!/usr/bin/env python3
-"""Build one manifest and six textbook course ZIPs for the junior-high mathematics set."""
+"""Build six immutable junior-high mathematics releases for Cloudflare R2."""
 
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
-import hashlib
 import json
 from pathlib import Path
 import shutil
-import zipfile
 
+from build_course_release import file_spec, public_release_url, safe_identifier, write_deterministic_zip
 from generate_math_courses import BOOKS, file_sha256
-
-
-def release_url(base_url: str, name: str) -> str:
-    return f"{base_url.rstrip('/')}/{name}"
-
-
-def file_spec(path: str, source: Path, url: str, in_full_package: bool) -> dict[str, object]:
-    return {
-        "path": path,
-        "url": url,
-        "size": source.stat().st_size,
-        "sha256": file_sha256(source),
-        "inFullPackage": in_full_package,
-    }
+from normalize_course_contract import normalize_course
 
 
 def parse_args() -> argparse.Namespace:
@@ -33,71 +18,80 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source-root", type=Path, required=True)
     parser.add_argument("--pdf-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--textbook-version", type=int, required=True)
-    parser.add_argument("--content-version", type=int, required=True)
-    parser.add_argument("--minimum-app-version", type=int, default=26)
-    parser.add_argument("--release-base-url", required=True)
+    parser.add_argument("--release-id", required=True)
+    parser.add_argument(
+        "--public-base-url",
+        default="https://course.flashnamesl.workers.dev/cloud/course/public",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
+    release_id = safe_identifier(args.release_id, "release id")
+    source_root = args.source_root.resolve()
+    pdf_root = args.pdf_root.resolve()
     output = args.output.resolve()
     if output.exists():
         shutil.rmtree(output)
     output.mkdir(parents=True)
-    textbooks: list[dict[str, object]] = []
 
+    textbooks: list[dict[str, object]] = []
     for spec in BOOKS:
-        source = args.source_root.resolve() / spec.textbook_id / "course.json"
-        pdf = args.pdf_root.resolve() / spec.filename
+        source = source_root / spec.textbook_id / "course.json"
+        pdf = pdf_root / spec.filename
         if not source.is_file():
             raise SystemExit(f"missing course source: {source}")
         if not pdf.is_file() or pdf.stat().st_size <= 0:
             raise SystemExit(f"missing textbook PDF: {pdf}")
         if file_sha256(pdf) != spec.sha256:
             raise SystemExit(f"textbook PDF digest mismatch: {pdf.name}")
-        payload = json.loads(source.read_text(encoding="utf-8"))
-        textbook = payload["textbook"]
+
+        normalized = normalize_course(json.loads(source.read_text(encoding="utf-8")))
+        textbook = normalized["textbook"]
         if textbook["id"] != spec.textbook_id:
             raise SystemExit(f"textbook id mismatch: {source}")
+        if int(textbook["pdf"]["pageCount"]) != spec.page_count:
+            raise SystemExit(f"textbook page count mismatch: {source}")
 
-        course_name = f"{spec.textbook_id}-course.json"
-        course_output = output / course_name
-        shutil.copyfile(source, course_output)
-        zip_name = f"{spec.textbook_id}.zip"
-        zip_path = output / zip_name
-        with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED, allowZip64=True) as archive:
-            archive.write(course_output, "course.json")
+        book_root = output / spec.textbook_id
+        book_root.mkdir(parents=True)
+        course_output = book_root / "course.json"
+        course_output.write_text(json.dumps(normalized, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        package_output = book_root / "course.zip"
+        write_deterministic_zip(course_output, package_output)
+        pdf_output = book_root / "textbook.pdf"
+        shutil.copyfile(pdf, pdf_output)
 
-        pdf_url = f"https://drive.google.com/file/d/{spec.drive_id}/view"
-        textbooks.append({
-            "id": spec.textbook_id,
-            "title": spec.title,
-            "version": args.textbook_version,
-            "minimumAppVersion": args.minimum_app_version,
-            "fullPackage": file_spec(zip_name, zip_path, release_url(args.release_base_url, zip_name), True),
-            "files": [
-                file_spec("course.json", course_output, release_url(args.release_base_url, course_name), True),
-                {
-                    "path": "assets/textbook.pdf",
-                    "url": pdf_url,
-                    "size": pdf.stat().st_size,
-                    "sha256": spec.sha256,
-                    "inFullPackage": False,
-                },
-            ],
-            "deletedFiles": [],
-        })
+        textbooks.append(
+            {
+                "id": spec.textbook_id,
+                "package": file_spec(
+                    f"{spec.textbook_id}.zip",
+                    package_output,
+                    public_release_url(args.public_base_url, release_id, spec.textbook_id, "course.zip"),
+                ),
+                "files": [
+                    file_spec(
+                        "course.json",
+                        course_output,
+                        public_release_url(args.public_base_url, release_id, spec.textbook_id, "course.json"),
+                        True,
+                    ),
+                    file_spec(
+                        str(textbook["pdf"]["path"]),
+                        pdf_output,
+                        public_release_url(args.public_base_url, release_id, spec.textbook_id, "textbook.pdf"),
+                        False,
+                    ),
+                ],
+            }
+        )
 
-    manifest = {
-        "schemaVersion": 1,
-        "contentVersion": args.content_version,
-        "generatedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "textbooks": textbooks,
-    }
-    (output / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"built {len(textbooks)} textbooks in {output}")
+    manifest = {"textbooks": textbooks}
+    manifest_path = output / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"built {len(textbooks)} textbooks for release {release_id} in {output}")
     return 0
 
 

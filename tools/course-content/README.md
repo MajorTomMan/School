@@ -1,103 +1,194 @@
-# School 课程包发布
+# School 课程包：Cloudflare Worker + R2 发布
 
-APK 只包含课程数据结构、解析器、同步缓存、页面渲染器、PDF 渲染器、可视化与确定性算法。教材目录、章节、课程正文、例题、小结和习题由 GitHub Release 发布；教材 PDF 暂时保存在 Google Drive，由课程清单引用并下载到应用私有缓存。
-
-应用不提供系统文件选择器、教材目录授权、PDF 导入、端上 OCR、目录识别或本地抽题。
-
-## 发布位置
+APK 负责课程解析、校验、缓存和渲染；课程业务数据、教材 PDF、完整 ZIP 与分发清单通过 Cloudflare Worker 写入私有 R2，再由 Worker 提供公开只读下载。
 
 ```text
-Google Drive
-└── 义务教育教科书·数学七年级上册.pdf
-
-GitHub Release: course-latest
-├── manifest.json
-├── pep-math-7-1-course.json
-└── pep-math-7-1.zip
+课程源码 / 教材 PDF
+        ↓
+严格 course.json + course.zip + manifest.json
+        ↓ Bearer Token
+course Worker
+        ↓
+私有 R2 Bucket
+        ↓ 公开只读
+School App
 ```
 
-完整 ZIP 只包含 `course.json` 和其他可发布课程资源，不包含教材 PDF。PDF 在 `manifest.json` 中作为外部文件声明。
-
-## 教材 PDF 元数据
-
-当前七年级上册数学教材：
+## R2 对象布局
 
 ```text
-Drive file ID: 1zPJIoh7Ora3AOMLXfDll8YbAZ8u1v78N
-size:          12915486
-SHA-256:       11b6f1fbfa46eee4158953ef745ae1e6fbe6b9527a1423d55cbe75729e8210b9
-pageCount:     202
-pageIndexOffset: 7
+school-course/
+├── releases/
+│   └── <release-id>/
+│       ├── manifest.json
+│       ├── pep-math-7-1/
+│       │   ├── course.json
+│       │   ├── course.zip
+│       │   └── textbook.pdf
+│       └── ...
+└── channels/
+    ├── testing/manifest.json
+    └── stable/manifest.json
 ```
 
-Google Drive 文件必须设置为“知道链接的任何人可查看”，否则未登录的 APK 无法下载。
+`releases/<release-id>/` 不可变；新版本必须创建新的 release ID。testing 和 stable 只保存频道清单，因此提升与回滚只替换一个小 JSON 对象。
 
-## 本地生成
+公开地址：
 
-不需要把 PDF 复制进仓库。使用已经确认的 PDF 元数据即可生成课程资源：
+```text
+https://course.flashnamesl.workers.dev/cloud/course/public/testing/manifest.json
+https://course.flashnamesl.workers.dev/cloud/course/public/stable/manifest.json
+https://course.flashnamesl.workers.dev/cloud/course/public/releases/<release-id>/...
+```
+
+R2 Bucket 不需要开启 `r2.dev` 或公开访问。
+
+## 当前 APK 分发清单
+
+根节点只允许 `textbooks`：
+
+```json
+{
+  "textbooks": [
+    {
+      "id": "pep-math-7-1",
+      "package": {
+        "path": "pep-math-7-1.zip",
+        "url": "https://course.flashnamesl.workers.dev/cloud/course/public/releases/20260727-abc1234/pep-math-7-1/course.zip",
+        "size": 123456,
+        "sha256": "..."
+      },
+      "files": [
+        {
+          "path": "course.json",
+          "url": "https://course.flashnamesl.workers.dev/cloud/course/public/releases/20260727-abc1234/pep-math-7-1/course.json",
+          "size": 234567,
+          "sha256": "...",
+          "bundled": true
+        },
+        {
+          "path": "assets/textbook.pdf",
+          "url": "https://course.flashnamesl.workers.dev/cloud/course/public/releases/20260727-abc1234/pep-math-7-1/textbook.pdf",
+          "size": 12915486,
+          "sha256": "...",
+          "bundled": false
+        }
+      ]
+    }
+  ]
+}
+```
+
+下载地址、大小和 SHA-256 只属于分发清单；`course.json` 只保存教材、章节、课程页、内容块与场景业务数据。
+
+## 旧生成结果规范化
+
+历史生成器仍会输出作者校对字段和旧块名。发布前运行：
+
+```bash
+python3 tools/course-content/normalize_course_contract.py \
+  --source-root build/generated-course \
+  --output-root build/runtime-course
+```
+
+规范化器会删除下载元数据、来源锚点和作者字段；映射旧文本、例题、列表和可视化块；把字符串布尔值与数值转为真实 JSON 类型；并为重复通用 ID 生成确定性的命名空间 ID。遇到 APK 不支持的内容时直接失败。
+
+## 本地构建一本教材
 
 ```bash
 python3 tools/course-content/build_course_release.py \
-  --source tools/course-content/pep-math-7-1/course.json \
-  --output build/course-release/pep-math-7-1 \
-  --textbook-version 1 \
-  --content-version 1 \
-  --minimum-app-version 22 \
-  --release-base-url 'https://github.com/MajorTomMan/School/releases/download/course-latest' \
-  --pdf-file-id '1zPJIoh7Ora3AOMLXfDll8YbAZ8u1v78N' \
-  --pdf-size 12915486 \
-  --pdf-sha256 '11b6f1fbfa46eee4158953ef745ae1e6fbe6b9527a1423d55cbe75729e8210b9' \
-  --pdf-page-count 202 \
-  --pdf-page-index-offset 7
+  --source /path/to/course.json \
+  --pdf /path/to/textbook.pdf \
+  --output build/course-release \
+  --release-id 20260727-local-1 \
+  --public-base-url https://course.flashnamesl.workers.dev/cloud/course/public
 ```
 
-生成结果：
+输出：
 
 ```text
-build/course-release/pep-math-7-1/
+build/course-release/
 ├── manifest.json
-├── pep-math-7-1-course.json
-└── pep-math-7-1.zip
+└── <textbook-id>/
+    ├── course.json
+    ├── course.zip
+    └── textbook.pdf
 ```
 
-ZIP 中只有运行时课程文件：
+## 上传到 testing
+
+```bash
+source ~/.config/course/secrets.env
+
+python3 tools/course-content/publish_course_r2.py upload \
+  --root build/course-release \
+  --release-id 20260727-local-1 \
+  --channel testing
+```
+
+发布器会跳过摘要一致的对象，逐个申请短时上传 URL，上传并确认大小和 SHA-256，最后调用 `/cloud/course/channel/publish` 原子发布 testing 清单。
+
+发布器只需要 `COURSE_API_TOKEN`；不需要 `COURSE_SIGNING_SECRET` 或 R2 S3 密钥。
+
+## 提升到 stable 与回滚
+
+确认 testing APK 正常后：
+
+```bash
+python3 tools/course-content/publish_course_r2.py promote \
+  --release-id 20260727-local-1 \
+  --channel stable
+```
+
+此命令不会重新上传大文件，只会让 Worker 重新校验 release manifest 并原子写入 stable。回滚时对旧 release ID 执行同一命令。
+
+## GitHub Actions
+
+工作流：
 
 ```text
-course.json
+.github/workflows/course-r2-release.yml
 ```
 
-也可以传入 `--pdf /path/to/textbook.pdf`，让工具在本机重新核对 PDF 文件头、大小和 SHA-256。该 PDF 仍不会写入输出目录或 ZIP。
+行为：
 
-## 自动发布
+- Pull Request：生成、校验、规范化并构建课程，但不上传；
+- 合并到 `master`：创建不可变 release 并自动发布到 testing；
+- 手动 `publish-testing`：重新构建并发布 testing；
+- 手动 `promote-stable`：填写已验证的 release ID，只提升频道清单。
 
-`.github/workflows/course-release.yml` 会在课程源文件合并到 `master` 后自动：
-
-1. 构建课程 JSON 和完整 ZIP；
-2. 校验 PDF 被标记为外部文件；
-3. 检查 ZIP 中不含 PDF；
-4. 创建或更新 `course-latest` Release；
-5. 覆盖上传三个稳定资源。
-
-APK 默认读取：
+仓库需要配置：
 
 ```text
-https://github.com/MajorTomMan/School/releases/download/course-latest/manifest.json
+Actions Secret:
+  COURSE_API_TOKEN
+
+Actions Variable（可选）：
+  COURSE_BASE_URL=https://course.flashnamesl.workers.dev
 ```
 
-仍可通过 `SCHOOL_COURSE_MANIFEST_URL` 或 Gradle 属性 `schoolCourseManifestUrl` 覆盖。
+仓库 `gradle.properties` 已显式设置：
+
+```text
+schoolCourseManifestUrl=https://course.flashnamesl.workers.dev/cloud/course/public/stable/manifest.json
+```
+
+本地或其他发行环境仍可通过 `SCHOOL_COURSE_MANIFEST_URL` 覆盖。
 
 ## 客户端更新规则
 
-- 本地没有该教材：下载完整课程 ZIP，再单独下载 Google Drive PDF。
-- 数据结构版本变化：下载完整课程 ZIP；摘要未变化的 PDF 从旧缓存复用。
-- 只修改课程 JSON：下载 JSON 或完整课程 ZIP，不重新下载 PDF。
-- 只替换教材 PDF：下载新的 PDF；更新计划会把外部文件体积计入全量成本。
-- 增量校验或安装失败：自动改用完整课程 ZIP，并补齐所需外部文件。
-- 下载、SHA-256、JSON、PDF 文件头、PDF 页数或切换失败：保留旧缓存。
-- 云端清单无法访问：使用本地缓存；没有缓存时显示同步状态和重试入口。
+- 本地无教材时下载完整 ZIP 与教材 PDF；
+- 只有 `course.json` 变化时优先执行文件级增量更新；
+- PDF 摘要未变化时复用本地文件；
+- 增量失败时回退完整 ZIP；
+- 所有文件先进入 staging，完成大小、SHA-256、ZIP、课程结构、场景参数和 PDF 校验后再切换 active；
+- 任一步失败都保留旧课程。
 
-所有文件先写入 `filesDir/course-packs/staging`。客户端会优先复用 `active` 中摘要一致的教材 PDF，缺失或变化时才从 Drive 下载。完成大小、SHA-256、安全路径、JSON 和 PDF 校验后，才会切换到 `active`；旧版本保留在 `backup`。
+## 安全边界
 
-## 内容兼容规则
-
-云端只能声明 APK 已实现的页面块和可视化名称，不能下发 Kotlin、JavaScript 或其他可执行代码。页面、习题和学习进度使用稳定 ID；修改文字或可视化参数时不要更换 ID。
+- R2 保持私有；
+- 上传和频道发布使用 Bearer Token；
+- App 只访问公开只读的 channel/release 路径；
+- 公开接口不能列举 Bucket、不能读取 `incoming/`、不能写入或删除；
+- release 文件不可变并长期缓存；channel manifest 使用 `no-cache`；
+- stable 必须由人工确认后的 release ID 提升。
