@@ -11,6 +11,7 @@ import zipfile
 
 from copy_assessment_extensions import copy_extensions
 from course_release_bundle import collect_bundled_files, write_deterministic_zip
+from postprocess_math_courses import manual_section_paths
 from prepare_assessment_packages import validate_package
 
 
@@ -47,6 +48,23 @@ class CourseAssessmentDistributionTest(unittest.TestCase):
             self.assertEqual(
                 {"questionSets": 3, "questions": 15, "knowledgePoints": 9, "assets": 1},
                 result,
+            )
+
+    def test_manual_section_overlay_ignores_package_extension_json(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in (
+                "1.1.json",
+                "1.2.1.json",
+                "assessments.json",
+                "knowledge-points.json",
+                "asset-crops.json",
+                "review-decisions.json",
+            ):
+                (root / name).write_text("{}", encoding="utf-8")
+            self.assertEqual(
+                ["1.1.json", "1.2.1.json"],
+                [path.name for path in manual_section_paths(root)],
             )
 
     def test_deterministic_zip_contains_extensions_and_assets_in_sorted_order(self) -> None:
