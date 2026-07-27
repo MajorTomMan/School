@@ -22,6 +22,14 @@ GENERIC_EXCERPT_TEXTS = (
 )
 
 MANUAL_ROOT = Path(__file__).resolve().parent / "manual"
+MANUAL_EXTENSION_FILES = {
+    "assessments.json",
+    "knowledge-points.json",
+    "asset-crops.json",
+    "asset-decisions.json",
+    "review.json",
+    "review-decisions.json",
+}
 
 
 def iter_pages(course: dict[str, Any]):
@@ -122,6 +130,15 @@ def curate_pep_7_1(course: dict[str, Any]) -> None:
         ])
 
 
+def manual_section_paths(directory: Path) -> list[Path]:
+    """Return only manually reviewed course-section JSON files, never package extensions."""
+    return [
+        path
+        for path in sorted(directory.glob("*.json"))
+        if path.name not in MANUAL_EXTENSION_FILES
+    ]
+
+
 def apply_manual_sections(course: dict[str, Any]) -> int:
     textbook_id = str(course.get("textbook", {}).get("id") or "").strip()
     directory = MANUAL_ROOT / textbook_id
@@ -134,7 +151,7 @@ def apply_manual_sections(course: dict[str, Any]) -> int:
         for index, section in enumerate(chapter.get("sections", []))
     }
     applied = 0
-    for path in sorted(directory.glob("*.json")):
+    for path in manual_section_paths(directory):
         override = json.loads(path.read_text(encoding="utf-8"))
         section_id = str(override.get("id") or "").strip()
         if not section_id:
