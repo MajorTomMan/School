@@ -113,7 +113,7 @@ object CloudAssessmentRepository {
         }
 
         return chapters
-            .flatMap(CourseChapter::allSections)
+            .flatMap { chapter -> chapter.allSections() }
             .filter { section -> section.pages.any { it.overlaps(sourcePages) } }
             .distinctBy(CourseSection::id)
     }
@@ -146,7 +146,7 @@ object CloudAssessmentRepository {
 
     private fun contentRevision(vararg files: File): String {
         val digest = MessageDigest.getInstance("SHA-256")
-        files.sortedBy(File::name).forEach { file ->
+        files.sortedBy { file -> file.name }.forEach { file ->
             digest.update(file.name.toByteArray(Charsets.UTF_8))
             file.inputStream().buffered().use { input ->
                 val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
