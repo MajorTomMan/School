@@ -29,23 +29,37 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set +e
+          mkdir -p build/step7-wrapper
           sed -n '34,$p' .github/workflows/step7-one-shot-promotion.yml \
-            | sed 's/^          //' > /tmp/step7-one-shot.sh
-          bash -x /tmp/step7-one-shot.sh > /tmp/step7-wrapper.log 2>&1
+            | sed 's/^          //' > build/step7-wrapper/step7-one-shot.sh
+          bash -x build/step7-wrapper/step7-one-shot.sh \
+            > build/step7-wrapper/internal.log 2>&1
           code=$?
+          echo "$code" > build/step7-wrapper/exit-code.txt
           echo '===== step7 internal log ====='
-          tail -n 320 /tmp/step7-wrapper.log
+          tail -n 320 build/step7-wrapper/internal.log
           echo '===== end step7 internal log ====='
           if [ "$code" -ne 0 ]; then
             {
               echo '## 第 7 步运维包装层失败 ❌'
               echo
               echo '```text'
-              tail -n 240 /tmp/step7-wrapper.log
+              tail -n 240 build/step7-wrapper/internal.log
               echo '```'
-            } > /tmp/step7-wrapper-comment.md
+            } > build/step7-wrapper/comment.md
             gh api --method POST \
               "repos/${GITHUB_REPOSITORY}/issues/${RECEIPT_PR}/comments" \
-              -f "body=$(cat /tmp/step7-wrapper-comment.md)" || true
+              -f "body=$(cat build/step7-wrapper/comment.md)" || true
           fi
           exit "$code"
+
+      - name: Upload one-shot diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: step7-one-shot-diagnostics
+          path: |
+            build/step7-wrapper/
+            build/step7-verification/
+          if-no-files-found: ignore
+          retention-days: 3
