@@ -1,0 +1,1127 @@
+{
+  "courseId": "pep-math-7-1",
+  "assets": [
+    {
+      "id": "number-line-road-source",
+      "path": "assets/figures/number-line-road-source.png",
+      "mediaType": "image/png",
+      "width": 1258,
+      "height": 156
+    }
+  ],
+  "questionSets": [
+    {
+      "id": "assessment-1.1",
+      "title": "1.1 正数和负数 · 基础检验",
+      "allowSkip": true,
+      "allowReviewBeforeFinish": true,
+      "questions": [
+        {
+          "id": "q-1-1-direction-left",
+          "revision": 1,
+          "number": "1",
+          "stem": [
+            {
+              "type": "text",
+              "text": "规定向右走为正。向右走80 m记作+80 m，那么向左走60 m应记作多少米？",
+              "style": "prompt"
+            }
+          ],
+          "input": {
+            "type": "integer"
+          },
+          "answer": {
+            "type": "exact_integer",
+            "expected": -60
+          },
+          "knowledgeBindings": [
+            {
+              "knowledgePointId": "opposite-quantities",
+              "weight": 0.55
+            },
+            {
+              "knowledgePointId": "signed-context",
+              "weight": 0.45
+            }
+          ],
+          "difficulty": 0.25,
+          "hints": [
+            {
+              "id": "find-opposite",
+              "text": "向左和向右是两个相反方向；既然向右为正，向左就用负数。"
+            }
+          ],
+          "choices": [],
+          "explanation": [
+            {
+              "type": "formula",
+              "expression": "+80 m ↔ −60 m",
+              "conditions": []
+            },
+            {
+              "type": "text",
+              "text": "正负号记录方向，数字的绝对值记录距离。向左60 m因此记作−60 m。",
+              "style": "explanation"
+            }
+          ]
+        },
+        {
+          "id": "q-1-1-zero-classification",
+          "revision": 1,
+          "number": "2",
+          "stem": [
+            {
+              "type": "text",
+              "text": "关于数0，下列说法正确的是哪一项？",
+              "style": "prompt"
+            }
+          ],
+          "input": {
+            "type": "single_choice",
+            "optionIds": [
+              "a",
+              "b",
+              "c",
+              "d"
+            ]
+          },
+          "answer": {
+            "type": "single_choice",
+            "expectedOptionId": "c"
+          },
+          "knowledgeBindings": [
+            {
+              "knowledgePointId": "positive-negative-zero",
+              "weight": 1.0
+            }
+          ],
+          "difficulty": 0.18,
+          "hints": [
+            {
+              "id": "compare-zero",
+              "text": "正数大于0，负数小于0。再判断0自身属于哪一类。"
+            }
+          ],
+          "choices": [
+            {
+              "id": "a",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "0是最小的正数",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "0是最大的负数",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "c",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "0既不是正数，也不是负数",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "d",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "0同时是正数和负数",
+                  "style": "body"
+                }
+              ]
+            }
+          ],
+          "explanation": [
+            {
+              "type": "text",
+              "text": "0是正数与负数的分界，但0本身不属于正数或负数。",
+              "style": "explanation"
+            }
+          ]
+        },
+        {
+          "id": "q-1-1-decrease-percent",
+          "revision": 1,
+          "number": "3",
+          "stem": [
+            {
+              "type": "text",
+              "text": "某种农作物的产量比上年减少0.7%。若增长记为正，减少0.7%应记作多少？只输入百分号前的数值。",
+              "style": "prompt"
+            }
+          ],
+          "input": {
+            "type": "decimal",
+            "allowFraction": false
+          },
+          "answer": {
+            "type": "decimal",
+            "expected": -0.7,
+            "tolerance": 0.0
+          },
+          "knowledgeBindings": [
+            {
+              "knowledgePointId": "opposite-quantities",
+              "weight": 0.4
+            },
+            {
+              "knowledgePointId": "signed-context",
+              "weight": 0.6
+            }
+          ],
+          "difficulty": 0.28,
+          "hints": [
+            {
+              "id": "decrease-negative",
+              "text": "“增长”和“减少”具有相反意义，增长已经规定为正。"
+            }
+          ],
+          "choices": [],
+          "explanation": [
+            {
+              "type": "formula",
+              "expression": "减少 0.7% → −0.7%",
+              "conditions": []
+            },
+            {
+              "type": "text",
+              "text": "减少与增长方向相反，因此使用负号；0.7的大小保持不变。",
+              "style": "explanation"
+            }
+          ]
+        },
+        {
+          "id": "q-1-1-common-rule-table",
+          "revision": 1,
+          "number": "4",
+          "stem": [
+            {
+              "type": "text",
+              "text": "下面的表格把三种生活情境放在同一规则下。根据表格，哪项概括最准确？",
+              "style": "prompt"
+            },
+            {
+              "type": "table",
+              "columns": [
+                "情境",
+                "规定为正",
+                "相反方向"
+              ],
+              "rows": [
+                [
+                  "温度",
+                  "零上",
+                  "零下用负数"
+                ],
+                [
+                  "海拔",
+                  "海平面以上",
+                  "海平面以下用负数"
+                ],
+                [
+                  "盈亏",
+                  "盈利",
+                  "亏损用负数"
+                ]
+              ],
+              "caption": "相反意义的量采用同一套记号规则"
+            }
+          ],
+          "input": {
+            "type": "single_choice",
+            "optionIds": [
+              "a",
+              "b",
+              "c",
+              "d"
+            ]
+          },
+          "answer": {
+            "type": "single_choice",
+            "expectedOptionId": "b"
+          },
+          "knowledgeBindings": [
+            {
+              "knowledgePointId": "opposite-quantities",
+              "weight": 0.65
+            },
+            {
+              "knowledgePointId": "signed-context",
+              "weight": 0.35
+            }
+          ],
+          "difficulty": 0.36,
+          "hints": [
+            {
+              "id": "base-direction",
+              "text": "每一行都先确定基准和正方向，再给相反方向加负号。"
+            }
+          ],
+          "choices": [
+            {
+              "id": "a",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "正数一定表示数量增加",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "先约定基准和正方向，相反方向再用负数表示",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "c",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "负数表示的量一定比正数小",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "d",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "不同情境必须使用不同的正负规则",
+                  "style": "body"
+                }
+              ]
+            }
+          ],
+          "explanation": [
+            {
+              "type": "text",
+              "text": "正负数在情境中的意义取决于事先约定。共同结构是：确定基准、规定一个方向为正，再用负数表示相反方向。",
+              "style": "explanation"
+            }
+          ]
+        },
+        {
+          "id": "q-1-1-moon-temperature",
+          "revision": 1,
+          "number": "5",
+          "stem": [
+            {
+              "type": "text",
+              "text": "月球表面白天最高温度零上126℃记作126℃。夜间最低温度为零下150℃，应记作多少摄氏度？",
+              "style": "prompt"
+            }
+          ],
+          "input": {
+            "type": "integer"
+          },
+          "answer": {
+            "type": "exact_integer",
+            "expected": -150
+          },
+          "knowledgeBindings": [
+            {
+              "knowledgePointId": "positive-negative-zero",
+              "weight": 0.35
+            },
+            {
+              "knowledgePointId": "signed-context",
+              "weight": 0.65
+            }
+          ],
+          "difficulty": 0.22,
+          "hints": [
+            {
+              "id": "below-zero",
+              "text": "“零下”表示温度在0℃以下。"
+            }
+          ],
+          "choices": [],
+          "explanation": [
+            {
+              "type": "text",
+              "text": "零上温度用正数表示，零下温度用负数表示，所以零下150℃记作−150℃。",
+              "style": "explanation"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "assessment-1.2.1",
+      "title": "1.2.1 有理数的概念 · 基础检验",
+      "allowSkip": true,
+      "allowReviewBeforeFinish": true,
+      "questions": [
+        {
+          "id": "q-1-2-1-integer-fraction",
+          "revision": 1,
+          "number": "1",
+          "stem": [
+            {
+              "type": "text",
+              "text": "把整数−3写成分母为1的分数。输入任意等值分数。",
+              "style": "prompt"
+            }
+          ],
+          "input": {
+            "type": "rational",
+            "allowDecimal": false
+          },
+          "answer": {
+            "type": "rational_equivalent",
+            "expected": {
+              "numerator": -3,
+              "denominator": 1
+            }
+          },
+          "knowledgeBindings": [
+            {
+              "knowledgePointId": "integer-fraction-form",
+              "weight": 1.0
+            }
+          ],
+          "difficulty": 0.22,
+          "hints": [
+            {
+              "id": "denominator-one",
+              "text": "任何整数a都可以写成a/1。"
+            }
+          ],
+          "choices": [],
+          "explanation": [
+            {
+              "type": "formula",
+              "expression": "−3 = −3/1",
+              "conditions": []
+            },
+            {
+              "type": "text",
+              "text": "给整数补上分母1不会改变它的大小。",
+              "style": "explanation"
+            }
+          ]
+        },
+        {
+          "id": "q-1-2-1-zero-identities",
+          "revision": 1,
+          "number": "2",
+          "stem": [
+            {
+              "type": "text",
+              "text": "数0同时属于下面哪两类？",
+              "style": "prompt"
+            }
+          ],
+          "input": {
+            "type": "single_choice",
+            "optionIds": [
+              "a",
+              "b",
+              "c",
+              "d"
+            ]
+          },
+          "answer": {
+            "type": "single_choice",
+            "expectedOptionId": "d"
+          },
+          "knowledgeBindings": [
+            {
+              "knowledgePointId": "rational-definition",
+              "weight": 0.45
+            },
+            {
+              "knowledgePointId": "rational-classification",
+              "weight": 0.55
+            }
+          ],
+          "difficulty": 0.3,
+          "hints": [
+            {
+              "id": "zero-fraction",
+              "text": "0是整数，也可以写成0/1。"
+            }
+          ],
+          "choices": [
+            {
+              "id": "a",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "正整数、正有理数",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "负整数、负有理数",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "c",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "正分数、负分数",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "d",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "整数、有理数",
+                  "style": "body"
+                }
+              ]
+            }
+          ],
+          "explanation": [
+            {
+              "type": "text",
+              "text": "0是整数；又因为0=0/1能写成分数形式，所以0也是有理数。0既不是正数，也不是负数。",
+              "style": "explanation"
+            }
+          ]
+        },
+        {
+          "id": "q-1-2-1-count-positive",
+          "revision": 1,
+          "number": "3",
+          "stem": [
+            {
+              "type": "text",
+              "text": "在下列数中，正有理数共有多少个？",
+              "style": "prompt"
+            },
+            {
+              "type": "list",
+              "items": [
+                "15",
+                "−1/9",
+                "−5",
+                "7",
+                "0.5",
+                "−80",
+                "12",
+                "−4.2",
+                "2.3"
+              ]
+            }
+          ],
+          "input": {
+            "type": "integer"
+          },
+          "answer": {
+            "type": "exact_integer",
+            "expected": 5
+          },
+          "knowledgeBindings": [
+            {
+              "knowledgePointId": "rational-classification",
+              "weight": 1.0
+            }
+          ],
+          "difficulty": 0.42,
+          "hints": [
+            {
+              "id": "positive-list",
+              "text": "逐个与0比较，不要因为小数或分数的写法而改变正负判断。"
+            }
+          ],
+          "choices": [],
+          "explanation": [
+            {
+              "type": "text",
+              "text": "正有理数是15、7、0.5、12、2.3，共5个。",
+              "style": "explanation"
+            }
+          ]
+        },
+        {
+          "id": "q-1-2-1-two-axes-table",
+          "revision": 1,
+          "number": "4",
+          "stem": [
+            {
+              "type": "text",
+              "text": "观察分类表。哪项结论正确？",
+              "style": "prompt"
+            },
+            {
+              "type": "table",
+              "columns": [
+                "数",
+                "按正负分类",
+                "按整数/分数分类"
+              ],
+              "rows": [
+                [
+                  "13",
+                  "正有理数",
+                  "整数"
+                ],
+                [
+                  "−3/8",
+                  "负有理数",
+                  "分数"
+                ],
+                [
+                  "0",
+                  "既非正也非负",
+                  "整数"
+                ]
+              ],
+              "caption": "同一个数可以同时接受两种不同标准的分类"
+            }
+          ],
+          "input": {
+            "type": "single_choice",
+            "optionIds": [
+              "a",
+              "b",
+              "c",
+              "d"
+            ]
+          },
+          "answer": {
+            "type": "single_choice",
+            "expectedOptionId": "a"
+          },
+          "knowledgeBindings": [
+            {
+              "knowledgePointId": "rational-classification",
+              "weight": 1.0
+            }
+          ],
+          "difficulty": 0.4,
+          "hints": [
+            {
+              "id": "two-standards",
+              "text": "“正或负”和“整数或分数”是两个不同的分类角度。"
+            }
+          ],
+          "choices": [
+            {
+              "id": "a",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "13既是正有理数，也是整数",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "−3/8是负整数",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "c",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "0是正有理数",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "d",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "一个数只能属于表中的一个类别",
+                  "style": "body"
+                }
+              ]
+            }
+          ],
+          "explanation": [
+            {
+              "type": "text",
+              "text": "13大于0，所以是正有理数；13没有分数部分，所以也是整数。两种身份并不冲突。",
+              "style": "explanation"
+            }
+          ]
+        },
+        {
+          "id": "q-1-2-1-half-equivalent",
+          "revision": 1,
+          "number": "5",
+          "stem": [
+            {
+              "type": "text",
+              "text": "有限小数0.5可以写成分数。请输入与0.5等值的分数或小数。",
+              "style": "prompt"
+            }
+          ],
+          "input": {
+            "type": "rational",
+            "allowDecimal": true
+          },
+          "answer": {
+            "type": "rational_equivalent",
+            "expected": {
+              "numerator": 1,
+              "denominator": 2
+            }
+          },
+          "knowledgeBindings": [
+            {
+              "knowledgePointId": "rational-definition",
+              "weight": 0.7
+            },
+            {
+              "knowledgePointId": "integer-fraction-form",
+              "weight": 0.3
+            }
+          ],
+          "difficulty": 0.34,
+          "hints": [
+            {
+              "id": "decimal-fraction",
+              "text": "0.5表示十分之五，约分后再输入。"
+            }
+          ],
+          "choices": [],
+          "explanation": [
+            {
+              "type": "formula",
+              "expression": "0.5 = 5/10 = 1/2",
+              "conditions": []
+            },
+            {
+              "type": "text",
+              "text": "有限小数能够化成分数，因此属于有理数。",
+              "style": "explanation"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "assessment-1.2.2",
+      "title": "1.2.2 数轴 · 基础检验",
+      "allowSkip": true,
+      "allowReviewBeforeFinish": true,
+      "questions": [
+        {
+          "id": "q-1-2-2-road-image",
+          "revision": 1,
+          "number": "1",
+          "stem": [
+            {
+              "type": "text",
+              "text": "下图以汽车站牌O为0，向东（右）为正方向。根据教材情境图，哪项位置表示正确？",
+              "style": "prompt"
+            },
+            {
+              "type": "image",
+              "assetId": "number-line-road-source",
+              "altText": "汽车站牌东西两侧树木和设施的位置图",
+              "caption": "教材第9页相对位置图，已按原图高清裁剪"
+            }
+          ],
+          "input": {
+            "type": "single_choice",
+            "optionIds": [
+              "a",
+              "b",
+              "c",
+              "d"
+            ]
+          },
+          "answer": {
+            "type": "single_choice",
+            "expectedOptionId": "c"
+          },
+          "knowledgeBindings": [
+            {
+              "knowledgePointId": "number-line-position",
+              "weight": 0.75
+            },
+            {
+              "knowledgePointId": "signed-context",
+              "weight": 0.25
+            }
+          ],
+          "difficulty": 0.35,
+          "hints": [
+            {
+              "id": "east-positive",
+              "text": "O右侧为正，O左侧为负；数字大小等于离O的距离。"
+            }
+          ],
+          "choices": [
+            {
+              "id": "a",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "柳树B表示−3",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "交通标志杆C表示−7.5",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "c",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "槐树D表示−3",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "d",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "电线杆E表示4.8",
+                  "style": "body"
+                }
+              ]
+            }
+          ],
+          "explanation": [
+            {
+              "type": "text",
+              "text": "D在O左侧3 m处。向右规定为正时，左侧使用负数，因此D表示−3。",
+              "style": "explanation"
+            }
+          ]
+        },
+        {
+          "id": "q-1-2-2-three-elements",
+          "revision": 1,
+          "number": "2",
+          "stem": [
+            {
+              "type": "text",
+              "text": "规定了哪三个要素的直线叫作数轴？",
+              "style": "prompt"
+            }
+          ],
+          "input": {
+            "type": "single_choice",
+            "optionIds": [
+              "a",
+              "b",
+              "c",
+              "d"
+            ]
+          },
+          "answer": {
+            "type": "single_choice",
+            "expectedOptionId": "b"
+          },
+          "knowledgeBindings": [
+            {
+              "knowledgePointId": "number-line-elements",
+              "weight": 1.0
+            }
+          ],
+          "difficulty": 0.2,
+          "hints": [
+            {
+              "id": "three-elements",
+              "text": "一个确定基准，一个确定增大方向，一个确定刻度代表的长度。"
+            }
+          ],
+          "choices": [
+            {
+              "id": "a",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "起点、终点、线段长度",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "原点、正方向、单位长度",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "c",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "正数、负数、0",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "d",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "横轴、纵轴、坐标",
+                  "style": "body"
+                }
+              ]
+            }
+          ],
+          "explanation": [
+            {
+              "type": "list",
+              "items": [
+                "原点确定0的位置",
+                "正方向确定数增大的方向",
+                "单位长度确定相邻刻度代表多少"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "q-1-2-2-negative-half",
+          "revision": 1,
+          "number": "3",
+          "stem": [
+            {
+              "type": "text",
+              "text": "观察数轴场景：点在原点左侧，与原点距离2.5个单位长度。这个点表示什么数？输入分数或等值小数。",
+              "style": "prompt"
+            },
+            {
+              "type": "scene",
+              "template": "number_line",
+              "data": {
+                "title": "负半轴上的点",
+                "mode": "value",
+                "initial": -2.5
+              }
+            }
+          ],
+          "input": {
+            "type": "rational",
+            "allowDecimal": true
+          },
+          "answer": {
+            "type": "rational_equivalent",
+            "expected": {
+              "numerator": -5,
+              "denominator": 2
+            }
+          },
+          "knowledgeBindings": [
+            {
+              "knowledgePointId": "number-line-position",
+              "weight": 0.7
+            },
+            {
+              "knowledgePointId": "rational-definition",
+              "weight": 0.3
+            }
+          ],
+          "difficulty": 0.38,
+          "hints": [
+            {
+              "id": "left-negative",
+              "text": "原点左侧用负数表示，2.5=5/2。"
+            }
+          ],
+          "choices": [],
+          "explanation": [
+            {
+              "type": "formula",
+              "expression": "−2.5 = −5/2",
+              "conditions": []
+            },
+            {
+              "type": "text",
+              "text": "负号来自点所在方向，5/2来自点到原点的距离。",
+              "style": "explanation"
+            }
+          ]
+        },
+        {
+          "id": "q-1-2-2-move-right",
+          "revision": 1,
+          "number": "4",
+          "stem": [
+            {
+              "type": "text",
+              "text": "数轴上点A表示−3。从A向右移动4个单位长度到达点B，点B表示多少？",
+              "style": "prompt"
+            }
+          ],
+          "input": {
+            "type": "integer"
+          },
+          "answer": {
+            "type": "exact_integer",
+            "expected": 1
+          },
+          "knowledgeBindings": [
+            {
+              "knowledgePointId": "number-line-movement",
+              "weight": 0.75
+            },
+            {
+              "knowledgePointId": "number-line-position",
+              "weight": 0.25
+            }
+          ],
+          "difficulty": 0.33,
+          "hints": [
+            {
+              "id": "move-add",
+              "text": "数轴向右移动，表示在原数上加上移动长度。"
+            }
+          ],
+          "choices": [],
+          "explanation": [
+            {
+              "type": "formula",
+              "expression": "−3 + 4 = 1",
+              "conditions": []
+            },
+            {
+              "type": "text",
+              "text": "从−3向右依次经过−2、−1、0，第四个单位到达1。",
+              "style": "explanation"
+            }
+          ]
+        },
+        {
+          "id": "q-1-2-2-position-pair",
+          "revision": 1,
+          "number": "5",
+          "stem": [
+            {
+              "type": "text",
+              "text": "仍以O为0、向东为正。请用坐标输入框记录一个“位置对”：x填柳树B的位置，y填电线杆E的位置。",
+              "style": "prompt"
+            },
+            {
+              "type": "image",
+              "assetId": "number-line-road-source",
+              "altText": "汽车站牌相对位置图"
+            }
+          ],
+          "input": {
+            "type": "coordinate"
+          },
+          "answer": {
+            "type": "coordinate",
+            "expected": {
+              "x": {
+                "numerator": 3,
+                "denominator": 1
+              },
+              "y": {
+                "numerator": -24,
+                "denominator": 5
+              }
+            }
+          },
+          "knowledgeBindings": [
+            {
+              "knowledgePointId": "number-line-position",
+              "weight": 0.8
+            },
+            {
+              "knowledgePointId": "signed-context",
+              "weight": 0.2
+            }
+          ],
+          "difficulty": 0.5,
+          "hints": [
+            {
+              "id": "pair-meaning",
+              "text": "B在右侧3 m；E在左侧4.8 m，且4.8=24/5。"
+            }
+          ],
+          "choices": [],
+          "explanation": [
+            {
+              "type": "formula",
+              "expression": "(x, y) = (3, −4.8) = (3, −24/5)",
+              "conditions": []
+            },
+            {
+              "type": "text",
+              "text": "这个位置对只是在同一题中同时记录两个点，不表示平面坐标。",
+              "style": "explanation"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "placements": [
+    {
+      "sectionId": "1.1",
+      "questionSetIds": [
+        "assessment-1.1"
+      ]
+    },
+    {
+      "sectionId": "1.2.1",
+      "questionSetIds": [
+        "assessment-1.2.1"
+      ]
+    },
+    {
+      "sectionId": "1.2.2",
+      "questionSetIds": [
+        "assessment-1.2.2"
+      ]
+    }
+  ]
+}

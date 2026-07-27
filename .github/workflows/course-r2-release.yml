@@ -5,11 +5,13 @@ on:
     paths:
       - "tools/course-content/**"
       - ".github/workflows/course-r2-release.yml"
+      - "app/src/test/**/Grade7SampleAssessmentContractTest.kt"
   push:
     branches: [master]
     paths:
       - "tools/course-content/**"
       - ".github/workflows/course-r2-release.yml"
+      - "app/src/test/**/Grade7SampleAssessmentContractTest.kt"
   workflow_dispatch:
     inputs:
       action:
@@ -95,13 +97,16 @@ jobs:
           download 1ArtD3pcWtIeawWPNSAVudUVk1X0hqWKx '义务教育教科书·数学九年级上册.pdf' 9609936 b6d43c0601c07a6a6f68d3be065c863b41529745e739b4496154c90ecbe7140d
           download 12p2aGGugc_EvrO-Kqb17MHzMAqXvHTBn '义务教育教科书·数学九年级下册.pdf' 11303872 a71d30eb32b0e43737c88ada99a76ae6b5959050dc53c491b5206bae2d31b0ce
 
-      - name: Generate and post-process course sources
+      - name: Generate, review and attach course sources
         run: |
           python3 tools/course-content/generate_math_courses.py \
             --pdf-root build/course-source \
             --output-root build/generated-course
           python3 tools/course-content/postprocess_math_courses.py \
             --source-root build/generated-course
+          python3 tools/course-content/prepare_assessment_packages.py \
+            --source-root build/generated-course \
+            --pdf-root build/course-source
 
       - name: Validate source anchors against textbooks
         shell: bash
@@ -130,6 +135,9 @@ jobs:
       - name: Convert to strict APK course contract
         run: |
           python3 tools/course-content/normalize_course_contract.py \
+            --source-root build/generated-course \
+            --output-root build/runtime-course
+          python3 tools/course-content/copy_assessment_extensions.py \
             --source-root build/generated-course \
             --output-root build/runtime-course
 
@@ -171,13 +179,31 @@ jobs:
               files = {entry["path"]: entry for entry in textbook["files"]}
               assert files["course.json"]["bundled"] is True
               assert files["assets/textbook.pdf"]["bundled"] is False
+              bundled = sorted(path for path, entry in files.items() if entry["bundled"])
               book_root = root / textbook["id"]
               with zipfile.ZipFile(book_root / "course.zip") as archive:
-                  assert archive.namelist() == ["course.json"]
+                  assert archive.namelist() == bundled
+                  assert set(archive.namelist()) == set(bundled)
               course = json.loads((book_root / "course.json").read_text(encoding="utf-8"))
               assert set(course) == {"textbook", "chapters"}
               assert set(course["textbook"]["pdf"]) == {"path", "pageCount", "pageIndexOffset"}
-          print("R2 course release validated")
+              if textbook["id"] == "pep-math-7-1":
+                  required = {
+                      "course.json",
+                      "assessments.json",
+                      "knowledge-points.json",
+                      "assets/figures/number-line-road-source.png",
+                  }
+                  assert required <= set(bundled)
+                  assessments = json.loads((book_root / "assessments.json").read_text(encoding="utf-8"))
+                  knowledge = json.loads((book_root / "knowledge-points.json").read_text(encoding="utf-8"))
+                  assert len(assessments["questionSets"]) == 3
+                  assert sum(len(item["questions"]) for item in assessments["questionSets"]) == 15
+                  assert len(knowledge["knowledgePoints"]) == 9
+              else:
+                  assert "assessments.json" not in files
+                  assert "knowledge-points.json" not in files
+          print("R2 course release with assessment extensions validated")
           PY
 
       - name: Upload course build artifact

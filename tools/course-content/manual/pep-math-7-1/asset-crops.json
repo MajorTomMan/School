@@ -1,0 +1,25 @@
+{
+  "courseId": "pep-math-7-1",
+  "pdfSha256": "11b6f1fbfa46eee4158953ef745ae1e6fbe6b9527a1423d55cbe75729e8210b9",
+  "pageIndexOffset": 7,
+  "crops": [
+    {
+      "candidateId": "p009-vector-014a49cb45",
+      "assetId": "number-line-road-source",
+      "path": "assets/figures/number-line-road-source.png",
+      "printedPage": 9,
+      "clip": [
+        62.36,
+        93.02,
+        481.35,
+        144.95
+      ],
+      "renderScale": 3.0,
+      "mediaType": "image/png",
+      "width": 1258,
+      "height": 156,
+      "reviewStatus": "approved",
+      "reviewNotes": "人工核对教材第9页图1.2-1；保留站牌、树木、设施、方向和距离标注，未改动刻度与数据。"
+    }
+  ]
+}
