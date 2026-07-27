@@ -61,19 +61,25 @@ internal fun JSONObject.requireContractDouble(key: String, location: String): Do
     return value.toDouble().also { require(it.isFinite()) { "$location.$key 必须是有限数" } }
 }
 
-internal fun JSONArray.contractObjects(location: String): List<JSONObject> = buildList {
-    for (index in 0 until length()) {
-        val value = get(index)
-        require(value is JSONObject) { "$location[$index] 必须是对象" }
-        add(value)
+internal fun JSONArray.contractObjects(location: String): List<JSONObject> {
+    val source = this
+    return buildList(source.length()) {
+        for (index in 0 until source.length()) {
+            val value = source.get(index)
+            require(value is JSONObject) { "$location[$index] 必须是对象" }
+            add(value)
+        }
     }
 }
 
-internal fun JSONArray.contractStrings(location: String): List<String> = buildList {
-    for (index in 0 until length()) {
-        val value = get(index)
-        require(value is String) { "$location[$index] 必须是字符串" }
-        add(value.trim().also { require(it.isNotBlank()) { "$location[$index] 不能为空" } })
+internal fun JSONArray.contractStrings(location: String): List<String> {
+    val source = this
+    return buildList(source.length()) {
+        for (index in 0 until source.length()) {
+            val value = source.get(index)
+            require(value is String) { "$location[$index] 必须是字符串" }
+            add(value.trim().also { require(it.isNotBlank()) { "$location[$index] 不能为空" } })
+        }
     }
 }
 
