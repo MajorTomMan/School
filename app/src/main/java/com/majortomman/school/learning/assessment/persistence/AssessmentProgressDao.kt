@@ -16,6 +16,23 @@ internal interface AssessmentProgressDao {
 
     @Query(
         """
+        SELECT * FROM assessment_session
+        WHERE courseId = :courseId
+          AND contentRevision = :contentRevision
+          AND questionSetId = :questionSetId
+          AND status = 'IN_PROGRESS'
+        ORDER BY startedAtEpochMillis DESC, sessionId DESC
+        LIMIT 1
+        """,
+    )
+    suspend fun findInProgressSession(
+        courseId: String,
+        contentRevision: String,
+        questionSetId: String,
+    ): AssessmentSessionEntity?
+
+    @Query(
+        """
         UPDATE assessment_session
         SET currentQuestionId = :questionId,
             currentQuestionRevision = :questionRevision
@@ -154,4 +171,15 @@ internal interface AssessmentProgressDao {
         """,
     )
     suspend fun masterySnapshotsForSession(sessionId: String): List<MasterySnapshotEntity>
+
+    @Query(
+        """
+        SELECT * FROM mastery_snapshot
+        WHERE knowledgePointId = :knowledgePointId
+        ORDER BY createdAtEpochMillis ASC, sessionId ASC
+        """,
+    )
+    suspend fun masterySnapshotsForKnowledgePoint(
+        knowledgePointId: String,
+    ): List<MasterySnapshotEntity>
 }
