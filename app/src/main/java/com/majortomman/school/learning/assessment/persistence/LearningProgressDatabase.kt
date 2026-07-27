@@ -5,6 +5,12 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
+/**
+ * 只保存新版 Assessment 的追加事实与结算快照。
+ *
+ * 它有意与承载旧练习、课程目录和兼容数据的 SchoolDatabase 分离，使答题结算能够独立演进；
+ * 业务层必须通过 AssessmentProgressStore 访问，不能在界面层跨库拼装掌握度。
+ */
 @Database(
     entities = [
         AssessmentSessionEntity::class,
