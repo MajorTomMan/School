@@ -185,7 +185,7 @@ class AssessmentProgressStore internal constructor(
 
         dao.insertQuestionResults(plan.summary.questionResults.map { it.toEntity(sessionId) })
         if (plan.evidence.isNotEmpty()) {
-            dao.insertMasteryEvidence(plan.evidence.map(MasteryEvidenceEntity.Companion::fromDomain))
+            dao.insertMasteryEvidence(plan.evidence.map { it.toEntity() })
         }
         plan.masteryUpdates.forEach { update ->
             dao.upsertMasteryState(update.toStateEntity(settledAtEpochMillis))
@@ -296,7 +296,3 @@ class AssessmentProgressStore internal constructor(
         )
     }
 }
-
-private fun MasteryEvidenceEntity.Companion.fromDomain(
-    value: com.majortomman.school.learning.mastery.domain.MasteryEvidence,
-): MasteryEvidenceEntity = value.toEntity()
