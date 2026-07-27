@@ -12,6 +12,12 @@ import com.majortomman.school.learning.assessment.domain.QuestionSetDefinition
 import com.majortomman.school.learning.assessment.domain.SessionId
 import com.majortomman.school.learning.mastery.domain.MasteryState
 
+/**
+ * Assessment 有界上下文的持久化入口。
+ *
+ * 旧的 SchoolDatabase 继续承载历史练习与课程目录；新答题系统只通过本仓库读写事实、
+ * 结算和掌握度快照，避免界面或其他模块直接跨数据库拼装统计。
+ */
 class AssessmentProgressStore internal constructor(
     private val database: LearningProgressDatabase,
     private val settlementPlanner: AssessmentSettlementPlanner = AssessmentSettlementPlanner(),
@@ -33,8 +39,31 @@ class AssessmentProgressStore internal constructor(
             "当前题目不属于即将开始的题组"
         }
         database.withTransaction {
+            require(
+                dao.findInProgressSession(
+                    courseId = courseId,
+                    contentRevision = contentRevision,
+                    questionSetId = questionSet.id.value,
+                ) == null,
+            ) { "同一课程修订和题组已经存在未完成会话，应先恢复原会话" }
             dao.insertSession(session.toEntity(courseId, contentRevision))
         }
+    }
+
+    suspend fun findResumableSession(
+        courseId: String,
+        contentRevision: String,
+        questionSet: QuestionSetDefinition,
+    ): PersistedAssessmentSession? = database.withTransaction {
+        val entity = dao.findInProgressSession(
+            courseId = courseId,
+            contentRevision = contentRevision,
+            questionSetId = questionSet.id.value,
+        ) ?: return@withTransaction null
+        require(entity.currentQuestionKey() in questionSet.questionKeys()) {
+            "未完成会话的当前题目不属于对应课程修订"
+        }
+        loadPersistedSession(entity)
     }
 
     suspend fun moveToQuestion(
@@ -98,14 +127,7 @@ class AssessmentProgressStore internal constructor(
 
     suspend fun restoreSession(sessionId: SessionId): PersistedAssessmentSession? =
         database.withTransaction {
-            val entity = dao.findSession(sessionId.value) ?: return@withTransaction null
-            PersistedAssessmentSession(
-                courseId = entity.courseId,
-                contentRevision = entity.contentRevision,
-                session = entity.toDomain(),
-                attempts = dao.attemptsForSession(sessionId.value).map(AssessmentAttemptEntity::toDomain),
-                events = dao.eventsForSession(sessionId.value).map(AssessmentEventEntity::toDomain),
-            )
+            dao.findSession(sessionId.value)?.let { loadPersistedSession(it) }
         }
 
     suspend fun abandonSession(sessionId: SessionId) {
@@ -161,11 +183,9 @@ class AssessmentProgressStore internal constructor(
             currentMastery = currentMastery,
         )
 
-        dao.insertQuestionResults(
-            plan.summary.questionResults.map { it.toEntity(sessionId) },
-        )
+        dao.insertQuestionResults(plan.summary.questionResults.map { it.toEntity(sessionId) })
         if (plan.evidence.isNotEmpty()) {
-            dao.insertMasteryEvidence(plan.evidence.map { it.toEntity() })
+            dao.insertMasteryEvidence(plan.evidence.map(MasteryEvidenceEntity.Companion::fromDomain))
         }
         plan.masteryUpdates.forEach { update ->
             dao.upsertMasteryState(update.toStateEntity(settledAtEpochMillis))
@@ -201,6 +221,21 @@ class AssessmentProgressStore internal constructor(
 
     suspend fun masteryState(knowledgePointId: KnowledgePointId): MasteryState? =
         dao.findMasteryState(knowledgePointId.value)?.toDomain()
+
+    suspend fun masteryHistory(knowledgePointId: KnowledgePointId): List<MasteryHistoryPoint> =
+        dao.masterySnapshotsForKnowledgePoint(knowledgePointId.value).map(
+            MasterySnapshotEntity::toHistoryPoint,
+        )
+
+    private suspend fun loadPersistedSession(
+        entity: AssessmentSessionEntity,
+    ): PersistedAssessmentSession = PersistedAssessmentSession(
+        courseId = entity.courseId,
+        contentRevision = entity.contentRevision,
+        session = entity.toDomain(),
+        attempts = dao.attemptsForSession(entity.sessionId).map(AssessmentAttemptEntity::toDomain),
+        events = dao.eventsForSession(entity.sessionId).map(AssessmentEventEntity::toDomain),
+    )
 
     private suspend fun loadSettlement(
         settlement: AssessmentSettlementEntity,
@@ -247,6 +282,11 @@ class AssessmentProgressStore internal constructor(
         }
     }
 
+    private fun AssessmentSessionEntity.currentQuestionKey(): QuestionKey = QuestionKey(
+        id = com.majortomman.school.learning.assessment.domain.QuestionId(currentQuestionId),
+        revision = currentQuestionRevision,
+    )
+
     private fun QuestionSetDefinition.questionKeys(): Set<QuestionKey> =
         questions.map(QuestionDefinition::key).toSet()
 
@@ -256,3 +296,7 @@ class AssessmentProgressStore internal constructor(
         )
     }
 }
+
+private fun MasteryEvidenceEntity.Companion.fromDomain(
+    value: com.majortomman.school.learning.mastery.domain.MasteryEvidence,
+): MasteryEvidenceEntity = value.toEntity()
