@@ -1,0 +1,292 @@
+name: Step 7 One-shot Course Verification
+
+on:
+  push:
+    branches:
+      - ops/verify-promote-step7
+    paths:
+      - .github/workflows/step7-one-shot-promotion.yml
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  verify-and-promote:
+    if: github.actor == 'MajorTomMan'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      COURSE_BASE_URL: ${{ vars.COURSE_BASE_URL || 'https://course.flashnamesl.workers.dev' }}
+      COURSE_API_TOKEN: ${{ secrets.COURSE_API_TOKEN }}
+      EXPECTED_MASTER_SHA: 7110d3e970d5f2ae3cfd21b0ad0e8033e04c5aea
+      RECEIPT_PR: '88'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wait for testing, verify every object, promote stable and write receipt
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          mkdir -p build/step7-verification
+          python3 - <<'PY' > build/step7-verification/result.json 2> build/step7-verification/error.log
+          from __future__ import annotations
+
+          import hashlib
+          import io
+          import json
+          import os
+          import re
+          import struct
+          import time
+          import urllib.request
+          import zipfile
+          from pathlib import Path
+
+          base = os.environ['COURSE_BASE_URL'].rstrip('/')
+          expected_sha = os.environ['EXPECTED_MASTER_SHA']
+          expected_short = expected_sha[:7]
+          testing_url = f'{base}/cloud/course/public/testing/manifest.json'
+
+          def request(url: str) -> bytes:
+              req = urllib.request.Request(
+                  url,
+                  headers={
+                      'Accept': 'application/json,application/octet-stream',
+                      'Cache-Control': 'no-cache',
+                      'User-Agent': 'School-Step7-Release-Verifier/1.0',
+                  },
+              )
+              with urllib.request.urlopen(req, timeout=180) as response:
+                  return response.read()
+
+          def digest(data: bytes) -> str:
+              return hashlib.sha256(data).hexdigest()
+
+          def check(data: bytes, spec: dict, label: str) -> None:
+              if len(data) != int(spec['size']):
+                  raise RuntimeError(f'{label}: size mismatch {len(data)} != {spec["size"]}')
+              actual = digest(data)
+              if actual != spec['sha256']:
+                  raise RuntimeError(f'{label}: SHA-256 mismatch {actual} != {spec["sha256"]}')
+
+          manifest_bytes = b''
+          manifest = None
+          release_id = None
+          for attempt in range(100):
+              try:
+                  candidate_bytes = request(f'{testing_url}?verify={int(time.time())}')
+                  candidate = json.loads(candidate_bytes)
+                  release_ids = {
+                      match.group(1)
+                      for textbook in candidate.get('textbooks', [])
+                      for spec in [textbook.get('package', {}), *textbook.get('files', [])]
+                      if isinstance(spec.get('url'), str)
+                      for match in [re.search(r'/releases/([^/]+)/', spec['url'])]
+                      if match
+                  }
+                  if len(release_ids) == 1:
+                      current = next(iter(release_ids))
+                      if expected_short in current:
+                          manifest_bytes = candidate_bytes
+                          manifest = candidate
+                          release_id = current
+                          break
+              except Exception:
+                  pass
+              time.sleep(15)
+          if manifest is None or release_id is None:
+              raise RuntimeError(f'testing did not advance to master {expected_short} within the wait window')
+
+          textbooks = manifest.get('textbooks')
+          if not isinstance(textbooks, list) or len(textbooks) != 6:
+              raise RuntimeError('testing manifest must contain six textbooks')
+          expected_books = {
+              'pep-math-7-1', 'pep-math-7-2', 'pep-math-8-1',
+              'pep-math-8-2', 'pep-math-9-1', 'pep-math-9-2',
+          }
+          if {item.get('id') for item in textbooks} != expected_books:
+              raise RuntimeError('testing manifest textbook IDs are incomplete')
+
+          total_objects = 0
+          total_bytes = 0
+          verified_files = 0
+          sample_counts = None
+          sample_png = None
+          release_prefix = f'{base}/cloud/course/public/releases/{release_id}/'
+
+          for textbook in textbooks:
+              book_id = textbook['id']
+              package = textbook['package']
+              if not package['url'].startswith(release_prefix):
+                  raise RuntimeError(f'{book_id}: package URL is outside immutable release')
+              package_data = request(package['url'])
+              check(package_data, package, f'{book_id}/course.zip')
+              total_objects += 1
+              total_bytes += len(package_data)
+
+              specs = {item['path']: item for item in textbook['files']}
+              bundled = {path: spec for path, spec in specs.items() if spec['bundled']}
+              external = {path: spec for path, spec in specs.items() if not spec['bundled']}
+              with zipfile.ZipFile(io.BytesIO(package_data)) as archive:
+                  if archive.namelist() != sorted(bundled):
+                      raise RuntimeError(f'{book_id}: ZIP entries do not exactly match bundled manifest files')
+                  for path, spec in bundled.items():
+                      data = archive.read(path)
+                      check(data, spec, f'{book_id}/{path}')
+                      verified_files += 1
+                      if book_id == 'pep-math-7-1' and path == 'assessments.json':
+                          assessments = json.loads(data)
+                          sample_counts = {
+                              'questionSets': len(assessments['questionSets']),
+                              'questions': sum(len(item['questions']) for item in assessments['questionSets']),
+                          }
+                      if book_id == 'pep-math-7-1' and path == 'knowledge-points.json':
+                          knowledge = json.loads(data)
+                          if sample_counts is None:
+                              sample_counts = {}
+                          sample_counts['knowledgePoints'] = len(knowledge['knowledgePoints'])
+                      if book_id == 'pep-math-7-1' and path == 'assets/figures/number-line-road-source.png':
+                          if data[:8] != b'\x89PNG\r\n\x1a\n' or data[12:16] != b'IHDR':
+                              raise RuntimeError('sample figure is not a valid PNG')
+                          sample_png = struct.unpack('>II', data[16:24])
+
+              for path, spec in external.items():
+                  if not spec['url'].startswith(release_prefix):
+                      raise RuntimeError(f'{book_id}/{path}: URL is outside immutable release')
+                  data = request(spec['url'])
+                  check(data, spec, f'{book_id}/{path}')
+                  total_objects += 1
+                  total_bytes += len(data)
+                  verified_files += 1
+
+          expected_counts = {'questionSets': 3, 'questions': 15, 'knowledgePoints': 9}
+          if sample_counts != expected_counts:
+              raise RuntimeError(f'sample count mismatch: {sample_counts} != {expected_counts}')
+          if sample_png != (1258, 156):
+              raise RuntimeError(f'sample PNG dimensions changed: {sample_png}')
+
+          result = {
+              'status': 'verified',
+              'masterCommit': expected_sha,
+              'releaseId': release_id,
+              'testingManifestSha256': digest(manifest_bytes),
+              'textbooks': len(textbooks),
+              'verifiedFiles': verified_files,
+              'downloadedObjects': total_objects,
+              'downloadedBytes': total_bytes,
+              'sample': {**expected_counts, 'imageWidth': sample_png[0], 'imageHeight': sample_png[1]},
+          }
+          Path('build/step7-verification/testing-manifest.json').write_bytes(manifest_bytes)
+          print(json.dumps(result, ensure_ascii=False))
+          PY
+          verify_code=$?
+
+          if [ "$verify_code" -eq 0 ]; then
+            release_id="$(python3 -c 'import json; print(json.load(open("build/step7-verification/result.json"))["releaseId"])')"
+            python3 tools/course-content/publish_course_r2.py promote \
+              --release-id "$release_id" \
+              --channel stable \
+              > build/step7-verification/promote.log 2>&1
+            promote_code=$?
+          else
+            promote_code=1
+          fi
+
+          if [ "$verify_code" -eq 0 ] && [ "$promote_code" -eq 0 ]; then
+            python3 - <<'PY' > build/step7-verification/stable-result.json 2>> build/step7-verification/error.log
+          import hashlib
+          import json
+          import os
+          import time
+          import urllib.request
+          from pathlib import Path
+
+          base = os.environ['COURSE_BASE_URL'].rstrip('/')
+          expected = json.loads(Path('build/step7-verification/testing-manifest.json').read_text(encoding='utf-8'))
+          stable = None
+          stable_bytes = b''
+          for _ in range(20):
+              req = urllib.request.Request(
+                  f'{base}/cloud/course/public/stable/manifest.json?verify={int(time.time())}',
+                  headers={'Cache-Control': 'no-cache', 'User-Agent': 'School-Step7-Release-Verifier/1.0'},
+              )
+              with urllib.request.urlopen(req, timeout=120) as response:
+                  stable_bytes = response.read()
+              stable = json.loads(stable_bytes)
+              if stable == expected:
+                  break
+              time.sleep(3)
+          if stable != expected:
+              raise RuntimeError('stable manifest does not match the verified testing manifest')
+          print(json.dumps({
+              'stableMatched': True,
+              'stableManifestSha256': hashlib.sha256(stable_bytes).hexdigest(),
+          }, ensure_ascii=False))
+          PY
+            stable_code=$?
+          else
+            stable_code=1
+          fi
+
+          final_code=0
+          if [ "$verify_code" -ne 0 ] || [ "$promote_code" -ne 0 ] || [ "$stable_code" -ne 0 ]; then
+            final_code=1
+          fi
+
+          python3 - "$final_code" <<'PY' > build/step7-verification/comment.md
+          import json
+          from pathlib import Path
+          import sys
+
+          code = int(sys.argv[1])
+          result_path = Path('build/step7-verification/result.json')
+          stable_path = Path('build/step7-verification/stable-result.json')
+          error_path = Path('build/step7-verification/error.log')
+          promote_path = Path('build/step7-verification/promote.log')
+          result = None
+          stable = None
+          try:
+              result = json.loads(result_path.read_text(encoding='utf-8'))
+          except Exception:
+              pass
+          try:
+              stable = json.loads(stable_path.read_text(encoding='utf-8'))
+          except Exception:
+              pass
+          if code == 0 and result and stable:
+              print('## 第 7 步发布验收回执 ✅')
+              print()
+              print(f'- Master：`{result["masterCommit"]}`')
+              print(f'- Release：`{result["releaseId"]}`')
+              print(f'- 六册教材：{result["textbooks"]} 册')
+              print(f'- 已校验清单文件：{result["verifiedFiles"]} 个')
+              print(f'- 实际下载对象：{result["downloadedObjects"]} 个，共 {result["downloadedBytes"]} bytes')
+              sample = result['sample']
+              print(f'- 七上样板：{sample["questionSets"]} 套题组 / {sample["questions"]} 题 / {sample["knowledgePoints"]} 个知识点')
+              print(f'- 教材图：{sample["imageWidth"]}×{sample["imageHeight"]} PNG')
+              print(f'- Testing manifest SHA-256：`{result["testingManifestSha256"]}`')
+              print(f'- Stable manifest SHA-256：`{stable["stableManifestSha256"]}`')
+              print('- Stable 与 Testing 业务清单完全一致：是')
+          else:
+              print('## 第 7 步发布验收失败 ❌')
+              print()
+              if result:
+                  print(f'- 已识别 release：`{result.get("releaseId", "unknown")}`')
+              details = []
+              for path in (error_path, promote_path):
+                  if path.is_file():
+                      value = path.read_text(encoding='utf-8', errors='replace').strip()
+                      if value:
+                          details.append(value[-6000:])
+              print('```text')
+              print('\n'.join(details) or 'unknown failure')
+              print('```')
+          PY
+
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/issues/${RECEIPT_PR}/comments" \
+            -f "body=$(cat build/step7-verification/comment.md)"
+          exit "$final_code"
