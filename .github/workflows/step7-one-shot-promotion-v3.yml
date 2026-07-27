@@ -28,7 +28,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
+          set +e
           sed -n '34,$p' .github/workflows/step7-one-shot-promotion.yml \
             | sed 's/^          //' > /tmp/step7-one-shot.sh
-          bash /tmp/step7-one-shot.sh
+          bash -x /tmp/step7-one-shot.sh > /tmp/step7-wrapper.log 2>&1
+          code=$?
+          if [ "$code" -ne 0 ]; then
+            {
+              echo '## 第 7 步运维包装层失败 ❌'
+              echo
+              echo '```text'
+              tail -n 240 /tmp/step7-wrapper.log
+              echo '```'
+            } > /tmp/step7-wrapper-comment.md
+            gh api --method POST \
+              "repos/${GITHUB_REPOSITORY}/issues/${RECEIPT_PR}/comments" \
+              -f "body=$(cat /tmp/step7-wrapper-comment.md)"
+          fi
+          exit "$code"
