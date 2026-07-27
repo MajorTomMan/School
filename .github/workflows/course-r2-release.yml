@@ -98,15 +98,20 @@ jobs:
           download 12p2aGGugc_EvrO-Kqb17MHzMAqXvHTBn '义务教育教科书·数学九年级下册.pdf' 11303872 a71d30eb32b0e43737c88ada99a76ae6b5959050dc53c491b5206bae2d31b0ce
 
       - name: Generate, review and attach course sources
+        shell: bash
         run: |
-          python3 tools/course-content/generate_math_courses.py \
-            --pdf-root build/course-source \
-            --output-root build/generated-course
-          python3 tools/course-content/postprocess_math_courses.py \
-            --source-root build/generated-course
-          python3 tools/course-content/prepare_assessment_packages.py \
-            --source-root build/generated-course \
-            --pdf-root build/course-source
+          set -o pipefail
+          mkdir -p build/diagnostics
+          {
+            python3 tools/course-content/generate_math_courses.py \
+              --pdf-root build/course-source \
+              --output-root build/generated-course
+            python3 tools/course-content/postprocess_math_courses.py \
+              --source-root build/generated-course
+            python3 tools/course-content/prepare_assessment_packages.py \
+              --source-root build/generated-course \
+              --pdf-root build/course-source
+          } 2>&1 | tee build/diagnostics/assessment-prepare.log
 
       - name: Validate source anchors against textbooks
         shell: bash
@@ -211,7 +216,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: course-r2-${{ steps.release.outputs.release_id }}
-          path: build/course-release/
+          path: |
+            build/course-release/
+            build/diagnostics/
           if-no-files-found: ignore
           retention-days: 14
 

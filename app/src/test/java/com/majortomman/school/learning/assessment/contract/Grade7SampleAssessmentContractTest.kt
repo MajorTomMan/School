@@ -6,8 +6,8 @@ import com.majortomman.school.learning.course.CoursePdf
 import com.majortomman.school.learning.course.CourseSection
 import com.majortomman.school.learning.course.CourseTextbook
 import java.io.File
-import kotlin.test.Test
-import kotlin.test.assertEquals
+import org.junit.Assert.assertEquals
+import org.junit.Test
 
 class Grade7SampleAssessmentContractTest {
     @Test
