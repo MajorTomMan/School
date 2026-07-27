@@ -34,7 +34,7 @@ internal val InteractiveRed = Color(0xFFFC6255)
 internal val InteractivePurple = Color(0xFF9A72AC)
 
 /**
- * Course-mode entry point. It never creates instructional text locally; all pages come from the
+ * Course-mode entry point. It never creates instructional text locally; all pages and question sets come from the
  * active cloud course cache.
  */
 @Composable
@@ -48,7 +48,7 @@ fun InteractiveLessonScreen(
     onComplete: () -> Unit,
 ) {
     require(spec.kind == InteractiveLessonKind.CLOUD_COURSE)
-    CloudCourseLessonScreen(
+    CloudCourseAssessmentFlowScreen(
         lesson = lesson,
         installedMaterial = installedMaterial,
         nextLessonTitle = nextLessonTitle,
