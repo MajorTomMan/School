@@ -9,7 +9,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 jobs:
   verify-and-promote:
@@ -25,13 +24,16 @@ jobs:
 
       - name: Execute one-shot verifier
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set +e
-          mkdir -p build/step7-wrapper
+          mkdir -p build/step7-wrapper build/step7-verification
           sed -n '34,$p' .github/workflows/step7-one-shot-promotion.yml \
             | sed 's/^          //' > build/step7-wrapper/step7-one-shot.sh
+          gh() {
+            echo 'PR comment skipped in read-only pull_request context'
+            return 0
+          }
+          export -f gh
           bash -x build/step7-wrapper/step7-one-shot.sh \
             > build/step7-wrapper/internal.log 2>&1
           code=$?
@@ -39,18 +41,6 @@ jobs:
           echo '===== step7 internal log ====='
           tail -n 320 build/step7-wrapper/internal.log
           echo '===== end step7 internal log ====='
-          if [ "$code" -ne 0 ]; then
-            {
-              echo '## 第 7 步运维包装层失败 ❌'
-              echo
-              echo '```text'
-              tail -n 240 build/step7-wrapper/internal.log
-              echo '```'
-            } > build/step7-wrapper/comment.md
-            gh api --method POST \
-              "repos/${GITHUB_REPOSITORY}/issues/${RECEIPT_PR}/comments" \
-              -f "body=$(cat build/step7-wrapper/comment.md)" || true
-          fi
           exit "$code"
 
       - name: Upload one-shot diagnostics
