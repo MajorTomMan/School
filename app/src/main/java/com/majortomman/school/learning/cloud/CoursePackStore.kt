@@ -78,7 +78,6 @@ internal class CoursePackStore(context: Context) {
         }
     }
 
-
     private fun validateBundledFiles(remote: CourseTextbookManifest, staging: File) {
         val expected = remote.files.filter(CourseFileSpec::bundled).map(CourseFileSpec::path).toSet()
         val actual = staging.walkTopDown()
@@ -167,6 +166,7 @@ internal class CoursePackStore(context: Context) {
         require(document.textbook.id == remote.id) {
             "课程内容教材 ID 与更新清单不一致：${document.textbook.id} != ${remote.id}"
         }
+        AssessmentPackageStagingValidator.validate(remote, staging, document)
         validatePdfAsset(remote, staging, document.textbook.pdf.path, document.textbook.pdf.pageCount)
     }
 
