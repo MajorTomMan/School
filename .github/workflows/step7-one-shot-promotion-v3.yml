@@ -33,6 +33,9 @@ jobs:
             | sed 's/^          //' > /tmp/step7-one-shot.sh
           bash -x /tmp/step7-one-shot.sh > /tmp/step7-wrapper.log 2>&1
           code=$?
+          echo '===== step7 internal log ====='
+          tail -n 320 /tmp/step7-wrapper.log
+          echo '===== end step7 internal log ====='
           if [ "$code" -ne 0 ]; then
             {
               echo '## 第 7 步运维包装层失败 ❌'
@@ -43,6 +46,6 @@ jobs:
             } > /tmp/step7-wrapper-comment.md
             gh api --method POST \
               "repos/${GITHUB_REPOSITORY}/issues/${RECEIPT_PR}/comments" \
-              -f "body=$(cat /tmp/step7-wrapper-comment.md)"
+              -f "body=$(cat /tmp/step7-wrapper-comment.md)" || true
           fi
           exit "$code"
