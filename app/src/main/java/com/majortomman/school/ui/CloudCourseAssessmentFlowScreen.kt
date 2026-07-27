@@ -3,10 +3,10 @@ package com.majortomman.school.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.LocalContext
 import com.majortomman.school.data.Lesson
 import com.majortomman.school.data.material.InstalledMaterialPack
@@ -42,28 +42,29 @@ fun CloudCourseAssessmentFlowScreen(
     ) { mutableStateOf<Int?>(null) }
 
     val activeIndex = activeQuestionSetIndex
-    if (activeIndex != null && assessments != null) {
-        val questionSet = assessments.questionSets.getOrNull(activeIndex)
-        if (questionSet != null) {
-            AssessmentSessionScreen(
-                courseId = assessments.courseId,
-                contentRevision = assessments.contentRevision,
-                questionSet = questionSet,
-                assetFiles = assessments.assetFiles,
-                knowledgePoints = assessments.knowledgePoints,
-                onBack = { activeQuestionSetIndex = null },
-                onFinished = {
-                    if (activeIndex < assessments.questionSets.lastIndex) {
-                        activeQuestionSetIndex = activeIndex + 1
-                    } else {
-                        activeQuestionSetIndex = null
-                        onComplete()
-                    }
-                },
-            )
-            return
-        }
-        activeQuestionSetIndex = null
+    val activeQuestionSet = if (activeIndex != null) {
+        assessments?.questionSets?.getOrNull(activeIndex)
+    } else {
+        null
+    }
+    if (activeIndex != null && assessments != null && activeQuestionSet != null) {
+        AssessmentSessionScreen(
+            courseId = assessments.courseId,
+            contentRevision = assessments.contentRevision,
+            questionSet = activeQuestionSet,
+            assetFiles = assessments.assetFiles,
+            knowledgePoints = assessments.knowledgePoints,
+            onBack = { activeQuestionSetIndex = null },
+            onFinished = {
+                if (activeIndex < assessments.questionSets.lastIndex) {
+                    activeQuestionSetIndex = activeIndex + 1
+                } else {
+                    activeQuestionSetIndex = null
+                    onComplete()
+                }
+            },
+        )
+        return
     }
 
     CloudCourseLessonScreen(
