@@ -1,0 +1,49 @@
+name: Restore course validator
+
+on:
+  push:
+    branches: [agent/section-assessment-ai]
+    paths:
+      - ".github/workflows/agent-restore-course-validator.yml"
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/agent-restore-course-validator.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/section-assessment-ai
+          fetch-depth: 0
+      - name: Restore master validator and add opposite-number modes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show origin/master:tools/course-content/prepare_assessment_packages.py \
+            > tools/course-content/prepare_assessment_packages.py
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("tools/course-content/prepare_assessment_packages.py")
+          text = path.read_text(encoding="utf-8")
+          old = 'mode not in {"road", "construction", "value", "example", "read_points"}'
+          new = 'mode not in {"road", "construction", "value", "example", "read_points", "opposite", "opposite_symbol"}'
+          if text.count(old) != 1:
+              raise SystemExit(f"expected one number-line mode set, found {text.count(old)}")
+          path.write_text(text.replace(old, new), encoding="utf-8")
+          PY
+      - name: Commit restored validator
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tools/course-content/prepare_assessment_packages.py
+          git commit -m "恢复课程校验器并支持相反数场景"
+          git push origin HEAD:agent/section-assessment-ai
