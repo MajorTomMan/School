@@ -16,23 +16,17 @@ Traceback (most recent call last):
   File "/home/runner/work/School/School/tools/course-content/test_course_assessment_distribution.py", line 47, in test_checked_in_grade7_documents_match_distribution_contract
     result = validate_package(root)
              ^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/runner/work/School/School/tools/course-content/prepare_assessment_packages.py", line 381, in validate_package
-    question_id = validate_question(
-                  ^^^^^^^^^^^^^^^^^^
-  File "/home/runner/work/School/School/tools/course-content/prepare_assessment_packages.py", line 182, in validate_question
-    validate_content_array(question["explanation"], f"{where}.explanation", referenced_assets, True)
-  File "/home/runner/work/School/School/tools/course-content/prepare_assessment_packages.py", line 170, in validate_content_array
-    validate_content(item, f"{where}[{index}]", referenced_assets)
-  File "/home/runner/work/School/School/tools/course-content/prepare_assessment_packages.py", line 163, in validate_content
-    validate_scene(value, where)
-  File "/home/runner/work/School/School/tools/course-content/prepare_assessment_packages.py", line 117, in validate_scene
-    raise ValueError(f"{where}.data.mode is unsupported")
-ValueError: assessments.json.questionSets[3].questions[0].explanation[0].data.mode is unsupported
+  File "/home/runner/work/School/School/tools/course-content/prepare_assessment_packages.py", line 420, in validate_package
+    set_id = identifier(question_set["id"], f"{set_where}.id")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/School/School/tools/course-content/prepare_assessment_packages.py", line 52, in identifier
+    raise ValueError(f"{where} has invalid identifier format: {result}")
+ValueError: assessments.json.questionSets[0].id has invalid identifier format: assessment-1.1
 
 ======================================================================
 FAIL: test_extension_pair_is_required (test_course_assessment_distribution.CourseAssessmentDistributionTest.test_extension_pair_is_required)
 ----------------------------------------------------------------------
-ValueError: /tmp/tmppyfio041/source: assessment extension files must appear together
+ValueError: /tmp/tmp004968w8/source: assessment extension files must appear together
 
 During handling of the above exception, another exception occurred:
 
@@ -40,10 +34,10 @@ Traceback (most recent call last):
   File "/home/runner/work/School/School/tools/course-content/test_course_assessment_distribution.py", line 92, in test_extension_pair_is_required
     with self.assertRaisesRegex(ValueError, "must be provided together"):
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-AssertionError: "must be provided together" does not match "/tmp/tmppyfio041/source: assessment extension files must appear together"
+AssertionError: "must be provided together" does not match "/tmp/tmp004968w8/source: assessment extension files must appear together"
 
 ----------------------------------------------------------------------
-Ran 10 tests in 0.059s
+Ran 10 tests in 0.057s
 
 FAILED (failures=1, errors=1)
 Consider using the pymupdf_layout package for a greatly improved page layout analysis.
