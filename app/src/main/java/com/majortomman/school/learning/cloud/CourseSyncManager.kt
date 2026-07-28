@@ -244,7 +244,8 @@ object CourseSyncManager {
         }
         try {
             val responseCode = connection.responseCode
-            if (responseCode == HttpURLConnection.HTTP_REQUESTED_RANGE_NOT_SATISFIABLE && existingBytes > 0L) {
+            if (responseCode == HTTP_RANGE_NOT_SATISFIABLE && existingBytes > 0L) {
+                connection.disconnect()
                 destination.delete()
                 return downloadToFile(context, spec, destination, tracker, allowResume = false)
             }
@@ -428,6 +429,7 @@ object CourseSyncManager {
     }
 
     private val CONTENT_RANGE_PATTERN = Regex("bytes\\s+(\\d+)-(\\d+)/(\\d+|\\*)", RegexOption.IGNORE_CASE)
+    private const val HTTP_RANGE_NOT_SATISFIABLE = 416
     private const val MAX_MANIFEST_BYTES = 2 * 1024 * 1024
     private const val CONNECT_TIMEOUT_MS = 15_000
     private const val READ_TIMEOUT_MS = 120_000
