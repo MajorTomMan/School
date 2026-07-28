@@ -1,0 +1,44 @@
+test_course_assessment_distribution (unittest.loader._FailedTest.test_course_assessment_distribution) ... ERROR
+test_duplicate_generic_ids_receive_stable_namespace (test_course_distribution.CourseDistributionTest.test_duplicate_generic_ids_receive_stable_namespace) ... ok
+test_legacy_course_becomes_strict_business_contract (test_course_distribution.CourseDistributionTest.test_legacy_course_becomes_strict_business_contract) ... ok
+test_public_release_url_is_immutable_release_path (test_course_distribution.CourseDistributionTest.test_public_release_url_is_immutable_release_path) ... ok
+test_pdf_asset_workflow (unittest.loader._FailedTest.test_pdf_asset_workflow) ... ERROR
+
+======================================================================
+ERROR: test_course_assessment_distribution (unittest.loader._FailedTest.test_course_assessment_distribution)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_course_assessment_distribution
+Traceback (most recent call last):
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/unittest/loader.py", line 396, in _find_test_path
+    module = self._get_module_from_name(name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/unittest/loader.py", line 339, in _get_module_from_name
+    __import__(name)
+  File "/home/runner/work/School/School/tools/course-content/test_course_assessment_distribution.py", line 12, in <module>
+    from copy_assessment_extensions import copy_extensions
+  File "/home/runner/work/School/School/tools/course-content/copy_assessment_extensions.py", line 9, in <module>
+    from prepare_assessment_packages import ASSESSMENTS, KNOWLEDGE, validate_package
+  File "/home/runner/work/School/School/tools/course-content/prepare_assessment_packages.py", line 14, in <module>
+    import fitz
+ModuleNotFoundError: No module named 'fitz'
+
+
+======================================================================
+ERROR: test_pdf_asset_workflow (unittest.loader._FailedTest.test_pdf_asset_workflow)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_pdf_asset_workflow
+Traceback (most recent call last):
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/unittest/loader.py", line 396, in _find_test_path
+    module = self._get_module_from_name(name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/unittest/loader.py", line 339, in _get_module_from_name
+    __import__(name)
+  File "/home/runner/work/School/School/tools/course-content/test_pdf_asset_workflow.py", line 8, in <module>
+    import fitz
+ModuleNotFoundError: No module named 'fitz'
+
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.001s
+
+FAILED (errors=2)
