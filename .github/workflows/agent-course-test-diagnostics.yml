@@ -24,6 +24,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install course test dependency
+        run: python3 -m pip install --disable-pip-version-check --quiet PyMuPDF
       - name: Run course tests and capture full output
         id: test
         shell: bash
