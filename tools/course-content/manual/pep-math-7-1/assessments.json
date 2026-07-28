@@ -1,14 +1,6 @@
 {
   "courseId": "pep-math-7-1",
-  "assets": [
-    {
-      "id": "number-line-road-source",
-      "path": "assets/figures/number-line-road-source.png",
-      "mediaType": "image/png",
-      "width": 1258,
-      "height": 156
-    }
-  ],
+  "assets": [],
   "questionSets": [
     {
       "id": "assessment-1.1",
@@ -751,10 +743,13 @@
               "style": "prompt"
             },
             {
-              "type": "image",
-              "assetId": "number-line-road-source",
-              "altText": "汽车站牌东西两侧树木和设施的位置图",
-              "caption": "教材第9页相对位置图，已按原图高清裁剪"
+              "type": "scene",
+              "template": "number_line",
+              "data": {
+                "title": "以汽车站牌 O 为原点，向东为正方向",
+                "mode": "road",
+                "signed": true
+              }
             }
           ],
           "input": {
@@ -1049,9 +1044,13 @@
               "style": "prompt"
             },
             {
-              "type": "image",
-              "assetId": "number-line-road-source",
-              "altText": "汽车站牌相对位置图"
+              "type": "scene",
+              "template": "number_line",
+              "data": {
+                "title": "以汽车站牌 O 为原点，向东为正方向",
+                "mode": "road",
+                "signed": true
+              }
             }
           ],
           "input": {
@@ -1102,6 +1101,345 @@
           ]
         }
       ]
+    },
+    {
+      "id": "assessment-1.2.3",
+      "title": "1.2.3 相反数 · 节末练习",
+      "allowSkip": true,
+      "allowReviewBeforeFinish": true,
+      "questions": [
+        {
+          "id": "q-1-2-3-relation",
+          "revision": 1,
+          "number": "1",
+          "stem": [
+            {
+              "type": "text",
+              "text": "数3与−3之间的关系，表述正确的是哪一项？",
+              "style": "prompt"
+            }
+          ],
+          "input": {
+            "type": "single_choice",
+            "optionIds": [
+              "a",
+              "b",
+              "c",
+              "d"
+            ]
+          },
+          "answer": {
+            "type": "single_choice",
+            "expectedOptionId": "b"
+          },
+          "knowledgeBindings": [
+            {
+              "knowledgePointId": "opposite-number-definition",
+              "weight": 1.0
+            }
+          ],
+          "difficulty": 0.18,
+          "hints": [
+            {
+              "id": "same-distance",
+              "text": "观察它们在数轴上到原点的距离和所在方向。"
+            }
+          ],
+          "choices": [
+            {
+              "id": "a",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "它们相等",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "它们互为相反数",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "c",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "它们都是负数",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "d",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "它们到原点的距离不同",
+                  "style": "body"
+                }
+              ]
+            }
+          ],
+          "explanation": [
+            {
+              "type": "scene",
+              "template": "number_line",
+              "data": {
+                "mode": "opposite",
+                "initial": 3
+              }
+            },
+            {
+              "type": "text",
+              "text": "3和−3只有符号不同，在数轴上分居原点两侧且到原点距离相等，所以互为相反数。",
+              "style": "explanation"
+            }
+          ]
+        },
+        {
+          "id": "q-1-2-3-rational-opposite",
+          "revision": 1,
+          "number": "2",
+          "stem": [
+            {
+              "type": "text",
+              "text": "写出−7/4的相反数。输入分数或等值小数。",
+              "style": "prompt"
+            }
+          ],
+          "input": {
+            "type": "rational",
+            "allowDecimal": true
+          },
+          "answer": {
+            "type": "rational_equivalent",
+            "expected": {
+              "numerator": 7,
+              "denominator": 4
+            }
+          },
+          "knowledgeBindings": [
+            {
+              "knowledgePointId": "opposite-number-definition",
+              "weight": 1.0
+            }
+          ],
+          "difficulty": 0.25,
+          "hints": [
+            {
+              "id": "change-sign",
+              "text": "求相反数时，数字部分不变，改变符号。"
+            }
+          ],
+          "choices": [],
+          "explanation": [
+            {
+              "type": "formula",
+              "expression": "−7/4 ↔ 7/4",
+              "conditions": []
+            },
+            {
+              "type": "text",
+              "text": "−7/4与7/4只有符号不同，因此互为相反数。",
+              "style": "explanation"
+            }
+          ]
+        },
+        {
+          "id": "q-1-2-3-minus-a",
+          "revision": 1,
+          "number": "3",
+          "stem": [
+            {
+              "type": "text",
+              "text": "关于式子−a，下列说法正确的是哪一项？",
+              "style": "prompt"
+            }
+          ],
+          "input": {
+            "type": "single_choice",
+            "optionIds": [
+              "a",
+              "b",
+              "c",
+              "d"
+            ]
+          },
+          "answer": {
+            "type": "single_choice",
+            "expectedOptionId": "c"
+          },
+          "knowledgeBindings": [
+            {
+              "knowledgePointId": "opposite-number-symbol",
+              "weight": 1.0
+            }
+          ],
+          "difficulty": 0.4,
+          "hints": [
+            {
+              "id": "a-can-negative",
+              "text": "分别令a取正数、负数和0，观察−a。"
+            }
+          ],
+          "choices": [
+            {
+              "id": "a",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "−a一定是负数",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "b",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "−a一定是正数",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "c",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "−a表示a的相反数，正负取决于a",
+                  "style": "body"
+                }
+              ]
+            },
+            {
+              "id": "d",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "−a与a总是相等",
+                  "style": "body"
+                }
+              ]
+            }
+          ],
+          "explanation": [
+            {
+              "type": "scene",
+              "template": "number_line",
+              "data": {
+                "mode": "opposite_symbol"
+              }
+            },
+            {
+              "type": "text",
+              "text": "若a=5，则−a=−5；若a=−5，则−a=5；若a=0，则−a=0。",
+              "style": "explanation"
+            }
+          ]
+        },
+        {
+          "id": "q-1-2-3-double-negative",
+          "revision": 1,
+          "number": "4",
+          "stem": [
+            {
+              "type": "text",
+              "text": "计算−（−2.4）。",
+              "style": "prompt"
+            }
+          ],
+          "input": {
+            "type": "decimal",
+            "allowFraction": false
+          },
+          "answer": {
+            "type": "decimal",
+            "expected": 2.4,
+            "tolerance": 0.0
+          },
+          "knowledgeBindings": [
+            {
+              "knowledgePointId": "opposite-number-symbol",
+              "weight": 1.0
+            }
+          ],
+          "difficulty": 0.32,
+          "hints": [
+            {
+              "id": "opposite-of-negative",
+              "text": "括号外的负号表示取−2.4的相反数。"
+            }
+          ],
+          "choices": [],
+          "explanation": [
+            {
+              "type": "formula",
+              "expression": "−（−2.4）= 2.4",
+              "conditions": [
+                "取−2.4的相反数"
+              ]
+            },
+            {
+              "type": "text",
+              "text": "−2.4的相反数是2.4。",
+              "style": "explanation"
+            }
+          ]
+        },
+        {
+          "id": "q-1-2-3-self-opposite",
+          "revision": 1,
+          "number": "5",
+          "stem": [
+            {
+              "type": "text",
+              "text": "若a=−a，求a的值。",
+              "style": "prompt"
+            }
+          ],
+          "input": {
+            "type": "integer"
+          },
+          "answer": {
+            "type": "exact_integer",
+            "expected": 0
+          },
+          "knowledgeBindings": [
+            {
+              "knowledgePointId": "opposite-number-definition",
+              "weight": 0.45
+            },
+            {
+              "knowledgePointId": "opposite-number-symbol",
+              "weight": 0.55
+            }
+          ],
+          "difficulty": 0.42,
+          "hints": [
+            {
+              "id": "zero-only",
+              "text": "什么数的相反数仍等于它本身？"
+            }
+          ],
+          "choices": [],
+          "explanation": [
+            {
+              "type": "text",
+              "text": "正数的相反数是负数，负数的相反数是正数；只有0的相反数仍是0，所以a=0。",
+              "style": "explanation"
+            }
+          ]
+        }
+      ]
     }
   ],
   "placements": [
@@ -1121,6 +1459,12 @@
       "sectionId": "1.2.2",
       "questionSetIds": [
         "assessment-1.2.2"
+      ]
+    },
+    {
+      "sectionId": "1.2.3",
+      "questionSetIds": [
+        "assessment-1.2.3"
       ]
     }
   ]

@@ -208,6 +208,7 @@ private fun AssessmentQuestionPage(
                 compact = false,
             )
             AnswerArea(page, richQuestion, assetFiles, dispatch)
+            AssessmentAiJudgeSection(page, richQuestion, dispatch)
             JudgeFeedback(page)
             HintAndExplanationArea(page, richQuestion, assetFiles, dispatch)
             Spacer(Modifier.height(28.dp))
@@ -449,14 +450,14 @@ private fun HintAndExplanationArea(
         }
 
         val canViewExplanation = question.explanation.isNotEmpty() &&
-            (page.progress.answerLocked || page.progress.wrongAttemptCount >= 3)
+            page.progress.latestJudgeResult != null
         when {
             page.progress.explanationViewed -> {
                 Text("参考解析", color = InteractiveYellow, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 AssessmentLearningContentList(question.explanation, assetFiles, compact = true)
             }
             canViewExplanation -> Text(
-                text = "查看完整解析",
+                text = "查看参考答案与完整解析",
                 modifier = Modifier
                     .clickable(enabled = !page.busy) { dispatch(AssessmentIntent.ViewExplanation) }
                     .padding(vertical = 6.dp),
@@ -507,7 +508,7 @@ private fun AssessmentBottomActions(
             }
         }
         AssessmentOutlineAction(
-            label = if (page.progress.answerLocked) "本题已完成" else "提交答案",
+            label = if (page.progress.answerLocked) "本题已完成" else "提交答案（本地判题）",
             enabled = page.canSubmit,
             modifier = Modifier.fillMaxWidth(),
             color = InteractiveBlue,

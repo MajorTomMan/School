@@ -56,9 +56,15 @@ write(
 # Course reader: support a section-specific page slice and make the scroll notice part of layout.
 replace_once(
     "app/src/main/java/com/majortomman/school/ui/CloudCourseLessonScreen.kt",
-    """    nextLessonTitle: String?,
+    """fun CloudCourseLessonScreen(
+    lesson: Lesson,
+    installedMaterial: InstalledMaterialPack,
+    nextLessonTitle: String?,
     onOpenTextbook: (Int) -> Unit,""",
-    """    nextLessonTitle: String?,
+    """fun CloudCourseLessonScreen(
+    lesson: Lesson,
+    installedMaterial: InstalledMaterialPack,
+    nextLessonTitle: String?,
     pagesOverride: List<CoursePage>? = null,
     onOpenTextbook: (Int) -> Unit,""",
 )
@@ -76,8 +82,18 @@ replace_once(
 )
 replace_once(
     "app/src/main/java/com/majortomman/school/ui/CloudCourseLessonScreen.kt",
-    '                    fontSize = 10.sp,',
-    '                    fontSize = 12.sp,',
+    """                Text(
+                    "学习环节 ${pagerState.currentPage + 1} / ${pages.size}",
+                    color = InteractiveMuted,
+                    fontSize = 10.sp,
+                    textAlign = TextAlign.Center,
+                )""",
+    """                Text(
+                    "学习环节 ${pagerState.currentPage + 1} / ${pages.size}",
+                    color = InteractiveMuted,
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center,
+                )""",
 )
 regex_replace_once(
     "app/src/main/java/com/majortomman/school/ui/CloudCourseLessonScreen.kt",
