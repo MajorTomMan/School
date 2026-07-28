@@ -72,6 +72,38 @@ class VisualizationSourcePolicyTest {
     }
 
     @Test
+    fun assessmentFeedbackAndActionsStayCardless() {
+        val session = uiFile("AssessmentSessionScreen.kt").readText(Charsets.UTF_8)
+        val ai = uiFile("AssessmentAiJudgeSection.kt").readText(Charsets.UTF_8)
+
+        assertFalse(
+            "选择题选项不应使用填充圆角卡片",
+            ".background(\n                                if (checked) InteractiveBlue.copy(alpha = 0.10f) else InteractivePanel" in session,
+        )
+        assertFalse(
+            "判题反馈不应使用填充圆角卡片",
+            ".background(color.copy(alpha = 0.10f), RoundedCornerShape" in session,
+        )
+        assertFalse(
+            "提示内容不应使用填充圆角卡片",
+            ".background(InteractiveBlue.copy(alpha = 0.08f), RoundedCornerShape" in session,
+        )
+        assertFalse(
+            "题目导航不应使用填充圆角按钮",
+            "if (enabled) color.copy(alpha = 0.12f) else InteractivePanel" in session,
+        )
+        assertFalse(
+            "AI 答案区不应使用面板卡片",
+            ".background(InteractivePanel, RoundedCornerShape" in ai,
+        )
+        assertFalse(
+            "AI 判题操作不应使用填充圆角按钮",
+            "if (enabled || busy) color.copy(alpha = 0.14f) else InteractivePanel" in ai,
+        )
+        assertTrue("判题操作应使用底部强调线", "Alignment.BottomCenter" in session && "Alignment.BottomCenter" in ai)
+    }
+
+    @Test
     fun pdfReaderStatusIsSingleLineAndIndependentFromTitle() {
         val source = uiFile("PdfTextbookScreen.kt").readText(Charsets.UTF_8)
         assertTrue("PDF 页码状态应使用独立标题组件", "PdfReaderHeader(" in source)
