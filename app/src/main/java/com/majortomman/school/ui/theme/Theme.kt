@@ -6,9 +6,12 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -43,47 +46,14 @@ private val MinimalColors = darkColorScheme(
 )
 
 private val SchoolTypography = Typography(
-    headlineLarge = TextStyle(
-        fontSize = 32.sp,
-        lineHeight = 38.sp,
-        letterSpacing = (-0.5).sp,
-        fontWeight = FontWeight.SemiBold,
-    ),
-    headlineMedium = TextStyle(
-        fontSize = 26.sp,
-        lineHeight = 32.sp,
-        letterSpacing = (-0.3).sp,
-        fontWeight = FontWeight.SemiBold,
-    ),
-    headlineSmall = TextStyle(
-        fontSize = 22.sp,
-        lineHeight = 28.sp,
-        fontWeight = FontWeight.SemiBold,
-    ),
-    titleLarge = TextStyle(
-        fontSize = 19.sp,
-        lineHeight = 25.sp,
-        fontWeight = FontWeight.SemiBold,
-    ),
-    titleMedium = TextStyle(
-        fontSize = 16.sp,
-        lineHeight = 22.sp,
-        fontWeight = FontWeight.Medium,
-    ),
-    bodyLarge = TextStyle(
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
-    ),
-    bodyMedium = TextStyle(
-        fontSize = 14.sp,
-        lineHeight = 21.sp,
-    ),
-    labelMedium = TextStyle(
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.1.sp,
-        fontWeight = FontWeight.Medium,
-    ),
+    headlineLarge = TextStyle(fontSize = 32.sp, lineHeight = 38.sp, letterSpacing = (-0.5).sp, fontWeight = FontWeight.SemiBold),
+    headlineMedium = TextStyle(fontSize = 26.sp, lineHeight = 32.sp, letterSpacing = (-0.3).sp, fontWeight = FontWeight.SemiBold),
+    headlineSmall = TextStyle(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold),
+    titleLarge = TextStyle(fontSize = 19.sp, lineHeight = 25.sp, fontWeight = FontWeight.SemiBold),
+    titleMedium = TextStyle(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.Medium),
+    bodyLarge = TextStyle(fontSize = 16.sp, lineHeight = 24.sp),
+    bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 21.sp),
+    labelMedium = TextStyle(fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.1.sp, fontWeight = FontWeight.Medium),
 )
 
 private val MinimalShapes = Shapes(
@@ -97,12 +67,20 @@ private val MinimalShapes = Shapes(
 @Composable
 fun SchoolTheme(
     darkTheme: Boolean = true,
+    textScale: Float = 1f,
     content: @Composable () -> Unit,
 ) {
-    MaterialTheme(
-        colorScheme = MinimalColors,
-        typography = SchoolTypography,
-        shapes = MinimalShapes,
-        content = content,
+    val density = LocalDensity.current
+    val scaledDensity = Density(
+        density = density.density,
+        fontScale = density.fontScale * textScale.coerceIn(0.90f, 1.50f),
     )
+    CompositionLocalProvider(LocalDensity provides scaledDensity) {
+        MaterialTheme(
+  colorScheme = MinimalColors,
+  typography = SchoolTypography,
+  shapes = MinimalShapes,
+  content = content,
+        )
+    }
 }

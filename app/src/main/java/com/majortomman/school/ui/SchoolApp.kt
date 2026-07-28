@@ -128,19 +128,8 @@ fun SchoolApp(
     }
 
     val textbookPage = openedTextbookPage
-    if (textbookPage != null && openedTextbook != null) {
-        PdfTextbookScreen(
-            pack = openedTextbook.pack,
-            initialPrintedPage = textbookPage,
-            onBack = {
-                openedTextbookKey = null
-                openedTextbookPage = null
-            },
-        )
-        return
-    }
-
-    AnimatedContent(
+    Box(modifier = Modifier.fillMaxSize()) {
+        AnimatedContent(
         targetState = openedLesson,
         transitionSpec = {
             if (targetState != null) {
@@ -291,6 +280,16 @@ fun SchoolApp(
                     }
                 }
             }
+        }
+        if (textbookPage != null && openedTextbook != null) {
+            PdfTextbookScreen(
+                pack = openedTextbook.pack,
+                initialPrintedPage = textbookPage,
+                onBack = {
+                    openedTextbookKey = null
+                    openedTextbookPage = null
+                },
+            )
         }
     }
 }

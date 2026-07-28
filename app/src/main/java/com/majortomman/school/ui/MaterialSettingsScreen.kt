@@ -48,6 +48,8 @@ import androidx.compose.ui.unit.sp
 import com.majortomman.school.BuildConfig
 import com.majortomman.school.ai.OpenAiCompatibleClient
 import com.majortomman.school.data.AiSettings
+import com.majortomman.school.data.DisplayPreferences
+import com.majortomman.school.data.DisplaySettings
 import com.majortomman.school.network.AppProxy
 import com.majortomman.school.network.AppProxySettings
 import com.majortomman.school.update.UpdateCoordinator
@@ -68,6 +70,7 @@ private enum class SettingsPage(val label: String) {
     PROXY("代理"),
     UPDATE("应用"),
     COURSE("课程"),
+    DISPLAY("显示"),
     AI("AI"),
 }
 
@@ -92,6 +95,7 @@ fun MaterialSettingsScreen(
     val updateState by updateCoordinator.state.collectAsState()
     val updateSettings by updateCoordinator.settings.collectAsState()
     val proxySettings by AppProxy.settings.collectAsState()
+    val displaySettings by DisplayPreferences.state.collectAsState(initial = DisplaySettings())
     var proxyUrl by rememberSaveable { mutableStateOf(proxySettings.proxyUrl) }
     var useForUpdates by rememberSaveable { mutableStateOf(proxySettings.useForUpdates) }
     var useForAi by rememberSaveable { mutableStateOf(proxySettings.useForAi) }
@@ -177,7 +181,12 @@ fun MaterialSettingsScreen(
 
                 SettingsPage.COURSE -> CourseStorageSettingsPage()
 
-                SettingsPage.AI -> AiSettingsPage(
+      SettingsPage.DISPLAY -> DisplaySettingsPage(
+          textScale = displaySettings.textScale,
+          onTextScaleChanged = { DisplayPreferences.setTextScale(appContext, it) },
+      )
+
+      SettingsPage.AI -> AiSettingsPage(
                     endpoint = endpoint,
                     onEndpointChange = {
                         endpoint = it
@@ -463,6 +472,54 @@ private fun AiSettingsPage(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DisplaySettingsPage(
+    textScale: Float,
+    onTextScaleChanged: (Float) -> Unit,
+) {
+    val options = listOf(
+        "小" to 0.90f,
+        "标准" to 1.00f,
+        "大" to 1.15f,
+        "特大" to 1.30f,
+        "超大" to 1.50f,
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        SettingsSectionTitle("文字大小")
+        Text(
+  "课程正文、题目、解析和数学可视化标签会同时调整。可视化仍保留最低可读尺寸。",
+  color = SettingsMuted,
+  fontSize = 13.sp,
+  lineHeight = 21.sp,
+        )
+        options.forEach { (label, scale) ->
+  val selected = kotlin.math.abs(textScale - scale) < 0.01f
+  Row(
+      modifier = Modifier
+          .fillMaxWidth()
+          .clickable { onTextScaleChanged(scale) }
+          .padding(vertical = 11.dp),
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically,
+  ) {
+      Text(label, color = if (selected) SettingsWhite else SettingsWhite.copy(alpha = 0.72f), fontSize = 17.sp)
+      Text(
+          "${(scale * 100).toInt()}%",
+          color = if (selected) SettingsBlue else SettingsMuted,
+          fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+      )
+  }
+  Box(Modifier.fillMaxWidth().height(1.dp).background(SettingsLine))
+        }
+        Text(
+  "预览：正半轴　−3　0　+3　答案与解释",
+  color = SettingsWhite,
+  fontSize = 16.sp,
+  lineHeight = 24.sp,
+        )
     }
 }
 
