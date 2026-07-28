@@ -26,7 +26,7 @@ private val Context.schoolDataStore by preferencesDataStore(name = "school_prefe
 private const val LESSON_STATUS_PREFIX = "lesson_status_"
 
 data class AiSettings(
-    val endpoint: String = "http://192.168.1.2:7777/v1",
+    val endpoint: String = "",
     val model: String = "gemma-4",
     val apiKey: String = "",
 )
