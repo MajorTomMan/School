@@ -186,7 +186,6 @@ private fun AssessmentQuestionPage(
             onBack = onBack,
             onQuestionSelected = { dispatch(AssessmentIntent.GoToQuestion(it)) },
         )
-        Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -211,7 +210,6 @@ private fun AssessmentQuestionPage(
             HintAndExplanationArea(page, richQuestion, assetFiles, dispatch)
             Spacer(Modifier.height(28.dp))
         }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
         AssessmentBottomActions(page, questionSet, dispatch)
     }
 }
