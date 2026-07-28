@@ -72,6 +72,24 @@ class VisualizationSourcePolicyTest {
     }
 
     @Test
+    fun sharedDesignSystemUsesOpenSectionsInsteadOfCards() {
+        val design = uiFile("DesignSystem.kt").readText(Charsets.UTF_8)
+        assertFalse("共享设计系统不得创建 Material Card", "Card(" in design)
+        assertFalse("共享设计系统不得创建 Material Surface", "Surface(" in design)
+        assertFalse("共享设计系统不得依赖圆角卡片", "RoundedCornerShape" in design)
+        assertTrue("共享信息段落应使用细线建立层级", ".height(1.dp)" in design || ".height(2.dp)" in design)
+
+        listOf(
+            "SubjectTextbookCenterComponents.kt",
+            "AssessmentLearningContentRenderer.kt",
+            "RationalConceptFlowVisual.kt",
+        ).forEach { name ->
+            val source = uiFile(name).readText(Charsets.UTF_8)
+            assertFalse("$name 的普通信息区不得使用圆角卡片", "RoundedCornerShape" in source)
+        }
+    }
+
+    @Test
     fun assessmentFeedbackAndActionsStayCardless() {
         val session = uiFile("AssessmentSessionScreen.kt").readText(Charsets.UTF_8)
         val ai = uiFile("AssessmentAiJudgeSection.kt").readText(Charsets.UTF_8)
