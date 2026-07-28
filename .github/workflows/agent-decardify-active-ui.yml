@@ -17,13 +17,77 @@ jobs:
         with:
           ref: dev
           fetch-depth: 0
-      - name: Confirm task execution
+      - name: Apply line-based active UI
         shell: bash
         run: |
-          echo "active UI task executed" > .agent-active-ui-result.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          changed = []
+
+          def write(path_string, transform):
+              path = Path(path_string)
+              before = path.read_text(encoding='utf-8')
+              after = transform(before)
+              if after != before:
+                  path.write_text(after, encoding='utf-8')
+                  changed.append(path_string)
+
+          def course_transform(text):
+              text = text.replace('import androidx.compose.foundation.shape.RoundedCornerShape\n', '')
+              text = text.replace(
+                  '''                .padding(top = 14.dp)
+                  .background(InteractivePanel, RoundedCornerShape(12.dp))
+                  .padding(horizontal = 14.dp, vertical = 10.dp),''',
+                  '''                .padding(top = 14.dp, bottom = 4.dp),''',
+              )
+              text = text.replace(
+                  '''            .background(
+                  color = if (enabled) InteractivePanel.copy(alpha = 0.72f) else Color.Transparent,
+                  shape = RoundedCornerShape(18.dp),
+              )
+''',
+                  '',
+              )
+              return text
+
+          def pdf_transform(text):
+              text = text.replace('import androidx.compose.foundation.shape.RoundedCornerShape\n', '')
+              text = text.replace(
+                  '                    .background(ReaderWhite.copy(alpha = 0.07f), RoundedCornerShape(12.dp))\n',
+                  '',
+              )
+              return text
+
+          def path_transform(text):
+              text = text.replace('import androidx.compose.foundation.shape.RoundedCornerShape\n', '')
+              text = text.replace('import androidx.compose.ui.draw.clip\n', '')
+              text = text.replace('            .clip(RoundedCornerShape(24.dp))\n', '')
+              return text
+
+          def bank_transform(text):
+              text = text.replace('import androidx.compose.foundation.shape.RoundedCornerShape\n', '')
+              text = text.replace('import androidx.compose.foundation.border\n', '')
+              return re.sub(
+                  r'\n\s*\.border\([^\n]*RoundedCornerShape\(5\.dp\)\)',
+                  '',
+                  text,
+              )
+
+          write('app/src/main/java/com/majortomman/school/ui/CloudCourseLessonScreen.kt', course_transform)
+          write('app/src/main/java/com/majortomman/school/ui/PdfTextbookScreen.kt', pdf_transform)
+          write('app/src/main/java/com/majortomman/school/ui/Screens.kt', path_transform)
+          write('app/src/main/java/com/majortomman/school/ui/MathQuestionBankScreen.kt', bank_transform)
+
+          Path('.agent-active-ui-result.txt').write_text(
+              '\n'.join(changed) + ('\n' if changed else 'no changes\n'),
+              encoding='utf-8',
+          )
+          PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .agent-active-ui-result.txt
-          git commit -m "chore: confirm active UI task"
+          git add app/src/main/java/com/majortomman/school/ui/CloudCourseLessonScreen.kt app/src/main/java/com/majortomman/school/ui/PdfTextbookScreen.kt app/src/main/java/com/majortomman/school/ui/Screens.kt app/src/main/java/com/majortomman/school/ui/MathQuestionBankScreen.kt .agent-active-ui-result.txt
+          git commit -m "refactor(ui): decardify active navigation and question bank"
           git pull --rebase origin dev
           git push origin dev
