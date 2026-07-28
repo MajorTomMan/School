@@ -1,10 +1,11 @@
 name: Agent phase 2 grading layout
 
 on:
-  pull_request:
-    branches: [master]
+  push:
+    branches: [dev]
     paths:
       - ".github/workflows/agent-phase2-layout.yml"
+  workflow_dispatch:
 
 permissions:
   contents: write
