@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -135,10 +134,15 @@ internal fun AssessmentAiJudgeSection(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(InteractivePanel, RoundedCornerShape(14.dp))
-                .padding(horizontal = 15.dp, vertical = 14.dp),
+                .padding(top = 6.dp, bottom = 4.dp),
             verticalArrangement = Arrangement.spacedBy(9.dp),
         ) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(2.dp)
+                    .background(InteractiveBlue.copy(alpha = 0.58f)),
+            )
             Text(
                 "答案与解释",
                 color = InteractiveWhite,
@@ -256,10 +260,6 @@ private fun JudgeAction(
     Box(
         modifier = modifier
             .height(50.dp)
-            .background(
-                if (enabled || busy) color.copy(alpha = 0.14f) else InteractivePanel,
-                RoundedCornerShape(12.dp),
-            )
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -278,6 +278,13 @@ private fun JudgeAction(
                 textAlign = TextAlign.Center,
             )
         }
+        Box(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(if (enabled || busy) 2.dp else 1.dp)
+                .background(if (enabled || busy) color.copy(alpha = 0.76f) else InteractiveLine),
+        )
     }
 }
 
