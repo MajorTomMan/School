@@ -1,5 +1,13 @@
 package com.majortomman.school.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -50,8 +59,8 @@ private val rationalDefinitionExamples = integerFractionExamples + listOf(
 /**
  * “有理数的概念”原创交互。
  *
- * 不用分类卡片或教材截图。学习者点选一种写法，沿着竖直关系观察它如何变为分数形式，
- * 再落到“有理数”这个共同概念上。
+ * 学习者点选不同写法，观察数值如何在保持相等的前提下改写为整数比，
+ * 再沿同一条关系落到“有理数”这个共同概念上。
  */
 @Composable
 internal fun RationalConceptFlowVisual(data: CourseSceneData) {
@@ -68,14 +77,28 @@ internal fun RationalConceptFlowVisual(data: CourseSceneData) {
             .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        Text(
+            text = "点选一种写法，观察它怎样保持数值不变地写成分数",
+            modifier = Modifier.fillMaxWidth(),
+            color = InteractiveMuted,
+            fontSize = 12.sp,
+            lineHeight = 18.sp,
+            textAlign = TextAlign.Center,
+        )
+
         Row(modifier = Modifier.fillMaxWidth()) {
             examples.forEach { example ->
                 val active = example.id == selected.id
+                val indicatorColor by animateColorAsState(
+                    targetValue = if (active) InteractiveBlue else Color.Transparent,
+                    animationSpec = tween(durationMillis = 180),
+                    label = "rational-tab-${example.id}",
+                )
                 Column(
                     modifier = Modifier
                         .weight(1f)
                         .clickable { selectedId = example.id }
-                        .padding(horizontal = 2.dp, vertical = 3.dp),
+                        .padding(horizontal = 2.dp, vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
@@ -90,62 +113,120 @@ internal fun RationalConceptFlowVisual(data: CourseSceneData) {
                         Modifier
                             .fillMaxWidth()
                             .height(2.dp)
-                            .background(if (active) InteractiveBlue else Color.Transparent),
+                            .background(indicatorColor),
                     )
                 }
             }
         }
 
-        Column(
+        AnimatedContent(
+            targetState = selected,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text(
-                text = selected.sourceKind,
-                color = InteractiveMuted,
-                fontSize = 12.sp,
+            transitionSpec = {
+                (fadeIn(tween(180)) + slideInVertically(tween(220)) { it / 8 })
+                    .togetherWith(fadeOut(tween(120)) + slideOutVertically(tween(160)) { -it / 10 })
+            },
+            label = "rational-form-transition",
+        ) { example ->
+            RationalRelationship(
+                example = example,
+                definitionMode = definitionMode,
             )
-            Spacer(Modifier.height(5.dp))
-            Text(
-                text = selected.display,
-                color = InteractiveWhite,
-                fontSize = if (selected.id == "repeating_decimal") 25.sp else 34.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = "↓  写成分数形式",
-                color = InteractiveBlue,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(vertical = 8.dp),
-            )
-            FractionForm(
-                numerator = selected.numerator,
-                denominator = selected.denominator,
-            )
-            if (definitionMode) {
-                Text(
-                    text = "↓",
-                    color = InteractiveBlue,
-                    fontSize = 20.sp,
-                    modifier = Modifier.padding(top = 5.dp),
-                )
-                Text(
-                    text = "有理数",
-                    color = InteractiveYellow,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
         }
 
         Text(
             text = if (definitionMode) {
-                "${selected.display}可以写成${selected.numerator}/${selected.denominator}，所以它属于有理数。"
+                "共同形式：a/b（a、b为整数，b≠0）"
             } else {
-                "给${selected.display}补上分母1，数的大小没有改变。"
+                "把整数写成分母为1的分数，数值不会改变。"
+            },
+            modifier = Modifier.fillMaxWidth(),
+            color = InteractiveMuted,
+            fontSize = 11.sp,
+            lineHeight = 17.sp,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun RationalRelationship(
+    example: RationalFormExample,
+    definitionMode: Boolean,
+) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = example.sourceKind,
+            color = InteractiveMuted,
+            fontSize = 12.sp,
+        )
+        Spacer(Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(InteractivePanel.copy(alpha = 0.58f), RoundedCornerShape(18.dp))
+                .padding(horizontal = 18.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = example.display,
+                color = InteractiveWhite,
+                fontSize = if (example.id == "repeating_decimal") 22.sp else 31.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = "  =  ",
+                color = InteractiveBlue,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Medium,
+            )
+            FractionForm(
+                numerator = example.numerator,
+                denominator = example.denominator,
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = "左右两边表示同一个数",
+            color = InteractiveBlue,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+        )
+
+        if (definitionMode) {
+            Text(
+                text = "↓  可以写成两个整数之比",
+                color = InteractiveMuted,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 12.dp, bottom = 6.dp),
+            )
+            Text(
+                text = "有理数",
+                modifier = Modifier
+                    .background(InteractiveYellow.copy(alpha = 0.14f), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 20.dp, vertical = 9.dp),
+                color = InteractiveYellow,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = if (definitionMode) {
+                "${example.display}可以写成${example.numerator}/${example.denominator}，因此它属于有理数。"
+            } else {
+                "给${example.display}补上分母1，只改变写法，不改变大小。"
             },
             modifier = Modifier.fillMaxWidth(),
             color = InteractiveWhite.copy(alpha = 0.82f),
@@ -153,15 +234,6 @@ internal fun RationalConceptFlowVisual(data: CourseSceneData) {
             lineHeight = 20.sp,
             textAlign = TextAlign.Center,
         )
-        if (definitionMode) {
-            Text(
-                text = "共同形式：a/b（a、b为整数，b≠0）",
-                modifier = Modifier.fillMaxWidth(),
-                color = InteractiveMuted,
-                fontSize = 11.sp,
-                textAlign = TextAlign.Center,
-            )
-        }
     }
 }
 
@@ -174,19 +246,21 @@ private fun FractionForm(
         Text(
             text = numerator,
             color = InteractiveYellow,
-            fontSize = 27.sp,
+            fontSize = 25.sp,
+            lineHeight = 27.sp,
             fontWeight = FontWeight.Medium,
         )
         Box(
             Modifier
-                .width(72.dp)
+                .width(64.dp)
                 .height(2.dp)
                 .background(InteractiveYellow),
         )
         Text(
             text = denominator,
             color = InteractiveYellow,
-            fontSize = 27.sp,
+            fontSize = 25.sp,
+            lineHeight = 27.sp,
             fontWeight = FontWeight.Medium,
         )
     }
