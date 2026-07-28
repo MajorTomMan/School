@@ -31,9 +31,10 @@ internal class CoursePackStore(context: Context) {
         }.getOrNull()
     }
 
+    /** Returns a stable partial file. It is intentionally not deleted when a Worker is restarted. */
     fun temporaryDownloadFile(textbookId: String, suffix: String): File {
         downloadsRoot.mkdirs()
-        return File(downloadsRoot, "$textbookId-$suffix.part").apply { delete() }
+        return File(downloadsRoot, "$textbookId-$suffix.part")
     }
 
     fun installFull(
@@ -49,6 +50,7 @@ internal class CoursePackStore(context: Context) {
             validateStaging(remote, staging)
             writeState(remote, staging)
             activate(remote.id, staging)
+            cleanupCompletedDownloads(remote)
         } catch (error: Throwable) {
             staging.deleteRecursively()
             throw error
@@ -72,6 +74,7 @@ internal class CoursePackStore(context: Context) {
             validateStaging(remote, staging)
             writeState(remote, staging)
             activate(remote.id, staging)
+            cleanupCompletedDownloads(remote)
         } catch (error: Throwable) {
             staging.deleteRecursively()
             throw error
@@ -120,18 +123,20 @@ internal class CoursePackStore(context: Context) {
         download: (CourseFileSpec, File) -> Unit,
     ) {
         require(spec.url.isNotBlank()) { "课程文件 ${spec.path} 缺少下载地址" }
+        downloadsRoot.mkdirs()
+        val partial = File(downloadsRoot, "${spec.sha256}.part")
+        download(spec, partial)
+        verifyFile(partial, spec)
+
         val destinationParent = requireNotNull(destination.parentFile) { "课程文件缺少父目录" }
         destinationParent.mkdirs()
-        val partial = File(destinationParent, "${destination.name}.part")
-        partial.delete()
-        try {
-            download(spec, partial)
-            verifyFile(partial, spec)
-            destination.deleteRecursively()
-            require(partial.renameTo(destination)) { "无法保存课程文件 ${spec.path}" }
-        } finally {
-            partial.delete()
-        }
+        destination.deleteRecursively()
+        partial.copyTo(destination, overwrite = true)
+        verifyFile(destination, spec)
+    }
+
+    private fun cleanupCompletedDownloads(remote: CourseTextbookManifest) {
+        remote.files.forEach { spec -> File(downloadsRoot, "${spec.sha256}.part").delete() }
     }
 
     private fun isVerified(file: File, spec: CourseFileSpec): Boolean =
