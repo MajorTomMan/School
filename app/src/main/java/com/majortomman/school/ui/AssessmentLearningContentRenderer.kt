@@ -14,13 +14,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontStyle
@@ -93,16 +91,14 @@ private fun AssessmentText(item: LearningContent.Text, compact: Boolean) {
 @Composable
 private fun AssessmentFormula(item: LearningContent.Formula, compact: Boolean) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(InteractivePanel, RoundedCornerShape(12.dp))
-            .padding(horizontal = 14.dp, vertical = 15.dp),
+        modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveYellow.copy(alpha = 0.45f)))
         Text(
             text = item.expression,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 9.dp),
             color = InteractiveYellow,
             fontSize = if (compact) 20.sp else 23.sp,
             lineHeight = 31.sp,
@@ -119,6 +115,7 @@ private fun AssessmentFormula(item: LearningContent.Formula, compact: Boolean) {
                 textAlign = TextAlign.Center,
             )
         }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveYellow.copy(alpha = 0.22f)))
     }
 }
 
@@ -154,21 +151,20 @@ private fun AssessmentImage(
             Image(
                 bitmap = bitmap.asImageBitmap(),
                 contentDescription = item.altText,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(InteractivePanel),
+                modifier = Modifier.fillMaxWidth(),
                 contentScale = ContentScale.Fit,
             )
         } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(160.dp)
-                    .background(InteractivePanel, RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center,
+            Column(
+                modifier = Modifier.fillMaxWidth().height(160.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
+                Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
+                Spacer(Modifier.height(55.dp))
                 Text("图片暂时不可用", color = InteractiveMuted, fontSize = 13.sp)
+                Spacer(Modifier.height(55.dp))
+                Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
             }
         }
         Text(
@@ -198,9 +194,7 @@ private fun AssessmentTable(item: LearningContent.Table) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(horizontal)
-                .background(InteractivePanel, RoundedCornerShape(12.dp))
-                .padding(1.dp),
+                .horizontalScroll(horizontal),
         ) {
             AssessmentTableRow(item.columns, header = true)
             item.rows.forEach { row -> AssessmentTableRow(row, header = false) }
@@ -210,25 +204,32 @@ private fun AssessmentTable(item: LearningContent.Table) {
 
 @Composable
 private fun AssessmentTableRow(cells: List<String>, header: Boolean) {
-    Row {
-        cells.forEach { value ->
-            Box(
-                modifier = Modifier
-                    .width(132.dp)
-                    .background(if (header) InteractiveBlue.copy(alpha = 0.13f) else InteractivePanel)
-                    .padding(horizontal = 10.dp, vertical = 11.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = value,
-                    color = if (header) InteractiveBlue else InteractiveWhite.copy(alpha = 0.86f),
-                    fontSize = 13.sp,
-                    lineHeight = 19.sp,
-                    fontWeight = if (header) FontWeight.SemiBold else FontWeight.Normal,
-                    textAlign = TextAlign.Center,
-                )
+    Column {
+        Row {
+            cells.forEach { value ->
+                Box(
+                    modifier = Modifier
+                        .width(132.dp)
+                        .padding(horizontal = 10.dp, vertical = 11.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = value,
+                        color = if (header) InteractiveBlue else InteractiveWhite.copy(alpha = 0.86f),
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp,
+                        fontWeight = if (header) FontWeight.SemiBold else FontWeight.Normal,
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
         }
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(if (header) 2.dp else 1.dp)
+                .background(if (header) InteractiveBlue.copy(alpha = 0.55f) else InteractiveLine),
+        )
     }
 }
 
