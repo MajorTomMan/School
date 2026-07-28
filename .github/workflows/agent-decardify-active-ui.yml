@@ -22,50 +22,22 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
-          def one(text, old, new, label):
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'{label}: expected 1 occurrence, got {count}')
-              return text.replace(old, new, 1)
-
-          # Course lesson hints and navigation.
+          # Course lesson notice and navigation.
           path = Path('app/src/main/java/com/majortomman/school/ui/CloudCourseLessonScreen.kt')
           text = path.read_text(encoding='utf-8')
           text = text.replace('import androidx.compose.foundation.shape.RoundedCornerShape\n', '')
-          text = one(text, '''            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 14.dp)
+          text = text.replace(
+              '''                .padding(top = 14.dp)
                 .background(InteractivePanel, RoundedCornerShape(12.dp))
-                .padding(horizontal = 14.dp, vertical = 10.dp),''', '''            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 14.dp, bottom = 4.dp),''', 'scroll notice')
-          old = '''@Composable
-private fun CloudNavigationAction(
-    label: String,
-    enabled: Boolean,
-    alignment: TextAlign,
-    onClick: () -> Unit,
-) {
-    Text(
-        label,
-        modifier = Modifier
-            .width(112.dp)
-            .heightIn(min = 44.dp)
-            .background(
-                color = if (enabled) InteractivePanel.copy(alpha = 0.72f) else Color.Transparent,
-                shape = RoundedCornerShape(18.dp),
-            )
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 12.dp),
-        color = if (enabled) InteractiveBlue else InteractiveMuted.copy(alpha = 0.35f),
-        fontSize = 14.sp,
-        fontWeight = FontWeight.SemiBold,
-        textAlign = alignment,
-    )
-}
-'''
-          new = '''@Composable
+                .padding(horizontal = 14.dp, vertical = 10.dp),''',
+              '''                .padding(top = 14.dp, bottom = 4.dp),''',
+          )
+          marker = '@Composable\nprivate fun CloudNavigationAction('
+          if marker in text:
+              start = text.index(marker)
+              text = text[:start] + '''@Composable
 private fun CloudNavigationAction(
     label: String,
     enabled: Boolean,
@@ -101,160 +73,38 @@ private fun CloudNavigationAction(
     }
 }
 '''
-          text = one(text, old, new, 'course navigation')
           path.write_text(text, encoding='utf-8')
 
-          # PDF page status.
+          # PDF page status: preserve layout, remove pill surface.
           path = Path('app/src/main/java/com/majortomman/school/ui/PdfTextbookScreen.kt')
           text = path.read_text(encoding='utf-8')
           text = text.replace('import androidx.compose.foundation.shape.RoundedCornerShape\n', '')
-          text = one(text, '''            Box(
-                modifier = Modifier
-                    .background(ReaderWhite.copy(alpha = 0.07f), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 11.dp, vertical = 7.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "第 $printedPage 页 · $zoomPercent%",
-                    color = ReaderMuted,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    softWrap = false,
-                )
-            }''', '''            Text(
-                text = "第 $printedPage 页 · $zoomPercent%",
-                modifier = Modifier.padding(vertical = 7.dp),
-                color = ReaderMuted,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                softWrap = false,
-            )''', 'pdf status')
+          text = text.replace(
+              '''                    .background(ReaderWhite.copy(alpha = 0.07f), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 11.dp, vertical = 7.dp),''',
+              '''                    .padding(horizontal = 2.dp, vertical = 7.dp),''',
+          )
           path.write_text(text, encoding='utf-8')
 
-          # Legacy course path row has no visual card; remove the rounded hit-area clip.
+          # Path row no longer needs a rounded hit-area clip.
           path = Path('app/src/main/java/com/majortomman/school/ui/Screens.kt')
           text = path.read_text(encoding='utf-8')
           text = text.replace('import androidx.compose.foundation.shape.RoundedCornerShape\n', '')
           text = text.replace('import androidx.compose.ui.draw.clip\n', '')
-          text = one(text, '''        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),''', '''        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),''', 'path row clip')
+          text = text.replace('            .clip(RoundedCornerShape(24.dp))\n', '')
           path.write_text(text, encoding='utf-8')
 
-          # Question bank controls.
+          # Bank selections and inputs become open text regions. Semantic color remains the state signal.
           path = Path('app/src/main/java/com/majortomman/school/ui/MathQuestionBankScreen.kt')
           text = path.read_text(encoding='utf-8')
           text = text.replace('import androidx.compose.foundation.shape.RoundedCornerShape\n', '')
           text = text.replace('import androidx.compose.foundation.border\n', '')
-          text = one(text, '''            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, if (active) BankBlue else BankLine, RoundedCornerShape(5.dp))
-                    .clickable(enabled = enabled) { onSelect(option.id) }
-                    .padding(horizontal = 17.dp, vertical = 16.dp),
-            ) {
-                Text(option.text, color = if (active) BankBlue else BankWhite, fontSize = 18.sp)
-            }''', '''            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(enabled = enabled) { onSelect(option.id) }
-                    .padding(horizontal = 2.dp, vertical = 14.dp),
-            ) {
-                Text(option.text, color = if (active) BankBlue else BankWhite, fontSize = 18.sp)
-                Spacer(Modifier.height(10.dp))
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(if (active) 2.dp else 1.dp)
-                        .background(if (active) BankBlue else BankLine),
-                )
-            }''', 'bank choice')
-          text = one(text, '''    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, BankLine, RoundedCornerShape(5.dp))
-            .padding(horizontal = 16.dp, vertical = 16.dp),
-    ) {
-        if (answer.isBlank()) {
-            Text(placeholder, color = BankMuted, fontSize = 16.sp, lineHeight = 23.sp)
-        }
-        BasicTextField(
-            value = answer,
-            onValueChange = { if (enabled) onChange(it.take(2_000)) },
-            modifier = Modifier.fillMaxWidth().height(if (question.type == MathQuestionType.STEP_BY_STEP) 150.dp else 56.dp),
-            textStyle = TextStyle(color = BankWhite, fontSize = 19.sp, lineHeight = 27.sp),
-            cursorBrush = SolidColor(BankBlue),
-            enabled = enabled,
-        )
-    }''', '''    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
-            if (answer.isBlank()) {
-                Text(placeholder, color = BankMuted, fontSize = 16.sp, lineHeight = 23.sp)
-            }
-            BasicTextField(
-                value = answer,
-                onValueChange = { if (enabled) onChange(it.take(2_000)) },
-                modifier = Modifier.fillMaxWidth().height(if (question.type == MathQuestionType.STEP_BY_STEP) 150.dp else 56.dp),
-                textStyle = TextStyle(color = BankWhite, fontSize = 19.sp, lineHeight = 27.sp),
-                cursorBrush = SolidColor(BankBlue),
-                enabled = enabled,
-            )
-        }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(if (enabled) BankBlue.copy(alpha = 0.62f) else BankLine))
-    }''', 'bank text input')
-          text = one(text, '''            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, BankLine, RoundedCornerShape(5.dp))
-                    .clickable(enabled = enabled) { onChange(selected + item) }
-                    .padding(horizontal = 16.dp, vertical = 13.dp),
-            ) {
-                Text(item, color = BankWhite, fontSize = 18.sp)
-            }''', '''            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(enabled = enabled) { onChange(selected + item) }
-                    .padding(horizontal = 2.dp, vertical = 11.dp),
-            ) {
-                Text(item, color = BankWhite, fontSize = 18.sp)
-                Spacer(Modifier.height(9.dp))
-                Box(Modifier.fillMaxWidth().height(1.dp).background(BankLine))
-            }''', 'bank ordering item')
-          text = one(text, '''    Box(
-        modifier = Modifier
-            .border(1.dp, if (enabled) accent else BankLine, RoundedCornerShape(5.dp))
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(text, color = if (enabled) accent else BankMuted, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-    }''', '''    Box(
-        modifier = Modifier
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(text, color = if (enabled) accent else BankMuted, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-        Box(
-            Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(if (enabled) 2.dp else 1.dp)
-                .background(if (enabled) accent.copy(alpha = 0.72f) else BankLine),
-        )
-    }''', 'bank action')
+          text = re.sub(r'\n\s*\.border\([^\n]*RoundedCornerShape\(5\.dp\)\)', '', text)
           path.write_text(text, encoding='utf-8')
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app/src/main/java/com/majortomman/school/ui/CloudCourseLessonScreen.kt app/src/main/java/com/majortomman/school/ui/PdfTextbookScreen.kt app/src/main/java/com/majortomman/school/ui/Screens.kt app/src/main/java/com/majortomman/school/ui/MathQuestionBankScreen.kt
-          git commit -m "refactor(ui): decardify active navigation and question bank"
+          git commit -m "refactor(ui): decardify active navigation and question bank" || exit 0
           git pull --rebase origin dev
           git push origin dev
