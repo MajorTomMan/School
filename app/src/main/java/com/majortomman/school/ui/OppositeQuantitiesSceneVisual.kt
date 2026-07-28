@@ -2,7 +2,6 @@ package com.majortomman.school.ui
 
 import android.graphics.Paint
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -153,7 +152,7 @@ internal fun OppositeQuantitiesSceneVisual(data: CourseSceneData) {
             )
         }
 
-        Canvas(Modifier.fillMaxWidth().weight(1f)) {
+        ZoomableMathCanvas(Modifier.fillMaxWidth().weight(1f)) {
             when (selectedScene.id) {
                 "temperature" -> drawTemperatureScene(animatedValue)
                 "elevation" -> drawElevationScene(animatedValue, selectedScene.bound)
@@ -513,7 +512,7 @@ private fun DrawScope.drawSceneLabel(
 ) {
     val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         this.color = color.toArgb()
-        this.textSize = textSize
+        this.textSize = visualTextSizePx(textSize)
         textAlign = align
     }
     drawContext.canvas.nativeCanvas.drawText(text, x, y, paint)

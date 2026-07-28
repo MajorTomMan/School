@@ -1,7 +1,6 @@
 package com.majortomman.school.ui
 
 import android.graphics.Paint
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -313,7 +312,7 @@ private fun CoursePage.firstFormula(): String? =
 @Composable
 private fun DeclarativeDiagram(data: CourseSceneData) {
     val elements = data.objects("elements")
-    Canvas(Modifier.fillMaxSize()) {
+    ZoomableMathCanvas(Modifier.fillMaxSize()) {
         elements.forEach { element -> drawDiagramElement(element) }
     }
 }
@@ -404,7 +403,7 @@ private fun DrawScope.drawDiagramArrowHead(start: Offset, end: Offset, color: Co
 private fun DrawScope.drawDiagramText(text: String, point: Offset, color: Color, textSize: Float) {
     val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         this.color = color.toArgb()
-        this.textSize = textSize
+        this.textSize = visualTextSizePx(textSize)
         textAlign = Paint.Align.CENTER
     }
     drawContext.canvas.nativeCanvas.drawText(text, point.x, point.y, paint)
