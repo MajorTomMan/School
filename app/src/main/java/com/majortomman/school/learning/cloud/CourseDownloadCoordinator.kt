@@ -58,7 +58,13 @@ object CourseDownloadCoordinator {
         val appContext = context.applicationContext
         initialize(appContext)
         val current = mutableState.value
-        if (current is CourseDownloadUiState.Queued || current is CourseDownloadUiState.Running) return
+        if (
+            current is CourseDownloadUiState.Restoring ||
+            current is CourseDownloadUiState.Queued ||
+            current is CourseDownloadUiState.Running
+        ) {
+            return
+        }
 
         val operationId = operationCounter.incrementAndGet()
         mutableState.value = CourseDownloadUiState.Queued(operationId)
@@ -116,16 +122,19 @@ object CourseDownloadCoordinator {
         if (active == null) {
             when (mutableState.value) {
                 CourseDownloadUiState.Restoring,
-                is CourseDownloadUiState.Queued,
                 is CourseDownloadUiState.Running,
                 -> mutableState.value = CourseDownloadUiState.Idle
-                else -> Unit
+                is CourseDownloadUiState.Queued,
+                CourseDownloadUiState.Idle,
+                is CourseDownloadUiState.Success,
+                is CourseDownloadUiState.Failed,
+                -> Unit
             }
             return
         }
 
         val operationId = active.operationId()
-        operationCounter.accumulateAndGet(operationId, ::maxOf)
+        operationCounter.accumulateAndGet(operationId) { current, restored -> maxOf(current, restored) }
         if (active.state != WorkInfo.State.RUNNING) {
             mutableState.value = CourseDownloadUiState.Queued(operationId)
             return
