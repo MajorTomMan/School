@@ -6,6 +6,11 @@ on:
     paths:
       - "tools/agent_apply_section_assessment.py"
       - ".github/workflows/agent-section-assessment.yml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "tools/agent_apply_section_assessment.py"
+      - ".github/workflows/agent-section-assessment.yml"
 
 permissions:
   contents: write
