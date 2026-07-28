@@ -28,7 +28,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -88,7 +88,9 @@ fun PdfTextbookScreen(
         return
     }
 
-    val lessonWindow = remember(pack.rootPath, initialPrintedPage) { TextbookReadingWindow.resolve(pack, initialPrintedPage) }
+    val lessonWindow = remember(pack.rootPath, initialPrintedPage) {
+        TextbookReadingWindow.resolve(pack, initialPrintedPage)
+    }
     var fullBook by rememberSaveable(pack.manifest.packId, initialPrintedPage) { mutableStateOf(false) }
     val activeWindow = lessonWindow.takeUnless { fullBook }
     val initialPage = activeWindow?.clamp(initialPrintedPage) ?: initialPrintedPage
@@ -110,7 +112,10 @@ fun PdfTextbookScreen(
     fun constrain(nextZoom: Float, nextPan: Offset): Offset {
         val maxX = viewport.width * (nextZoom - 1f) / 2f
         val maxY = viewport.height * (nextZoom - 1f) / 2f
-        return Offset(nextPan.x.coerceIn(-maxX, maxX), nextPan.y.coerceIn(-maxY, maxY))
+        return Offset(
+            nextPan.x.coerceIn(-maxX, maxX),
+            nextPan.y.coerceIn(-maxY, maxY),
+        )
     }
 
     val transformState = rememberTransformableState { zoomChange, panChange, _ ->
@@ -124,117 +129,206 @@ fun PdfTextbookScreen(
         pan = Offset.Zero
     }
 
-    Column(Modifier.fillMaxSize().background(ReaderBlack).systemBarsPadding()) {
-        Row(
-  modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 14.dp),
-  horizontalArrangement = Arrangement.SpaceBetween,
-  verticalAlignment = Alignment.Bottom,
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(ReaderBlack)
+            .systemBarsPadding(),
+    ) {
+        PdfReaderHeader(
+            packTitle = pack.manifest.title,
+            activeWindow = activeWindow,
+            printedPage = printedPage,
+            zoomPercent = (zoom * 100).roundToInt(),
+        )
+
+        BoxWithConstraints(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
         ) {
-  Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-      Text(if (activeWindow == null) "教材" else "本节教材", color = ReaderYellow, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-      Text(pack.manifest.title, color = ReaderWhite, fontSize = 20.sp, fontWeight = FontWeight.Medium)
-      activeWindow?.let { range ->
-          Text("只查看第 ${range.startPrintedPage}—${range.endPrintedPage} 页", color = ReaderBlue, fontSize = 12.sp)
-      }
-  }
-  Text("$printedPage 页 · ${(zoom * 100).roundToInt()}%", color = ReaderMuted, style = MaterialTheme.typography.labelLarge)
-        }
+            val density = LocalDensity.current
+            val baseWidth = with(density) { maxWidth.toPx().toInt() }.coerceIn(720, 2400)
+            val renderMultiplier = when {
+                zoom >= 3f -> 3
+                zoom >= 1.8f -> 2
+                else -> 1
+            }
+            val targetWidthPx = (baseWidth * renderMultiplier).coerceIn(720, 4200)
+            LaunchedEffect(pageIndex, targetWidthPx) {
+                bitmap = null
+                renderError = null
+                runCatching {
+                    withContext(Dispatchers.IO) { session.render(pageIndex, targetWidthPx) }
+                }
+                    .onSuccess { bitmap = it }
+                    .onFailure { renderError = it.message ?: "页面渲染失败" }
+            }
 
-        BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
-  val density = LocalDensity.current
-  val baseWidth = with(density) { maxWidth.toPx().toInt() }.coerceIn(720, 2400)
-  val renderMultiplier = when {
-      zoom >= 3f -> 3
-      zoom >= 1.8f -> 2
-      else -> 1
-  }
-  val targetWidthPx = (baseWidth * renderMultiplier).coerceIn(720, 4200)
-  LaunchedEffect(pageIndex, targetWidthPx) {
-      bitmap = null
-      renderError = null
-      runCatching { withContext(Dispatchers.IO) { session.render(pageIndex, targetWidthPx) } }
-          .onSuccess { bitmap = it }
-          .onFailure { renderError = it.message ?: "页面渲染失败" }
-  }
-
-  when {
-      renderError != null -> Text(
-          renderError.orEmpty(),
-          modifier = Modifier.align(Alignment.Center).padding(24.dp),
-          color = ReaderWhite,
-          textAlign = TextAlign.Center,
-      )
-      bitmap == null -> Text("正在打开…", modifier = Modifier.align(Alignment.Center), color = ReaderMuted)
-      else -> AnimatedContent(
-          targetState = bitmap,
-          transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(140)) },
-          label = "pdfPage",
-      ) { rendered ->
-          if (rendered != null) {
-              Box(
-                  modifier = Modifier
-                      .fillMaxSize()
-                      .clipToBounds()
-                      .onSizeChanged { viewport = it }
-                      .pointerInput(pageIndex) {
-                          detectTapGestures(
-                              onDoubleTap = {
-                                  if (zoom > 1.05f) {
-                                      zoom = 1f
-                                      pan = Offset.Zero
-                                  } else {
-                                      zoom = 2f
-                                      pan = Offset.Zero
-                                  }
-                              },
-                          )
-                      }
-                      .transformable(transformState),
-                  contentAlignment = Alignment.Center,
-              ) {
-                  Image(
-                      bitmap = rendered.asImageBitmap(),
-                      contentDescription = "教材第 $printedPage 页",
-                      modifier = Modifier
-                          .fillMaxSize()
-                          .graphicsLayer {
-                              scaleX = zoom
-                              scaleY = zoom
-                              translationX = pan.x
-                              translationY = pan.y
-                              transformOrigin = TransformOrigin.Center
-                          },
-                      contentScale = ContentScale.Fit,
-                  )
-              }
-          }
-      }
-  }
+            when {
+                renderError != null -> Text(
+                    renderError.orEmpty(),
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(24.dp),
+                    color = ReaderWhite,
+                    textAlign = TextAlign.Center,
+                )
+                bitmap == null -> Text(
+                    "正在打开…",
+                    modifier = Modifier.align(Alignment.Center),
+                    color = ReaderMuted,
+                )
+                else -> AnimatedContent(
+                    targetState = bitmap,
+                    transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(140)) },
+                    label = "pdfPage",
+                ) { rendered ->
+                    if (rendered != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clipToBounds()
+                                .onSizeChanged { viewport = it }
+                                .pointerInput(pageIndex) {
+                                    detectTapGestures(
+                                        onDoubleTap = {
+                                            if (zoom > 1.05f) {
+                                                zoom = 1f
+                                                pan = Offset.Zero
+                                            } else {
+                                                zoom = 2f
+                                                pan = Offset.Zero
+                                            }
+                                        },
+                                    )
+                                }
+                                .transformable(transformState),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Image(
+                                bitmap = rendered.asImageBitmap(),
+                                contentDescription = "教材第 $printedPage 页",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer {
+                                        scaleX = zoom
+                                        scaleY = zoom
+                                        translationX = pan.x
+                                        translationY = pan.y
+                                        transformOrigin = TransformOrigin.Center
+                                    },
+                                contentScale = ContentScale.Fit,
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         if (lessonWindow != null) {
-  Text(
-      text = if (fullBook) "返回本节范围" else "查看完整教材",
-      modifier = Modifier.fillMaxWidth().clickable {
-          fullBook = !fullBook
-          if (!fullBook) {
-              val clamped = lessonWindow.clamp(pack.pdfIndexToPrintedPage(pageIndex))
-              pageIndex = pack.printedPageToPdfIndex(clamped).coerceIn(0, session.pageCount - 1)
-          }
-      }.padding(vertical = 9.dp),
-      color = ReaderMuted,
-      fontSize = 12.sp,
-      textAlign = TextAlign.Center,
-  )
+            Text(
+                text = if (fullBook) "返回本节范围" else "查看完整教材",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        fullBook = !fullBook
+                        if (!fullBook) {
+                            val clamped = lessonWindow.clamp(pack.pdfIndexToPrintedPage(pageIndex))
+                            pageIndex = pack.printedPageToPdfIndex(clamped).coerceIn(0, session.pageCount - 1)
+                        }
+                    }
+                    .padding(vertical = 9.dp),
+                color = ReaderMuted,
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+            )
         }
 
         Row(
-  modifier = Modifier.fillMaxWidth().background(ReaderBlack).navigationBarsPadding().padding(horizontal = 22.dp, vertical = 14.dp),
-  horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(ReaderBlack)
+                .navigationBarsPadding()
+                .padding(horizontal = 22.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-  ReaderAction("上一页", ReaderWhite.copy(alpha = 0.78f), Modifier.weight(1f), canPrevious) { pageIndex -= 1 }
-  ReaderAction("返回", ReaderYellow, Modifier.weight(1f), onClick = onBack)
-  ReaderAction("下一页", ReaderBlue, Modifier.weight(1f), canNext) { pageIndex += 1 }
+            ReaderAction(
+                label = "上一页",
+                color = ReaderWhite.copy(alpha = 0.78f),
+                modifier = Modifier.weight(1f),
+                enabled = canPrevious,
+            ) { pageIndex -= 1 }
+            ReaderAction(
+                label = "返回",
+                color = ReaderYellow,
+                modifier = Modifier.weight(1f),
+                onClick = onBack,
+            )
+            ReaderAction(
+                label = "下一页",
+                color = ReaderBlue,
+                modifier = Modifier.weight(1f),
+                enabled = canNext,
+            ) { pageIndex += 1 }
+        }
+    }
+}
+
+@Composable
+private fun PdfReaderHeader(
+    packTitle: String,
+    activeWindow: TextbookReadingWindow?,
+    printedPage: Int,
+    zoomPercent: Int,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 22.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = if (activeWindow == null) "教材" else "本节教材",
+                color = ReaderYellow,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Box(
+                modifier = Modifier
+                    .background(ReaderWhite.copy(alpha = 0.07f), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 11.dp, vertical = 7.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "第 $printedPage 页 · $zoomPercent%",
+                    color = ReaderMuted,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+            }
+        }
+        Text(
+            text = packTitle,
+            modifier = Modifier.fillMaxWidth(),
+            color = ReaderWhite,
+            fontSize = 20.sp,
+            lineHeight = 27.sp,
+            fontWeight = FontWeight.Medium,
+        )
+        activeWindow?.let { range ->
+            Text(
+                text = "只查看第 ${range.startPrintedPage}—${range.endPrintedPage} 页",
+                color = ReaderBlue,
+                fontSize = 12.sp,
+            )
         }
     }
 }
@@ -249,17 +343,28 @@ private fun ReaderAction(
 ) {
     val effective = if (enabled) color else color.copy(alpha = 0.22f)
     Box(
-        modifier = modifier.height(45.dp).clickable(enabled = enabled, onClick = onClick),
+        modifier = modifier
+            .height(45.dp)
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, color = effective, textAlign = TextAlign.Center, fontWeight = FontWeight.SemiBold)
+        Text(
+            text = label,
+            color = effective,
+            textAlign = TextAlign.Center,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
 @Composable
 private fun ReaderError(message: String, onBack: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize().background(ReaderBlack).systemBarsPadding().padding(24.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(ReaderBlack)
+            .systemBarsPadding()
+            .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -267,7 +372,14 @@ private fun ReaderError(message: String, onBack: () -> Unit) {
         Spacer(Modifier.height(14.dp))
         Text(message, color = ReaderMuted, textAlign = TextAlign.Center)
         Spacer(Modifier.height(28.dp))
-        Text("返回", modifier = Modifier.clickable(onClick = onBack).padding(14.dp), color = ReaderBlue, fontWeight = FontWeight.Bold)
+        Text(
+            "返回",
+            modifier = Modifier
+                .clickable(onClick = onBack)
+                .padding(14.dp),
+            color = ReaderBlue,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
 
@@ -279,11 +391,13 @@ private class PdfRenderSession(file: java.io.File) : Closeable {
     fun render(index: Int, width: Int): Bitmap {
         require(index in 0 until pageCount) { "页码超出范围" }
         renderer.openPage(index).use { page ->
-  val height = (width * (page.height.toFloat() / page.width.toFloat())).toInt().coerceIn(1, 7200)
-  return Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also { bitmap ->
-      bitmap.eraseColor(AndroidColor.WHITE)
-      page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-  }
+            val height = (width * (page.height.toFloat() / page.width.toFloat()))
+                .toInt()
+                .coerceIn(1, 7200)
+            return Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also { bitmap ->
+                bitmap.eraseColor(AndroidColor.WHITE)
+                page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+            }
         }
     }
 
