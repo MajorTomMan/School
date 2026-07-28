@@ -1,9 +1,19 @@
 package com.majortomman.school.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -18,11 +29,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -170,6 +185,11 @@ private fun CloudCoursePager(
     } else {
         "教材第 ${currentPage.sourcePage} 页"
     }
+    val progress by animateFloatAsState(
+        targetValue = (pagerState.currentPage + 1f) / pages.size.toFloat(),
+        animationSpec = tween(durationMillis = 220),
+        label = "course-page-progress",
+    )
 
     Column(
         modifier = Modifier
@@ -178,19 +198,30 @@ private fun CloudCoursePager(
             .systemBarsPadding(),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             CloudTextAction("返回", InteractiveMuted, onBack)
-            Text(
-                currentPage.section,
+            Column(
                 modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
-                color = InteractiveWhite,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-            )
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    currentPage.section,
+                    color = InteractiveWhite,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                )
+                Text(
+                    "学习环节 ${pagerState.currentPage + 1} / ${pages.size}",
+                    color = InteractiveMuted,
+                    fontSize = 10.sp,
+                    textAlign = TextAlign.Center,
+                )
+            }
             CloudTextAction(
                 sourceLabel,
                 if (installedMaterial.pdfFile.isFile) InteractiveYellow else InteractiveMuted,
@@ -198,7 +229,12 @@ private fun CloudCoursePager(
                 if (installedMaterial.pdfFile.isFile) onOpenTextbook(currentPage.sourcePage)
             }
         }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier.fillMaxWidth().height(2.dp),
+            color = InteractiveBlue,
+            trackColor = InteractiveLine,
+        )
 
         HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { index ->
             CloudCoursePageContent(pages[index], index + 1, pages.size)
@@ -209,7 +245,7 @@ private fun CloudCoursePager(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
+                .padding(horizontal = 20.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -245,32 +281,91 @@ private fun CloudCoursePageContent(
         val compact = maxHeight < 620.dp
         val scrollState = rememberScrollState()
 
-        Column(
+        Box(Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 22.dp, vertical = 18.dp),
+            ) {
+                Text(
+                    "学习环节 $pageNumber / $pageCount",
+                    color = InteractiveBlue,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    page.title,
+                    color = InteractiveWhite,
+                    fontSize = if (compact) 27.sp else 32.sp,
+                    lineHeight = if (compact) 33.sp else 39.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(14.dp))
+                CloudCourseOrderedBlocks(page, compact)
+                Spacer(Modifier.height(34.dp))
+                Text(
+                    "本环节结束 · 左右滑动或使用下方按钮翻页",
+                    modifier = Modifier.fillMaxWidth(),
+                    color = InteractiveMuted.copy(alpha = 0.74f),
+                    fontSize = 11.sp,
+                    lineHeight = 18.sp,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(28.dp))
+            }
+            ScrollContinuationHint(scrollState)
+        }
+    }
+}
+
+@Composable
+private fun BoxScope.ScrollContinuationHint(scrollState: androidx.compose.foundation.ScrollState) {
+    val visible by remember(scrollState) {
+        derivedStateOf {
+            scrollState.maxValue > 0 && scrollState.value < 32 && scrollState.canScrollForward
+        }
+    }
+    val transition = rememberInfiniteTransition(label = "course-scroll-hint")
+    val arrowOffset by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 650),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "course-scroll-hint-offset",
+    )
+
+    AnimatedVisibility(
+        visible = visible,
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .padding(bottom = 10.dp),
+        enter = fadeIn(tween(180)),
+        exit = fadeOut(tween(140)),
+    ) {
+        Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(scrollState)
-                .padding(horizontal = 22.dp, vertical = 18.dp),
+                .background(InteractivePanel.copy(alpha = 0.96f), RoundedCornerShape(24.dp))
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(page.section, color = InteractiveBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
             Text(
-                page.title,
-                color = InteractiveWhite,
-                fontSize = if (compact) 27.sp else 32.sp,
-                lineHeight = if (compact) 33.sp else 39.sp,
-                fontWeight = FontWeight.SemiBold,
+                "向上滑动继续阅读",
+                color = InteractiveWhite.copy(alpha = 0.88f),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
             )
-            Spacer(Modifier.height(14.dp))
-            CloudCourseOrderedBlocks(page, compact)
-            Spacer(Modifier.height(32.dp))
             Text(
-                "第 $pageNumber 页，共 $pageCount 页",
-                modifier = Modifier.fillMaxWidth(),
-                color = InteractiveMuted.copy(alpha = 0.7f),
-                fontSize = 11.sp,
-                textAlign = TextAlign.End,
+                "↓",
+                modifier = Modifier.graphicsLayer { translationY = arrowOffset },
+                color = InteractiveBlue,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
             )
-            Spacer(Modifier.height(24.dp))
         }
     }
 }
@@ -282,6 +377,7 @@ private fun CloudTextAction(label: String, color: Color, onClick: () -> Unit) {
         modifier = Modifier.clickable(onClick = onClick).padding(vertical = 8.dp),
         color = color,
         fontSize = 13.sp,
+        maxLines = 1,
     )
 }
 
@@ -296,8 +392,13 @@ private fun CloudNavigationAction(
         label,
         modifier = Modifier
             .width(112.dp)
+            .heightIn(min = 44.dp)
+            .background(
+                color = if (enabled) InteractivePanel.copy(alpha = 0.72f) else Color.Transparent,
+                shape = RoundedCornerShape(18.dp),
+            )
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(vertical = 8.dp),
+            .padding(horizontal = 10.dp, vertical = 12.dp),
         color = if (enabled) InteractiveBlue else InteractiveMuted.copy(alpha = 0.35f),
         fontSize = 14.sp,
         fontWeight = FontWeight.SemiBold,
