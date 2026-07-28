@@ -1,0 +1,125 @@
+name: Agent decardify assessment UI
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - ".github/workflows/agent-decardify-assessment.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+      - name: Apply minimal technical style
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/src/main/java/com/majortomman/school/ui/AssessmentAiJudgeSection.kt')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace('import androidx.compose.foundation.shape.RoundedCornerShape\n', '')
+
+          old_panel = '''        Column(
+              modifier = Modifier
+                  .fillMaxWidth()
+                  .background(InteractivePanel, RoundedCornerShape(14.dp))
+                  .padding(horizontal = 15.dp, vertical = 14.dp),
+              verticalArrangement = Arrangement.spacedBy(9.dp),
+          ) {
+              Text(
+                  "答案与解释",
+'''
+          new_panel = '''        Column(
+              modifier = Modifier
+                  .fillMaxWidth()
+                  .padding(top = 6.dp, bottom = 4.dp),
+              verticalArrangement = Arrangement.spacedBy(9.dp),
+          ) {
+              Box(
+                  Modifier
+                      .fillMaxWidth()
+                      .height(2.dp)
+                      .background(InteractiveBlue.copy(alpha = 0.58f)),
+              )
+              Text(
+                  "答案与解释",
+'''
+          if old_panel not in text:
+              raise SystemExit('assessment explanation panel block not found')
+          text = text.replace(old_panel, new_panel, 1)
+
+          old_action = '''    Box(
+          modifier = modifier
+              .height(50.dp)
+              .background(
+                  if (enabled || busy) color.copy(alpha = 0.14f) else InteractivePanel,
+                  RoundedCornerShape(12.dp),
+              )
+              .clickable(enabled = enabled, onClick = onClick),
+          contentAlignment = Alignment.Center,
+      ) {
+          if (busy) {
+              CircularProgressIndicator(
+                  modifier = Modifier.height(21.dp),
+                  color = color,
+                  strokeWidth = 2.dp,
+              )
+          } else {
+              Text(
+                  label,
+                  color = if (enabled) color else InteractiveMuted.copy(alpha = 0.46f),
+                  fontSize = 13.sp,
+                  fontWeight = FontWeight.Bold,
+                  textAlign = TextAlign.Center,
+              )
+          }
+      }
+'''
+          new_action = '''    Box(
+          modifier = modifier
+              .height(50.dp)
+              .clickable(enabled = enabled, onClick = onClick),
+          contentAlignment = Alignment.Center,
+      ) {
+          if (busy) {
+              CircularProgressIndicator(
+                  modifier = Modifier.height(21.dp),
+                  color = color,
+                  strokeWidth = 2.dp,
+              )
+          } else {
+              Text(
+                  label,
+                  color = if (enabled) color else InteractiveMuted.copy(alpha = 0.46f),
+                  fontSize = 13.sp,
+                  fontWeight = FontWeight.Bold,
+                  textAlign = TextAlign.Center,
+              )
+          }
+          Box(
+              Modifier
+                  .align(Alignment.BottomCenter)
+                  .fillMaxWidth()
+                  .height(if (enabled || busy) 2.dp else 1.dp)
+                  .background(if (enabled || busy) color.copy(alpha = 0.76f) else InteractiveLine),
+          )
+      }
+'''
+          if old_action not in text:
+              raise SystemExit('judge action block not found')
+          text = text.replace(old_action, new_action, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/com/majortomman/school/ui/AssessmentAiJudgeSection.kt
+          git commit -m "refactor(ui): decardify assessment controls" || exit 0
+          git push origin dev
