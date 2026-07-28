@@ -54,9 +54,21 @@ class VisualizationSourcePolicyTest {
     @Test
     fun baselineAxisKeepsTextOutsideCanvas() {
         val source = uiFile("OppositeQuantityAxisPanel.kt").readText(Charsets.UTF_8)
-        assertTrue("基准、方向和距离说明应由 Compose Text 排版", "QuantitySummaryCell(" in source)
-        assertTrue("两个方向应使用独立布局单元", "DirectionMeaningCell(" in source)
+        assertTrue("基准和当前记录应由 Compose Text 排版", "InlineQuantitySummary(" in source)
+        assertTrue("两个方向应使用独立 Compose Text 区域", "negativeMeaning" in source && "positiveMeaning" in source)
         assertFalse("基准轴 Canvas 内不得绘制文字", "drawText(" in source || "nativeCanvas" in source)
+        assertFalse("基准轴不得重新使用圆角卡片分区", "RoundedCornerShape" in source)
+    }
+
+    @Test
+    fun coreLearningStyleUsesLinesAndWhitespaceInsteadOfCards() {
+        val shared = uiFile("InteractiveLessonScreen.kt").readText(Charsets.UTF_8)
+        val opposite = uiFile("OppositeQuantitiesSceneVisual.kt").readText(Charsets.UTF_8)
+        assertTrue("学习界面共享面板必须保持透明", "InteractivePanel = Color.Transparent" in shared)
+        assertFalse("通用学习操作不应使用圆角卡片", "RoundedCornerShape" in shared)
+        assertFalse("相反意义量场景不应使用圆角卡片", "RoundedCornerShape" in opposite)
+        assertTrue("通用操作应使用底部强调线", "Alignment.BottomCenter" in shared)
+        assertTrue("场景分区应使用细线", "InteractiveLine" in opposite)
     }
 
     @Test
