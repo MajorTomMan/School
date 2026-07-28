@@ -89,7 +89,7 @@ class CourseAssessmentDistributionTest(unittest.TestCase):
             target = Path(directory) / "target"
             source.mkdir()
             (source / "assessments.json").write_text("{}", encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "must be provided together"):
+            with self.assertRaisesRegex(ValueError, "must appear together"):
                 copy_extensions(source, target)
 
 
