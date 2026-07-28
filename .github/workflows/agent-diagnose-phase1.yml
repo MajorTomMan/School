@@ -1,0 +1,35 @@
+name: Agent diagnose phase 1
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/agent-diagnose-phase1.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+      - name: Capture phase 1 patch result
+        shell: bash
+        run: |
+          set +e
+          mkdir -p .agent
+          sed -n "/python3 - <<'PY'/,/^          PY$/p" .github/workflows/agent-phase1-display-pdf.yml \
+            | sed '1d;$d;s/^          //' > /tmp/phase1.py
+          python3 /tmp/phase1.py > .agent/phase1-error.log 2>&1
+          status=$?
+          echo "exit_status=$status" >> .agent/phase1-error.log
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .agent/phase1-error.log
+          git commit -m "记录第一阶段转换诊断" || true
+          git push origin HEAD:dev
+          exit 0
