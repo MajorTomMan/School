@@ -16,10 +16,10 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -38,7 +38,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -132,8 +131,7 @@ fun AssessmentSessionScreen(
             )
 
             is AssessmentState.Error -> {
-                val previous = value.previous
-                when (previous) {
+                when (val previous = value.previous) {
                     is AssessmentState.Question -> AssessmentQuestionPage(
                         page = previous.page,
                         questionSet = questionSet,
@@ -156,8 +154,8 @@ fun AssessmentSessionScreen(
                     )
                     AssessmentState.Idle,
                     AssessmentState.Loading,
+                    is AssessmentState.Error,
                     -> AssessmentLoading()
-                    is AssessmentState.Error -> AssessmentLoading()
                 }
                 ErrorDialog(value.message) { dispatch(AssessmentIntent.DismissError) }
             }
@@ -324,7 +322,7 @@ private fun AnswerArea(
                             .fillMaxWidth()
                             .border(
                                 1.dp,
-                                if (checked) InteractiveBlue else InteractiveLine,
+                                if (checked) InteractiveBlue else Color.Transparent,
                                 RoundedCornerShape(12.dp),
                             )
                             .background(
@@ -449,8 +447,7 @@ private fun HintAndExplanationArea(
             }
         }
 
-        val canViewExplanation = question.explanation.isNotEmpty() &&
-            page.progress.latestJudgeResult != null
+        val canViewExplanation = question.explanation.isNotEmpty() && page.progress.latestJudgeResult != null
         when {
             page.progress.explanationViewed -> {
                 Text("参考解析", color = InteractiveYellow, fontSize = 14.sp, fontWeight = FontWeight.Bold)
@@ -475,44 +472,36 @@ private fun AssessmentBottomActions(
     questionSet: CourseAssessmentQuestionSet,
     dispatch: (AssessmentIntent) -> Unit,
 ) {
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
             .padding(horizontal = 18.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        AssessmentOutlineAction(
+            label = "上一题",
+            enabled = page.canGoPrevious,
+            modifier = Modifier.weight(1f),
+        ) { dispatch(AssessmentIntent.PreviousQuestion) }
+        if (questionSet.allowSkip && !page.progress.answerLocked) {
             AssessmentOutlineAction(
-                label = "上一题",
-                enabled = page.canGoPrevious,
+                label = "跳过",
+                enabled = !page.busy,
                 modifier = Modifier.weight(1f),
-            ) { dispatch(AssessmentIntent.PreviousQuestion) }
-            if (questionSet.allowSkip && !page.progress.answerLocked) {
-                AssessmentOutlineAction(
-                    label = "跳过",
-                    enabled = !page.busy,
-                    modifier = Modifier.weight(1f),
-                    color = InteractiveMuted,
-                ) { dispatch(AssessmentIntent.SkipQuestion) }
-            }
-            AssessmentOutlineAction(
-                label = if (page.questionIndex == page.questionCount - 1) "检查并结算" else "下一题",
-                enabled = page.canGoNext,
-                modifier = Modifier.weight(1f),
-            ) {
-                dispatch(
-                    if (page.questionIndex == page.questionCount - 1) AssessmentIntent.RequestFinish
-                    else AssessmentIntent.NextQuestion,
-                )
-            }
+                color = InteractiveMuted,
+            ) { dispatch(AssessmentIntent.SkipQuestion) }
         }
         AssessmentOutlineAction(
-            label = if (page.progress.answerLocked) "本题已完成" else "提交答案（本地判题）",
-            enabled = page.canSubmit,
-            modifier = Modifier.fillMaxWidth(),
-            color = InteractiveBlue,
-        ) { dispatch(AssessmentIntent.SubmitAnswer) }
+            label = if (page.questionIndex == page.questionCount - 1) "检查并结算" else "下一题",
+            enabled = page.canGoNext,
+            modifier = Modifier.weight(1f),
+        ) {
+            dispatch(
+                if (page.questionIndex == page.questionCount - 1) AssessmentIntent.RequestFinish
+                else AssessmentIntent.NextQuestion,
+            )
+        }
     }
 }
 
@@ -527,7 +516,10 @@ private fun AssessmentOutlineAction(
     Box(
         modifier = modifier
             .height(48.dp)
-            .border(1.dp, if (enabled) color.copy(alpha = 0.85f) else InteractiveLine, RoundedCornerShape(10.dp))
+            .background(
+                if (enabled) color.copy(alpha = 0.12f) else InteractivePanel.copy(alpha = 0.70f),
+                RoundedCornerShape(10.dp),
+            )
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
