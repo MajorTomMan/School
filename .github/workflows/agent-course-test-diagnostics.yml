@@ -5,6 +5,10 @@ on:
     branches: [agent/section-assessment-ai]
     paths:
       - ".github/workflows/agent-course-test-diagnostics.yml"
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/agent-course-test-diagnostics.yml"
 
 permissions:
   contents: write
