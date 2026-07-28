@@ -18,12 +18,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,7 +34,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -289,25 +290,19 @@ private fun AnswerArea(
             is AnswerInputSpec.Rational,
             -> {
                 val raw = (page.draftAnswer as? UserAnswer.Text)?.raw.orEmpty()
-                OutlinedTextField(
+                AssessmentTextField(
+                    label = when (input) {
+                        AnswerInputSpec.Integer -> "输入整数"
+                        is AnswerInputSpec.Decimal -> "输入小数"
+                        is AnswerInputSpec.Rational -> "输入分数或等值小数"
+                        else -> "输入答案"
+                    },
                     value = raw,
+                    modifier = Modifier.fillMaxWidth(),
+                    page = page,
                     onValueChange = { value ->
                         dispatch(AssessmentIntent.AnswerChanged(value.takeIf(String::isNotBlank)?.let(UserAnswer::Text)))
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !page.busy && !page.progress.answerLocked,
-                    singleLine = true,
-                    label = {
-                        Text(
-                            when (input) {
-                                AnswerInputSpec.Integer -> "输入整数"
-                                is AnswerInputSpec.Decimal -> "输入小数"
-                                is AnswerInputSpec.Rational -> "输入分数或等值小数"
-                                else -> "输入答案"
-                            },
-                        )
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 )
             }
 
@@ -318,21 +313,19 @@ private fun AnswerArea(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(
-                                1.dp,
-                                if (checked) InteractiveBlue else Color.Transparent,
-                                RoundedCornerShape(12.dp),
-                            )
-                            .background(
-                                if (checked) InteractiveBlue.copy(alpha = 0.10f) else InteractivePanel,
-                                RoundedCornerShape(12.dp),
-                            )
                             .clickable(enabled = !page.busy && !page.progress.answerLocked) {
                                 dispatch(AssessmentIntent.AnswerChanged(UserAnswer.Choice(choice.id)))
                             }
-                            .padding(14.dp),
+                            .padding(horizontal = 2.dp, vertical = 12.dp),
                     ) {
                         AssessmentLearningContentList(choice.content, assetFiles, compact = true)
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 10.dp)
+                                .height(if (checked) 2.dp else 1.dp)
+                                .background(if (checked) InteractiveBlue else InteractiveLine),
+                        )
                     }
                 }
             }
@@ -342,10 +335,10 @@ private fun AnswerArea(
                 val x = coordinate?.rawX.orEmpty()
                 val y = coordinate?.rawY.orEmpty()
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    CoordinateField("x", x, Modifier.weight(1f), page) { nextX ->
+                    AssessmentTextField("x", x, Modifier.weight(1f), page) { nextX ->
                         dispatch(coordinateAnswer(nextX, y))
                     }
-                    CoordinateField("y", y, Modifier.weight(1f), page) { nextY ->
+                    AssessmentTextField("y", y, Modifier.weight(1f), page) { nextY ->
                         dispatch(coordinateAnswer(x, nextY))
                     }
                 }
@@ -355,22 +348,39 @@ private fun AnswerArea(
 }
 
 @Composable
-private fun CoordinateField(
+private fun AssessmentTextField(
     label: String,
     value: String,
     modifier: Modifier,
     page: AssessmentQuestionPageState,
     onValueChange: (String) -> Unit,
 ) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
+    val enabled = !page.busy && !page.progress.answerLocked
+    Column(
         modifier = modifier,
-        enabled = !page.busy && !page.progress.answerLocked,
-        singleLine = true,
-        label = { Text(label) },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-    )
+        verticalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        Text(label, color = InteractiveMuted, fontSize = 12.sp)
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth().height(38.dp),
+            enabled = enabled,
+            singleLine = true,
+            textStyle = TextStyle(
+                color = if (enabled) InteractiveWhite else InteractiveMuted,
+                fontSize = 18.sp,
+            ),
+            cursorBrush = SolidColor(InteractiveBlue),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        )
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(if (enabled) InteractiveBlue.copy(alpha = 0.66f) else InteractiveLine),
+        )
+    }
 }
 
 private fun coordinateAnswer(x: String, y: String): AssessmentIntent = AssessmentIntent.AnswerChanged(
@@ -398,16 +408,16 @@ private fun JudgeFeedback(page: AssessmentQuestionPageState) {
             " 本题已记录 ${page.progress.wrongAttemptCount} 次错误尝试。"
         JudgeOutcome.INVALID_INPUT -> feedbackMessage(result.feedbackCode)
     }
-    Text(
-        text = message,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(color.copy(alpha = 0.10f), RoundedCornerShape(10.dp))
-            .padding(horizontal = 13.dp, vertical = 11.dp),
-        color = color,
-        fontSize = 13.sp,
-        lineHeight = 20.sp,
-    )
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Box(Modifier.fillMaxWidth().height(2.dp).background(color.copy(alpha = 0.72f)))
+        Text(
+            text = message,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
+            color = color,
+            fontSize = 13.sp,
+            lineHeight = 20.sp,
+        )
+    }
 }
 
 @Composable
@@ -422,16 +432,16 @@ private fun HintAndExplanationArea(
         question.definition.hints.forEachIndexed { index, hint ->
             val viewed = hint.id in page.progress.viewedHintIds
             if (viewed) {
-                Text(
-                    text = "提示 ${index + 1}：${hint.text}",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(InteractiveBlue.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
-                        .padding(12.dp),
-                    color = InteractiveWhite.copy(alpha = 0.82f),
-                    fontSize = 13.sp,
-                    lineHeight = 21.sp,
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveBlue.copy(alpha = 0.54f)))
+                    Text(
+                        text = "提示 ${index + 1}：${hint.text}",
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                        color = InteractiveWhite.copy(alpha = 0.82f),
+                        fontSize = 13.sp,
+                        lineHeight = 21.sp,
+                    )
+                }
             } else {
                 Text(
                     text = "查看提示 ${index + 1}",
@@ -448,6 +458,7 @@ private fun HintAndExplanationArea(
         val canViewExplanation = question.explanation.isNotEmpty() && page.progress.latestJudgeResult != null
         when {
             page.progress.explanationViewed -> {
+                Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveYellow.copy(alpha = 0.58f)))
                 Text("参考解析", color = InteractiveYellow, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 AssessmentLearningContentList(question.explanation, assetFiles, compact = true)
             }
@@ -514,10 +525,6 @@ private fun AssessmentOutlineAction(
     Box(
         modifier = modifier
             .height(48.dp)
-            .background(
-                if (enabled) color.copy(alpha = 0.12f) else InteractivePanel.copy(alpha = 0.70f),
-                RoundedCornerShape(10.dp),
-            )
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -527,6 +534,13 @@ private fun AssessmentOutlineAction(
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
+        )
+        Box(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(if (enabled) 2.dp else 1.dp)
+                .background(if (enabled) color.copy(alpha = 0.76f) else InteractiveLine),
         )
     }
 }
@@ -583,11 +597,9 @@ private fun AssessmentResultPage(
     ) {
         Text("题组完成", color = InteractiveBlue, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         Text(title, color = InteractiveWhite, fontSize = 30.sp, lineHeight = 37.sp, fontWeight = FontWeight.SemiBold)
+        Box(Modifier.fillMaxWidth().height(2.dp).background(InteractiveYellow.copy(alpha = 0.64f)))
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(InteractivePanel, RoundedCornerShape(16.dp))
-                .padding(18.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
@@ -604,21 +616,21 @@ private fun AssessmentResultPage(
             Text("掌握度变化", color = InteractiveWhite, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
             completion.masteryUpdates.forEach { update ->
                 val titleText = knowledgePoints[update.knowledgePointId]?.title ?: update.knowledgePointId.value
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(InteractivePanel, RoundedCornerShape(12.dp))
-                        .padding(horizontal = 14.dp, vertical = 13.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(titleText, modifier = Modifier.weight(1f), color = InteractiveWhite, fontSize = 14.sp)
-                    Text(
-                        "${(update.beforeScore * 100).roundToInt()} → ${(update.afterScore * 100).roundToInt()}",
-                        color = if (update.afterScore >= update.beforeScore) InteractiveGreen else InteractiveRed,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 11.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(titleText, modifier = Modifier.weight(1f), color = InteractiveWhite, fontSize = 14.sp)
+                        Text(
+                            "${(update.beforeScore * 100).roundToInt()} → ${(update.afterScore * 100).roundToInt()}",
+                            color = if (update.afterScore >= update.beforeScore) InteractiveGreen else InteractiveRed,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
                 }
             }
         }
@@ -661,18 +673,16 @@ private fun ResultMetricGrid(completion: AssessmentCompletion) {
         "无效输入" to "${summary.invalidSubmissionCount} 次",
         "使用提示" to "${summary.hintViewCount} 次",
     )
-    Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+    Column {
         rows.forEach { (label, value) ->
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(InteractivePanel)
-                    .padding(horizontal = 14.dp, vertical = 11.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(label, color = InteractiveMuted, fontSize = 13.sp)
                 Text(value, color = InteractiveWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             }
+            Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
         }
     }
 }
