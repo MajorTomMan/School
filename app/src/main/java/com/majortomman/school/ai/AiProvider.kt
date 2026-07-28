@@ -15,7 +15,11 @@ data class AnswerEvaluation(
     val feedback: String,
     val explanation: String,
     val mistakeType: String? = null,
-)
+) {
+    /** Backward-compatible read-only alias for older non-assessment AI screens. */
+    val correct: Boolean
+        get() = answerCorrect
+}
 
 interface AiProvider {
     suspend fun explain(concept: String, learnerQuestion: String): String
