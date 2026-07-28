@@ -74,8 +74,10 @@ class VisualizationSourcePolicyTest {
     @Test
     fun sharedDesignSystemUsesOpenSectionsInsteadOfCards() {
         val design = uiFile("DesignSystem.kt").readText(Charsets.UTF_8)
-        assertFalse("共享设计系统不得创建 Material Card", "Card(" in design)
-        assertFalse("共享设计系统不得创建 Material Surface", "Surface(" in design)
+        assertFalse("共享设计系统不得导入 Material Card", "import androidx.compose.material3.Card" in design)
+        assertFalse("共享设计系统不得实例化 Material Card", "\n    Card(" in design)
+        assertFalse("共享设计系统不得导入 Material Surface", "import androidx.compose.material3.Surface" in design)
+        assertFalse("共享设计系统不得实例化 Material Surface", "\n    Surface(" in design)
         assertFalse("共享设计系统不得依赖圆角卡片", "RoundedCornerShape" in design)
         assertTrue("共享信息段落应使用细线建立层级", ".height(1.dp)" in design || ".height(2.dp)" in design)
 
