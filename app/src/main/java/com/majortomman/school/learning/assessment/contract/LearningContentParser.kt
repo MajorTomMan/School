@@ -162,7 +162,7 @@ internal object LearningContentParser {
             }
             CourseSceneTemplate.RATIONAL_CLASSIFICATION -> optionalString("mode", setOf("definition", "fraction_form"))
             CourseSceneTemplate.NUMBER_LINE -> {
-                optionalString("mode", setOf("road", "construction", "value", "example", "read_points"))
+                optionalString("mode", setOf("road", "construction", "value", "example", "read_points", "opposite", "opposite_symbol"))
                 values["signed"]?.let { require(it is Boolean) { "$location.data.signed 必须是布尔值" } }
                 values["initial"]?.let {
                     require(it is Number && it.toDouble().isFinite()) { "$location.data.initial 必须是有限数" }

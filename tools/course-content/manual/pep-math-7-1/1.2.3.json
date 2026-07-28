@@ -1,0 +1,233 @@
+{
+  "id": "1.2.3",
+  "number": "1.2.3",
+  "title": "1.2.3 相反数",
+  "aliases": [
+    "1.2.3相反数",
+    "相反数"
+  ],
+  "manualReview": {
+    "textbookId": "pep-math-7-1",
+    "printedPages": [
+      11,
+      12
+    ],
+    "method": "逐页人工核对教材探究、定义、字母表示、例题与练习；练习转入独立逐题题组"
+  },
+  "pages": [
+    {
+      "id": "1.2.3-equal-distance",
+      "type": "lesson",
+      "title": "到原点距离相等的两个点",
+      "sourcePage": 11,
+      "sourceAnchors": [
+        {
+          "page": 11,
+          "text": "在数轴上，与原点的距离是3的点有几个"
+        },
+        {
+          "page": 11,
+          "text": "这两个数也只有符号不同"
+        }
+      ],
+      "blocks": [
+        {
+          "type": "prompt",
+          "text": "在数轴上，与原点的距离是3的点有几个？它们分别表示什么数？把共同距离改成1/2，结论是否仍然成立？"
+        },
+        {
+          "type": "textbook_text",
+          "text": "数轴上与原点的距离是3的点有两个，它们分别表示3和−3；与原点的距离是1/2的点也有两个，它们分别表示1/2和−1/2。每一对数的数字部分相同，符号相反。"
+        },
+        {
+          "type": "explanation",
+          "text": "共同距离决定两个点离原点有多远，左右方向决定符号。拖动下面的共同距离，观察两个点始终关于原点左右对应。"
+        },
+        {
+          "type": "visualization",
+          "renderer": "number_line_lesson",
+          "params": {
+            "mode": "opposite",
+            "initial": 3
+          }
+        },
+        {
+          "type": "conclusion",
+          "text": "位于原点两侧、到原点距离相等的两个点所表示的数，只有符号不同。"
+        }
+      ]
+    },
+    {
+      "id": "1.2.3-definition",
+      "type": "lesson",
+      "title": "互为相反数",
+      "sourcePage": 11,
+      "sourcePageEnd": 12,
+      "sourceAnchors": [
+        {
+          "page": 11,
+          "text": "一般地，设a是一个正数，数轴上与原点的距离是a的点有两个"
+        },
+        {
+          "page": 12,
+          "text": "像3和−3，1/2和−1/2这样只有符号不同的两个数，互为相反数"
+        }
+      ],
+      "blocks": [
+        {
+          "type": "textbook_text",
+          "text": "一般地，设a是一个正数，数轴上与原点的距离是a的点有两个，它们分别在正、负半轴上，表示a和−a。像3和−3、1/2和−1/2这样只有符号不同的两个数，互为相反数。"
+        },
+        {
+          "type": "summary",
+          "items": [
+            "3的相反数是−3，−3的相反数是3。",
+            "1/2与−1/2互为相反数。",
+            "0的相反数是0。"
+          ]
+        },
+        {
+          "type": "explanation",
+          "text": "“相反数”描述的是两个数之间的关系。除0外，一对相反数在数轴上分居原点两侧；0位于原点，所以它的相反数仍是0。"
+        },
+        {
+          "type": "visualization",
+          "renderer": "number_line_lesson",
+          "params": {
+            "mode": "opposite",
+            "initial": 1.5
+          }
+        },
+        {
+          "type": "conclusion",
+          "text": "两个数互为相反数，当且仅当它们只有符号不同；0与自身互为相反数。"
+        }
+      ]
+    },
+    {
+      "id": "1.2.3-symbol-a",
+      "type": "lesson",
+      "title": "−a表示a的相反数",
+      "sourcePage": 12,
+      "sourceAnchors": [
+        {
+          "page": 12,
+          "text": "一般地，a和−a互为相反数"
+        },
+        {
+          "page": 12,
+          "text": "a表示任意一个数"
+        }
+      ],
+      "blocks": [
+        {
+          "type": "textbook_text",
+          "text": "一般地，a和−a互为相反数。这里a表示任意一个数，可以是正数、负数，也可以是0。式子−a读作“a的相反数”。"
+        },
+        {
+          "type": "prompt",
+          "text": "式子−a的最前面有负号，它一定表示负数吗？"
+        },
+        {
+          "type": "explanation",
+          "text": "不一定。若a是正数，−a是负数；若a是负数，−a是正数；若a=0，−a=0。最前面的“−”表示执行一次取相反数，而不是预先宣布结果为负数。"
+        },
+        {
+          "type": "visualization",
+          "renderer": "number_line_lesson",
+          "params": {
+            "mode": "opposite_symbol"
+          }
+        },
+        {
+          "type": "conclusion",
+          "text": "判断−a的正负必须先知道a的取值；“−”在这里表示取相反数。"
+        }
+      ]
+    },
+    {
+      "id": "1.2.3-double-negative",
+      "type": "lesson",
+      "title": "取负数的相反数",
+      "sourcePage": 12,
+      "sourceAnchors": [
+        {
+          "page": 12,
+          "text": "在正数前面添上“−”号"
+        },
+        {
+          "page": 12,
+          "text": "新的数就表示原数的相反数"
+        }
+      ],
+      "blocks": [
+        {
+          "type": "textbook_text",
+          "text": "在任意一个数前面添上“−”号，新的式子表示原数的相反数。因此−（+5）=−5，−（−5）=+5，−0=0。"
+        },
+        {
+          "type": "explanation",
+          "text": "括号内是原数，括号外的负号要求取它的相反数。−（−5）不是机械地“删除两个负号”，而是取−5的相反数，所以得到+5。"
+        },
+        {
+          "type": "formula",
+          "expression": "−（−5）= +5",
+          "conditions": [
+            "括号外的−表示取相反数"
+          ]
+        },
+        {
+          "type": "visualization",
+          "renderer": "number_line_lesson",
+          "params": {
+            "mode": "opposite_symbol"
+          }
+        },
+        {
+          "type": "conclusion",
+          "text": "先辨认原数，再执行取相反数；不要只背“负负得正”而忽略含义。"
+        }
+      ]
+    },
+    {
+      "id": "1.2.3-example",
+      "type": "lesson",
+      "title": "求一个数或原数",
+      "sourcePage": 12,
+      "sourceAnchors": [
+        {
+          "page": 12,
+          "text": "分别写出−7和4/3的相反数"
+        },
+        {
+          "page": 12,
+          "text": "a的相反数是2.4"
+        }
+      ],
+      "blocks": [
+        {
+          "type": "worked_example",
+          "label": "例3",
+          "statement": "（1）分别写出−7和4/3的相反数；（2）a的相反数是2.4，求a。",
+          "steps": [
+            "−7的相反数是7；4/3的相反数是−4/3。",
+            "2.4的相反数是−2.4。因为a与2.4互为相反数，所以a=−2.4。"
+          ],
+          "result": "求相反数时改变符号；已知一个数的相反数时，再取一次相反数即可还原原数。"
+        },
+        {
+          "type": "summary",
+          "items": [
+            "一个数与它的相反数之间的关系是双向的。",
+            "若b是a的相反数，那么a也是b的相反数。",
+            "只有0满足a=−a。"
+          ]
+        },
+        {
+          "type": "conclusion",
+          "text": "本节练习将在下一步逐题作答，每题都有输入区、本地提交、AI反馈和参考解析。"
+        }
+      ]
+    }
+  ]
+}

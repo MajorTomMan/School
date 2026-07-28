@@ -197,14 +197,14 @@ jobs:
                       "course.json",
                       "assessments.json",
                       "knowledge-points.json",
-                      "assets/figures/number-line-road-source.png",
                   }
                   assert required <= set(bundled)
+                  assert not any(path.startswith("assets/figures/") for path in bundled)
                   assessments = json.loads((book_root / "assessments.json").read_text(encoding="utf-8"))
                   knowledge = json.loads((book_root / "knowledge-points.json").read_text(encoding="utf-8"))
-                  assert len(assessments["questionSets"]) == 3
-                  assert sum(len(item["questions"]) for item in assessments["questionSets"]) == 15
-                  assert len(knowledge["knowledgePoints"]) == 9
+                  assert len(assessments["questionSets"]) == 4
+                  assert sum(len(item["questions"]) for item in assessments["questionSets"]) == 20
+                  assert len(knowledge["knowledgePoints"]) == 11
               else:
                   assert "assessments.json" not in files
                   assert "knowledge-points.json" not in files

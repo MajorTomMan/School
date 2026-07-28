@@ -100,6 +100,28 @@
       "sectionIds": [
         "1.2.2"
       ]
+    },
+    {
+      "id": "opposite-number-definition",
+      "title": "相反数的概念",
+      "description": "根据只有符号不同或数轴上关于原点对应，判断两个数互为相反数，并理解0的相反数是0。",
+      "prerequisiteIds": [
+        "number-line-position"
+      ],
+      "sectionIds": [
+        "1.2.3"
+      ]
+    },
+    {
+      "id": "opposite-number-symbol",
+      "title": "用−a表示相反数",
+      "description": "理解−a表示a的相反数，并正确处理负数的相反数和双重负号。",
+      "prerequisiteIds": [
+        "opposite-number-definition"
+      ],
+      "sectionIds": [
+        "1.2.3"
+      ]
     }
   ]
 }

@@ -9,6 +9,7 @@ import com.majortomman.school.learning.assessment.contract.KNOWLEDGE_POINTS_FILE
 import com.majortomman.school.learning.assessment.contract.KnowledgePointDefinition
 import com.majortomman.school.learning.assessment.contract.KnowledgePointDocumentParser
 import com.majortomman.school.learning.assessment.domain.KnowledgePointId
+import com.majortomman.school.learning.assessment.domain.QuestionSetId
 import com.majortomman.school.learning.content.ContentAssetId
 import com.majortomman.school.learning.course.CourseChapter
 import com.majortomman.school.learning.course.CourseDocument
@@ -17,20 +18,18 @@ import com.majortomman.school.learning.course.CourseSection
 import java.io.File
 import java.security.MessageDigest
 
-/**
- * Read-only runtime view of assessment content installed beside a cloud course.
- *
- * Installation already validates the package strictly. This repository parses the active immutable files again and
- * exposes only question sets placed in the lesson currently opened by the learner.
- */
 data class InstalledLessonAssessments(
     val courseId: String,
     val contentRevision: String,
     val sectionIds: List<String>,
     val questionSets: List<CourseAssessmentQuestionSet>,
+    val questionSetsBySectionName: Map<String, List<CourseAssessmentQuestionSet>>,
     val assetFiles: Map<ContentAssetId, File>,
     val knowledgePoints: Map<KnowledgePointId, KnowledgePointDefinition>,
-)
+) {
+    fun questionSetsFor(sectionLabel: String): List<CourseAssessmentQuestionSet> =
+        questionSetsBySectionName[normalizeSectionName(sectionLabel)].orEmpty()
+}
 
 object CloudAssessmentRepository {
     private const val ACTIVE_DIRECTORY = "course-packs/active"
@@ -67,16 +66,29 @@ object CloudAssessmentRepository {
 
         val sections = course.resolveSections(title, sourcePages)
         if (sections.isEmpty()) return null
-        val sectionIds = sections.map(CourseSection::id)
-        val placedIds = assessments.placements
-            .filter { it.sectionId in sectionIds }
-            .flatMap { it.questionSetIds }
-        if (placedIds.isEmpty()) return null
 
         val setById = assessments.questionSets.associateBy(CourseAssessmentQuestionSet::id)
-        val questionSets = placedIds.map { id ->
-            setById[id] ?: error("已验证题组在运行时丢失：$id")
+        val placementBySection = assessments.placements.associateBy { it.sectionId }
+        val sectionQuestionSets = linkedMapOf<String, List<CourseAssessmentQuestionSet>>()
+        sections.forEach { section ->
+            val placed = placementBySection[section.id]
+                ?.questionSetIds
+                .orEmpty()
+                .map { id: QuestionSetId ->
+                    setById[id] ?: error("已验证题组在运行时丢失：$id")
+                }
+            if (placed.isNotEmpty()) {
+                section.names()
+                    .map(::normalizeSectionName)
+                    .filter(String::isNotBlank)
+                    .forEach { normalized -> sectionQuestionSets[normalized] = placed }
+            }
         }
+        if (sectionQuestionSets.isEmpty()) return null
+
+        val questionSets = sectionQuestionSets.values
+            .flatten()
+            .distinctBy(CourseAssessmentQuestionSet::id)
         val assetFiles = assessments.assets.associate { asset ->
             val file = safeResolve(root, asset.path)
             require(file.isFile) { "题目资产缺失：${asset.path}" }
@@ -86,8 +98,9 @@ object CloudAssessmentRepository {
         return InstalledLessonAssessments(
             courseId = course.textbook.id,
             contentRevision = contentRevision(courseFile, assessmentFile, knowledgeFile),
-            sectionIds = sectionIds,
+            sectionIds = sections.map(CourseSection::id),
             questionSets = questionSets,
+            questionSetsBySectionName = sectionQuestionSets,
             assetFiles = assetFiles,
             knowledgePoints = knowledge.knowledgePoints.associateBy(KnowledgePointDefinition::id),
         )
@@ -97,15 +110,15 @@ object CloudAssessmentRepository {
         title: String,
         sourcePages: IntRange,
     ): List<CourseSection> {
-        val requested = normalizeTitle(title)
+        val requested = normalizeSectionName(title)
         if (requested.isNotBlank()) {
             chapters.forEach { chapter ->
-                if (chapter.names().any { normalizeTitle(it) == requested }) {
+                if (chapter.names().any { normalizeSectionName(it) == requested }) {
                     return chapter.sections + listOfNotNull(chapter.review)
                 }
                 chapter.allSections().forEach { section ->
-                    if (section.names().any { normalizeTitle(it) == requested }) return listOf(section)
-                    if (section.pages.any { page -> page.names().any { normalizeTitle(it) == requested } }) {
+                    if (section.names().any { normalizeSectionName(it) == requested }) return listOf(section)
+                    if (section.pages.any { page -> page.names().any { normalizeSectionName(it) == requested } }) {
                         return listOf(section)
                     }
                 }
@@ -137,13 +150,6 @@ object CloudAssessmentRepository {
     private fun CoursePage.overlaps(range: IntRange): Boolean =
         sourcePage <= range.last && sourcePageEnd >= range.first
 
-    private fun normalizeTitle(value: String): String = value
-        .replace(" ", "")
-        .replace("　", "")
-        .replace("（", "(")
-        .replace("）", ")")
-        .trim()
-
     private fun contentRevision(vararg files: File): String {
         val digest = MessageDigest.getInstance("SHA-256")
         files.sortedBy { file -> file.name }.forEach { file ->
@@ -170,3 +176,10 @@ object CloudAssessmentRepository {
         return canonicalFile
     }
 }
+
+private fun normalizeSectionName(value: String): String = value
+    .replace(" ", "")
+    .replace("　", "")
+    .replace("（", "(")
+    .replace("）", ")")
+    .trim()

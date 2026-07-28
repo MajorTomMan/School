@@ -40,6 +40,7 @@ class Grade7SampleAssessmentContractTest {
                         section("1.1"),
                         section("1.2.1"),
                         section("1.2.2"),
+                        section("1.2.3"),
                     ),
                 ),
             ),
@@ -47,9 +48,9 @@ class Grade7SampleAssessmentContractTest {
 
         AssessmentPackageContract.validate(course, assessments, knowledge)
 
-        assertEquals(3, assessments.questionSets.size)
-        assertEquals(15, assessments.questionSets.sumOf { it.questions.size })
-        assertEquals(9, knowledge.knowledgePoints.size)
+        assertEquals(4, assessments.questionSets.size)
+        assertEquals(20, assessments.questionSets.sumOf { it.questions.size })
+        assertEquals(11, knowledge.knowledgePoints.size)
         assertEquals(
             setOf("integer", "decimal", "rational", "single_choice", "coordinate"),
             assessments.questionSets

@@ -113,7 +113,7 @@ def validate_scene(value: dict[str, Any], where: str) -> None:
         if unknown:
             raise ValueError(f"{where}.data has unknown keys: {sorted(unknown)}")
         mode = value["data"].get("mode")
-        if mode is not None and mode not in {"road", "construction", "value", "example", "read_points"}:
+        if mode is not None and mode not in {"road", "construction", "value", "example", "read_points", "opposite", "opposite_symbol"}:
             raise ValueError(f"{where}.data.mode is unsupported")
 
 

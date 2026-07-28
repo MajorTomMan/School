@@ -65,14 +65,16 @@ fun CloudCourseLessonScreen(
     lesson: Lesson,
     installedMaterial: InstalledMaterialPack,
     nextLessonTitle: String?,
+    pagesOverride: List<CoursePage>? = null,
     onOpenTextbook: (Int) -> Unit,
     onBack: () -> Unit,
     onComplete: () -> Unit,
 ) {
     val revision by CloudCourseRepository.revision.collectAsState()
-    val pages = remember(lesson.title, lesson.textbookPages, revision) {
+    val cloudPages = remember(lesson.title, lesson.textbookPages, revision) {
         CloudCourseRepository.pagesFor(lesson.title, lesson.textbookPages)
     }
+    val pages = pagesOverride ?: cloudPages
     if (pages.isEmpty()) {
         CourseDataUnavailableScreen(
             lessonTitle = lesson.title,
@@ -218,7 +220,7 @@ private fun CloudCoursePager(
                 Text(
                     "学习环节 ${pagerState.currentPage + 1} / ${pages.size}",
                     color = InteractiveMuted,
-                    fontSize = 10.sp,
+                    fontSize = 12.sp,
                     textAlign = TextAlign.Center,
                 )
             }
@@ -281,89 +283,75 @@ private fun CloudCoursePageContent(
         val compact = maxHeight < 620.dp
         val scrollState = rememberScrollState()
 
-        Box(Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(scrollState)
-                    .padding(horizontal = 22.dp, vertical = 18.dp),
-            ) {
-                Text(
-                    "学习环节 $pageNumber / $pageCount",
-                    color = InteractiveBlue,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    page.title,
-                    color = InteractiveWhite,
-                    fontSize = if (compact) 27.sp else 32.sp,
-                    lineHeight = if (compact) 33.sp else 39.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(Modifier.height(14.dp))
-                CloudCourseOrderedBlocks(page, compact)
-                Spacer(Modifier.height(34.dp))
-                Text(
-                    "本环节结束 · 左右滑动或使用下方按钮翻页",
-                    modifier = Modifier.fillMaxWidth(),
-                    color = InteractiveMuted.copy(alpha = 0.74f),
-                    fontSize = 11.sp,
-                    lineHeight = 18.sp,
-                    textAlign = TextAlign.Center,
-                )
-                Spacer(Modifier.height(28.dp))
-            }
-            ScrollContinuationHint(scrollState)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 22.dp, vertical = 18.dp),
+        ) {
+            Text(
+                "学习环节 $pageNumber / $pageCount",
+                color = InteractiveBlue,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                page.title,
+                color = InteractiveWhite,
+                fontSize = if (compact) 27.sp else 32.sp,
+                lineHeight = if (compact) 33.sp else 39.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            InlineScrollContinuationNotice(scrollState)
+            Spacer(Modifier.height(14.dp))
+            CloudCourseOrderedBlocks(page, compact)
+            Spacer(Modifier.height(34.dp))
+            Text(
+                "本环节结束 · 左右滑动或使用下方按钮翻页",
+                modifier = Modifier.fillMaxWidth(),
+                color = InteractiveMuted.copy(alpha = 0.74f),
+                fontSize = 12.sp,
+                lineHeight = 19.sp,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(28.dp))
         }
     }
 }
 
 @Composable
-private fun BoxScope.ScrollContinuationHint(scrollState: androidx.compose.foundation.ScrollState) {
+private fun InlineScrollContinuationNotice(scrollState: androidx.compose.foundation.ScrollState) {
     val visible by remember(scrollState) {
         derivedStateOf {
-            scrollState.maxValue > 0 && scrollState.value < 32 && scrollState.canScrollForward
+            scrollState.maxValue > 0 && scrollState.value < 12 && scrollState.canScrollForward
         }
     }
-    val transition = rememberInfiniteTransition(label = "course-scroll-hint")
-    val arrowOffset by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 6f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 650),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "course-scroll-hint-offset",
-    )
-
     AnimatedVisibility(
         visible = visible,
-        modifier = Modifier
-            .align(Alignment.BottomCenter)
-            .padding(bottom = 10.dp),
         enter = fadeIn(tween(180)),
         exit = fadeOut(tween(140)),
     ) {
         Row(
             modifier = Modifier
-                .background(InteractivePanel.copy(alpha = 0.96f), RoundedCornerShape(24.dp))
-                .padding(horizontal = 14.dp, vertical = 8.dp),
+                .fillMaxWidth()
+                .padding(top = 14.dp)
+                .background(InteractivePanel, RoundedCornerShape(12.dp))
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                "向上滑动继续阅读",
+                "本环节内容较长，可向上滑动继续阅读",
                 color = InteractiveWhite.copy(alpha = 0.88f),
-                fontSize = 12.sp,
+                fontSize = 13.sp,
+                lineHeight = 20.sp,
                 fontWeight = FontWeight.Medium,
             )
             Text(
                 "↓",
-                modifier = Modifier.graphicsLayer { translationY = arrowOffset },
                 color = InteractiveBlue,
-                fontSize = 16.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
             )
         }

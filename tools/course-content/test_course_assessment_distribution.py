@@ -24,7 +24,7 @@ class CourseAssessmentDistributionTest(unittest.TestCase):
             "textbook": {"id": "pep-math-7-1"},
             "chapters": [{
                 "sections": [
-                    {"id": "1.1"}, {"id": "1.2.1"}, {"id": "1.2.2"},
+                    {"id": "1.1"}, {"id": "1.2.1"}, {"id": "1.2.2"}, {"id": "1.2.3"},
                 ],
             }],
         }
@@ -46,7 +46,7 @@ class CourseAssessmentDistributionTest(unittest.TestCase):
                 self.write_fake_declared_png(root / asset["path"], asset["width"], asset["height"])
             result = validate_package(root)
             self.assertEqual(
-                {"questionSets": 3, "questions": 15, "knowledgePoints": 9, "assets": 1},
+                {"questionSets": 4, "questions": 20, "knowledgePoints": 11, "assets": 0},
                 result,
             )
 
@@ -88,7 +88,6 @@ class CourseAssessmentDistributionTest(unittest.TestCase):
             source = Path(directory) / "source"
             target = Path(directory) / "target"
             source.mkdir()
-            target.mkdir()
             (source / "assessments.json").write_text("{}", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "must appear together"):
                 copy_extensions(source, target)
