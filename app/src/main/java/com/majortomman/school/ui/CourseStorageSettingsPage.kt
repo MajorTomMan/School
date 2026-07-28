@@ -20,10 +20,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -53,21 +53,17 @@ private val CourseSettingsMuted = CourseSettingsWhite.copy(alpha = 0.46f)
 private val CourseSettingsLine = CourseSettingsWhite.copy(alpha = 0.13f)
 
 @Composable
-internal fun CourseStorageSettingsPage(onCacheChanged: () -> Unit) {
+internal fun CourseStorageSettingsPage() {
     val context = LocalContext.current.applicationContext
     val scope = rememberCoroutineScope()
     val downloadState by CourseDownloadCoordinator.state.collectAsState()
-    var snapshot by rememberSaveable { mutableStateOf<CourseStorageSnapshot?>(null) }
+    var snapshot by remember { mutableStateOf<CourseStorageSnapshot?>(null) }
     var checking by rememberSaveable { mutableStateOf(false) }
-    var updateOffer by rememberSaveable { mutableStateOf<CourseUpdateOffer?>(null) }
+    var updateOffer by remember { mutableStateOf<CourseUpdateOffer?>(null) }
     var updateStatus by rememberSaveable { mutableStateOf<String?>(null) }
     var confirmClear by rememberSaveable { mutableStateOf(false) }
     var clearing by rememberSaveable { mutableStateOf(false) }
     var clearStatus by rememberSaveable { mutableStateOf<String?>(null) }
-
-    fun refreshSnapshot() {
-        scope.launch { snapshot = CourseStorageManager.inspect(context) }
-    }
 
     LaunchedEffect(Unit) {
         CourseDownloadCoordinator.initialize(context)
@@ -83,7 +79,6 @@ internal fun CourseStorageSettingsPage(onCacheChanged: () -> Unit) {
                 }
                 updateOffer = null
                 snapshot = CourseStorageManager.inspect(context)
-                onCacheChanged()
             }
             is CourseDownloadUiState.Failed -> updateStatus = "下载失败：${state.message}"
             else -> Unit
@@ -224,10 +219,8 @@ internal fun CourseStorageSettingsPage(onCacheChanged: () -> Unit) {
                                 scope.launch {
                                     clearStatus = when (val result = CourseStorageManager.clearCache(context)) {
                                         CourseCacheClearResult.Busy -> "后台下载尚未结束，课程缓存没有被修改。"
-                                        is CourseCacheClearResult.Cleared -> {
-                                            onCacheChanged()
+                                        is CourseCacheClearResult.Cleared ->
                                             "已清理 ${formatBytes(result.removedBytes)}，移除 ${result.removedTextbooks} 册本地课程；学习记录保持不变。"
-                                        }
                                         is CourseCacheClearResult.Failed -> "清理失败：${result.message}"
                                     }
                                     snapshot = CourseStorageManager.inspect(context)
