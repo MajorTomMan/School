@@ -7,6 +7,8 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
@@ -14,6 +16,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.majortomman.school.data.DisplayPreferences
+import com.majortomman.school.data.DisplaySettings
+import com.majortomman.school.ui.AppBackgroundHost
 
 private val MinimalBlack = Color(0xFF000000)
 private val MinimalWhite = Color(0xFFF5F5F7)
@@ -34,11 +39,11 @@ private val MinimalColors = darkColorScheme(
     onTertiary = MinimalWhite,
     tertiaryContainer = Color(0xFF2B0806),
     onTertiaryContainer = MinimalWhite,
-    background = MinimalBlack,
+    background = Color.Transparent,
     onBackground = MinimalWhite,
-    surface = MinimalBlack,
+    surface = Color.Transparent,
     onSurface = MinimalWhite,
-    surfaceVariant = Color(0xFF0B0B0D),
+    surfaceVariant = Color(0xCC0B0B0D),
     onSurfaceVariant = Color(0xFFA1A1A6),
     outline = Color(0xFF3A3A3C),
     error = MinimalRed,
@@ -70,6 +75,7 @@ fun SchoolTheme(
     textScale: Float = 1f,
     content: @Composable () -> Unit,
 ) {
+    val displaySettings by DisplayPreferences.state.collectAsState(initial = DisplaySettings())
     val density = LocalDensity.current
     val scaledDensity = Density(
         density = density.density,
@@ -77,10 +83,11 @@ fun SchoolTheme(
     )
     CompositionLocalProvider(LocalDensity provides scaledDensity) {
         MaterialTheme(
-  colorScheme = MinimalColors,
-  typography = SchoolTypography,
-  shapes = MinimalShapes,
-  content = content,
-        )
+            colorScheme = MinimalColors,
+            typography = SchoolTypography,
+            shapes = MinimalShapes,
+        ) {
+            AppBackgroundHost(settings = displaySettings, content = content)
+        }
     }
 }
