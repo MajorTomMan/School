@@ -1,4 +1,5 @@
 import java.util.Base64
+import java.util.Properties
 
 plugins {
     id("com.android.application")
@@ -20,6 +21,25 @@ fun resolvedSetting(environmentName: String, propertyName: String): String =
         .orNull
         ?.trim()
         .orEmpty()
+
+val versionPropertiesFile = rootProject.file("version.properties")
+check(versionPropertiesFile.isFile) {
+    "缺少统一版本文件：${versionPropertiesFile.path}"
+}
+val versionProperties = Properties().apply {
+    versionPropertiesFile.inputStream().use(::load)
+}
+fun requiredVersionProperty(name: String): String =
+    versionProperties.getProperty(name)?.trim()?.takeIf(String::isNotEmpty)
+        ?: error("version.properties 缺少 $name")
+
+val declaredVersionCode = requiredVersionProperty("VERSION_CODE").toIntOrNull()
+    ?: error("VERSION_CODE 必须是正整数")
+check(declaredVersionCode > 0) { "VERSION_CODE 必须大于 0" }
+val declaredVersionName = requiredVersionProperty("VERSION_NAME")
+check(Regex("\\d+\\.\\d+\\.\\d+").matches(declaredVersionName)) {
+    "VERSION_NAME 必须使用 x.y.z 格式"
+}
 
 val developmentKeystoreSource = rootProject.file("signing/school-development.jks.b64")
 val developmentKeystore = rootProject.file("build/signing/school-development.jks")
@@ -45,11 +65,11 @@ if (!developmentKeystore.isFile || developmentKeystore.length() == 0L) {
 val resolvedVersionCode = providers.environmentVariable("SCHOOL_VERSION_CODE")
     .orNull
     ?.toIntOrNull()
-    ?: 26
+    ?: declaredVersionCode
 val resolvedVersionName = providers.environmentVariable("SCHOOL_VERSION_NAME")
     .orNull
     ?.takeIf(String::isNotBlank)
-    ?: "0.22.0"
+    ?: declaredVersionName
 val updatePublicKey = updatePublicKeySource.readText(Charsets.UTF_8).filterNot(Char::isWhitespace)
 val developmentCertificate = developmentCertificateSource.readText(Charsets.UTF_8)
     .lowercase()
