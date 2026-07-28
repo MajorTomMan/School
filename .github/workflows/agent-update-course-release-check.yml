@@ -28,33 +28,24 @@ jobs:
 
           path = Path('.github/workflows/course-r2-release.yml')
           text = path.read_text(encoding='utf-8')
-          old = '''                  required = {
-                      "course.json",
-                      "assessments.json",
-                      "knowledge-points.json",
-                      "assets/figures/number-line-road-source.png",
-                  }
-                  assert required <= set(bundled)
-                  assessments = json.loads((book_root / "assessments.json").read_text(encoding="utf-8"))
-                  knowledge = json.loads((book_root / "knowledge-points.json").read_text(encoding="utf-8"))
-                  assert len(assessments["questionSets"]) == 3
-                  assert sum(len(item["questions"]) for item in assessments["questionSets"]) == 15
-                  assert len(knowledge["knowledgePoints"]) == 9'''
-          new = '''                  required = {
-                      "course.json",
-                      "assessments.json",
-                      "knowledge-points.json",
-                  }
-                  assert required <= set(bundled)
-                  assert not any(path.startswith("assets/figures/") for path in bundled)
-                  assessments = json.loads((book_root / "assessments.json").read_text(encoding="utf-8"))
-                  knowledge = json.loads((book_root / "knowledge-points.json").read_text(encoding="utf-8"))
-                  assert len(assessments["questionSets"]) == 4
-                  assert sum(len(item["questions"]) for item in assessments["questionSets"]) == 20
-                  assert len(knowledge["knowledgePoints"]) == 11'''
-          if text.count(old) != 1:
-              raise SystemExit(f'expected one old release assertion block, found {text.count(old)}')
-          path.write_text(text.replace(old, new), encoding='utf-8')
+          replacements = {
+              '                      "assets/figures/number-line-road-source.png",\n': '',
+              '                  assert required <= set(bundled)\n': (
+                  '                  assert required <= set(bundled)\n'
+                  '                  assert not any(path.startswith("assets/figures/") for path in bundled)\n'
+              ),
+              '                  assert len(assessments["questionSets"]) == 3\n':
+                  '                  assert len(assessments["questionSets"]) == 4\n',
+              '                  assert sum(len(item["questions"]) for item in assessments["questionSets"]) == 15\n':
+                  '                  assert sum(len(item["questions"]) for item in assessments["questionSets"]) == 20\n',
+              '                  assert len(knowledge["knowledgePoints"]) == 9\n':
+                  '                  assert len(knowledge["knowledgePoints"]) == 11\n',
+          }
+          for old, new in replacements.items():
+              if text.count(old) != 1:
+                  raise SystemExit(f'expected one occurrence of {old!r}, found {text.count(old)}')
+              text = text.replace(old, new)
+          path.write_text(text, encoding='utf-8')
           PY
       - name: Commit release check
         shell: bash
