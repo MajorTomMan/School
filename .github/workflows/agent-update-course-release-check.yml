@@ -1,0 +1,67 @@
+name: Update course release check
+
+on:
+  push:
+    branches: [agent/section-assessment-ai]
+    paths:
+      - ".github/workflows/agent-update-course-release-check.yml"
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/agent-update-course-release-check.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/section-assessment-ai
+      - name: Update release assertions
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/workflows/course-r2-release.yml')
+          text = path.read_text(encoding='utf-8')
+          old = '''                  required = {
+                      "course.json",
+                      "assessments.json",
+                      "knowledge-points.json",
+                      "assets/figures/number-line-road-source.png",
+                  }
+                  assert required <= set(bundled)
+                  assessments = json.loads((book_root / "assessments.json").read_text(encoding="utf-8"))
+                  knowledge = json.loads((book_root / "knowledge-points.json").read_text(encoding="utf-8"))
+                  assert len(assessments["questionSets"]) == 3
+                  assert sum(len(item["questions"]) for item in assessments["questionSets"]) == 15
+                  assert len(knowledge["knowledgePoints"]) == 9'''
+          new = '''                  required = {
+                      "course.json",
+                      "assessments.json",
+                      "knowledge-points.json",
+                  }
+                  assert required <= set(bundled)
+                  assert not any(path.startswith("assets/figures/") for path in bundled)
+                  assessments = json.loads((book_root / "assessments.json").read_text(encoding="utf-8"))
+                  knowledge = json.loads((book_root / "knowledge-points.json").read_text(encoding="utf-8"))
+                  assert len(assessments["questionSets"]) == 4
+                  assert sum(len(item["questions"]) for item in assessments["questionSets"]) == 20
+                  assert len(knowledge["knowledgePoints"]) == 11'''
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one old release assertion block, found {text.count(old)}')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+      - name: Commit release check
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/course-r2-release.yml
+          git commit -m "更新课程发布题组验收标准"
+          git push origin HEAD:agent/section-assessment-ai
