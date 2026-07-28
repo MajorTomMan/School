@@ -1,5 +1,7 @@
 package com.majortomman.school.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -18,8 +20,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -48,6 +52,9 @@ import androidx.compose.ui.unit.sp
 import com.majortomman.school.BuildConfig
 import com.majortomman.school.ai.OpenAiCompatibleClient
 import com.majortomman.school.data.AiSettings
+import com.majortomman.school.data.BackgroundImportResult
+import com.majortomman.school.data.BackgroundMode
+import com.majortomman.school.data.BackgroundPreset
 import com.majortomman.school.data.DisplayPreferences
 import com.majortomman.school.data.DisplaySettings
 import com.majortomman.school.network.AppProxy
@@ -58,7 +65,7 @@ import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.launch
 
-private val SettingsBlack = Color(0xFF050608)
+private val SettingsBlack = Color.Transparent
 private val SettingsWhite = Color(0xFFF5F7FA)
 private val SettingsBlue = Color(0xFF2D7BFF)
 private val SettingsRed = Color(0xFFFF453A)
@@ -181,12 +188,9 @@ fun MaterialSettingsScreen(
 
                 SettingsPage.COURSE -> CourseStorageSettingsPage()
 
-      SettingsPage.DISPLAY -> DisplaySettingsPage(
-          textScale = displaySettings.textScale,
-          onTextScaleChanged = { DisplayPreferences.setTextScale(appContext, it) },
-      )
+                SettingsPage.DISPLAY -> DisplaySettingsPage(settings = displaySettings)
 
-      SettingsPage.AI -> AiSettingsPage(
+                SettingsPage.AI -> AiSettingsPage(
                     endpoint = endpoint,
                     onEndpointChange = {
                         endpoint = it
@@ -476,50 +480,142 @@ private fun AiSettingsPage(
 }
 
 @Composable
-private fun DisplaySettingsPage(
-    textScale: Float,
-    onTextScaleChanged: (Float) -> Unit,
-) {
-    val options = listOf(
+private fun DisplaySettingsPage(settings: DisplaySettings) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var importStatus by rememberSaveable { mutableStateOf<String?>(null) }
+    var importing by rememberSaveable { mutableStateOf(false) }
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        importing = true
+        importStatus = "正在校验并导入背景图片…"
+        scope.launch {
+            when (val result = DisplayPreferences.importCustomBackground(context, uri)) {
+                is BackgroundImportResult.Success -> importStatus = "背景图片已导入并应用。"
+                is BackgroundImportResult.Failure -> importStatus = "导入失败：${result.message}。已保留原来的背景。"
+            }
+            importing = false
+        }
+    }
+    val textOptions = listOf(
         "小" to 0.90f,
         "标准" to 1.00f,
         "大" to 1.15f,
         "特大" to 1.30f,
         "超大" to 1.50f,
     )
+
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         SettingsSectionTitle("文字大小")
         Text(
-  "课程正文、题目、解析和数学可视化标签会同时调整。可视化仍保留最低可读尺寸。",
-  color = SettingsMuted,
-  fontSize = 13.sp,
-  lineHeight = 21.sp,
+            "课程正文、题目、解析和数学可视化标签会同时调整。可视化仍保留最低可读尺寸。",
+            color = SettingsMuted,
+            fontSize = 13.sp,
+            lineHeight = 21.sp,
         )
-        options.forEach { (label, scale) ->
-  val selected = kotlin.math.abs(textScale - scale) < 0.01f
-  Row(
-      modifier = Modifier
-          .fillMaxWidth()
-          .clickable { onTextScaleChanged(scale) }
-          .padding(vertical = 11.dp),
-      horizontalArrangement = Arrangement.SpaceBetween,
-      verticalAlignment = Alignment.CenterVertically,
-  ) {
-      Text(label, color = if (selected) SettingsWhite else SettingsWhite.copy(alpha = 0.72f), fontSize = 17.sp)
-      Text(
-          "${(scale * 100).toInt()}%",
-          color = if (selected) SettingsBlue else SettingsMuted,
-          fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-      )
-  }
-  Box(Modifier.fillMaxWidth().height(1.dp).background(SettingsLine))
+        textOptions.forEach { (label, scale) ->
+            val selected = kotlin.math.abs(settings.textScale - scale) < 0.01f
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { DisplayPreferences.setTextScale(context, scale) }
+                    .padding(vertical = 11.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(label, color = if (selected) SettingsWhite else SettingsWhite.copy(alpha = 0.72f), fontSize = 17.sp)
+                Text(
+                    "${(scale * 100).toInt()}%",
+                    color = if (selected) SettingsBlue else SettingsMuted,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                )
+            }
+            Box(Modifier.fillMaxWidth().height(1.dp).background(SettingsLine))
         }
         Text(
-  "预览：正半轴　−3　0　+3　答案与解释",
-  color = SettingsWhite,
-  fontSize = 16.sp,
-  lineHeight = 24.sp,
+            "预览：负半轴　−3　0　+3　正半轴　答案与解释",
+            color = SettingsWhite,
+            fontSize = 16.sp,
+            lineHeight = 24.sp,
         )
+
+        Spacer(Modifier.height(24.dp))
+        SettingsSectionTitle("背景")
+        Text(
+            "默认保持纯黑风格。预定义颜色和自定义图片只改变底层背景，界面会自动保留暗色遮罩保证文字可读。",
+            color = SettingsMuted,
+            fontSize = 13.sp,
+            lineHeight = 21.sp,
+        )
+        BackgroundPreset.entries.forEach { preset ->
+            val selected = settings.backgroundMode == BackgroundMode.PRESET && settings.backgroundPreset == preset
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        DisplayPreferences.setBackgroundPreset(context, preset)
+                        importStatus = "已切换为${preset.label}。"
+                    }
+                    .padding(vertical = 11.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .size(24.dp)
+                            .background(Color(preset.argb), CircleShape),
+                    )
+                    Text(preset.label, color = SettingsWhite.copy(alpha = if (selected) 1f else 0.75f), fontSize = 16.sp)
+                }
+                Text(if (selected) "使用中" else "", color = SettingsBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+            Box(Modifier.fillMaxWidth().height(1.dp).background(SettingsLine))
+        }
+
+        Spacer(Modifier.height(8.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            if (settings.customImagePath != null) {
+                Text(
+                    if (settings.backgroundMode == BackgroundMode.CUSTOM) "自定义背景使用中" else "使用已导入背景",
+                    modifier = Modifier.clickable(enabled = !importing) {
+                        if (DisplayPreferences.useExistingCustomBackground(context)) {
+                            importStatus = "已切换到已导入的自定义背景。"
+                        }
+                    },
+                    color = if (settings.backgroundMode == BackgroundMode.CUSTOM) SettingsYellow else SettingsWhite.copy(alpha = 0.72f),
+                    fontWeight = FontWeight.SemiBold,
+                )
+            } else {
+                Spacer(Modifier.width(1.dp))
+            }
+            Text(
+                if (importing) "正在导入…" else "导入自定义图片",
+                modifier = Modifier.clickable(enabled = !importing) {
+                    imagePicker.launch(arrayOf("image/jpeg", "image/png", "image/webp"))
+                },
+                color = if (importing) SettingsMuted else SettingsBlue,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        Text(
+            "支持 JPEG、PNG、WebP；至少短边 720px、长边 1280px，不超过 20 MB 和 3200 万像素。格式、尺寸或解码失败时不会替换当前背景。",
+            color = SettingsMuted,
+            fontSize = 12.sp,
+            lineHeight = 19.sp,
+        )
+        AnimatedVisibility(
+            visible = importStatus != null,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically(),
+        ) {
+            val failed = importStatus.orEmpty().startsWith("导入失败")
+            SettingsInlineNotice(
+                color = if (failed) SettingsRed else SettingsBlue,
+                label = "背景状态",
+                body = importStatus.orEmpty(),
+            )
+        }
     }
 }
 
