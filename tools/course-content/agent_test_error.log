@@ -1,44 +1,27 @@
-test_course_assessment_distribution (unittest.loader._FailedTest.test_course_assessment_distribution) ... ERROR
+test_checked_in_grade7_documents_match_distribution_contract (test_course_assessment_distribution.CourseAssessmentDistributionTest.test_checked_in_grade7_documents_match_distribution_contract) ... ERROR
+test_deterministic_zip_contains_extensions_and_assets_in_sorted_order (test_course_assessment_distribution.CourseAssessmentDistributionTest.test_deterministic_zip_contains_extensions_and_assets_in_sorted_order) ... ok
+test_extension_pair_is_required (test_course_assessment_distribution.CourseAssessmentDistributionTest.test_extension_pair_is_required) ... ok
+test_manual_section_overlay_ignores_package_extension_json (test_course_assessment_distribution.CourseAssessmentDistributionTest.test_manual_section_overlay_ignores_package_extension_json) ... ok
 test_duplicate_generic_ids_receive_stable_namespace (test_course_distribution.CourseDistributionTest.test_duplicate_generic_ids_receive_stable_namespace) ... ok
 test_legacy_course_becomes_strict_business_contract (test_course_distribution.CourseDistributionTest.test_legacy_course_becomes_strict_business_contract) ... ok
 test_public_release_url_is_immutable_release_path (test_course_distribution.CourseDistributionTest.test_public_release_url_is_immutable_release_path) ... ok
-test_pdf_asset_workflow (unittest.loader._FailedTest.test_pdf_asset_workflow) ... ERROR
+test_page_parser (test_pdf_asset_workflow.PdfAssetWorkflowTest.test_page_parser) ... ok
+test_pending_blocks_export (test_pdf_asset_workflow.PdfAssetWorkflowTest.test_pending_blocks_export) ... ok
+test_scan_and_approved_materialization (test_pdf_asset_workflow.PdfAssetWorkflowTest.test_scan_and_approved_materialization) ... ok
 
 ======================================================================
-ERROR: test_course_assessment_distribution (unittest.loader._FailedTest.test_course_assessment_distribution)
+ERROR: test_checked_in_grade7_documents_match_distribution_contract (test_course_assessment_distribution.CourseAssessmentDistributionTest.test_checked_in_grade7_documents_match_distribution_contract)
 ----------------------------------------------------------------------
-ImportError: Failed to import test module: test_course_assessment_distribution
 Traceback (most recent call last):
-  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/unittest/loader.py", line 396, in _find_test_path
-    module = self._get_module_from_name(name)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/unittest/loader.py", line 339, in _get_module_from_name
-    __import__(name)
-  File "/home/runner/work/School/School/tools/course-content/test_course_assessment_distribution.py", line 12, in <module>
-    from copy_assessment_extensions import copy_extensions
-  File "/home/runner/work/School/School/tools/course-content/copy_assessment_extensions.py", line 9, in <module>
-    from prepare_assessment_packages import ASSESSMENTS, KNOWLEDGE, validate_package
-  File "/home/runner/work/School/School/tools/course-content/prepare_assessment_packages.py", line 14, in <module>
-    import fitz
-ModuleNotFoundError: No module named 'fitz'
-
-
-======================================================================
-ERROR: test_pdf_asset_workflow (unittest.loader._FailedTest.test_pdf_asset_workflow)
-----------------------------------------------------------------------
-ImportError: Failed to import test module: test_pdf_asset_workflow
-Traceback (most recent call last):
-  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/unittest/loader.py", line 396, in _find_test_path
-    module = self._get_module_from_name(name)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/hostedtoolcache/Python/3.12.13/x64/lib/python3.12/unittest/loader.py", line 339, in _get_module_from_name
-    __import__(name)
-  File "/home/runner/work/School/School/tools/course-content/test_pdf_asset_workflow.py", line 8, in <module>
-    import fitz
-ModuleNotFoundError: No module named 'fitz'
-
+  File "/home/runner/work/School/School/tools/course-content/test_course_assessment_distribution.py", line 47, in test_checked_in_grade7_documents_match_distribution_contract
+    result = validate_package(root)
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/School/School/tools/course-content/prepare_assessment_packages.py", line 326, in validate_package
+    raise ValueError(f"{where} references unknown sections")
+ValueError: knowledge-points.json.knowledgePoints[9] references unknown sections
 
 ----------------------------------------------------------------------
-Ran 5 tests in 0.001s
+Ran 10 tests in 0.061s
 
-FAILED (errors=2)
+FAILED (errors=1)
+Consider using the pymupdf_layout package for a greatly improved page layout analysis.
