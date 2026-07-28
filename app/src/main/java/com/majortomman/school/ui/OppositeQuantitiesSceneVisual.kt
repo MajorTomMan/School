@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -56,8 +57,8 @@ private val oppositeQuantityScenes = listOf(
 /**
  * “相反意义的量”统一交互场景。
  *
- * 所有场景共享同一套语义布局：基准、两个相反方向、当前位置、距离说明、滑块和结论。
- * Canvas 只绘制轴线与点位；所有文字交给 Compose 测量和换行，避免字号调整后重叠。
+ * 使用连续画布、细线和数学语义色，不使用卡片分区。Canvas 只绘制轴线与点位；所有文字
+ * 交给 Compose 测量和换行，避免字号调整后重叠。
  */
 @Composable
 internal fun OppositeQuantitiesSceneVisual(data: CourseSceneData) {
@@ -81,12 +82,17 @@ internal fun OppositeQuantitiesSceneVisual(data: CourseSceneData) {
         targetValue = value,
         label = "opposite-quantity-value",
     )
+    val accent = when {
+        animatedValue > 0.0001f -> InteractiveBlue
+        animatedValue < -0.0001f -> InteractiveYellow
+        else -> InteractiveWhite
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 8.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         if (availableScenes.size > 1) {
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -113,8 +119,8 @@ internal fun OppositeQuantitiesSceneVisual(data: CourseSceneData) {
                         Box(
                             Modifier
                                 .fillMaxWidth()
-                                .height(2.dp)
-                                .background(if (selected) InteractiveBlue else Color.Transparent),
+                                .height(if (selected) 2.dp else 1.dp)
+                                .background(if (selected) InteractiveBlue else InteractiveLine.copy(alpha = 0.45f)),
                         )
                     }
                 }
@@ -133,18 +139,27 @@ internal fun OppositeQuantitiesSceneVisual(data: CourseSceneData) {
         Slider(
             value = value.coerceIn(-selectedScene.bound, selectedScene.bound),
             onValueChange = { raw -> value = snapToStep(raw, selectedScene.step) },
+            modifier = Modifier.fillMaxWidth().height(36.dp),
             valueRange = -selectedScene.bound..selectedScene.bound,
             steps = ((selectedScene.bound * 2f / selectedScene.step).roundToInt() - 1)
                 .coerceAtLeast(0),
+            colors = SliderDefaults.colors(
+                thumbColor = accent,
+                activeTrackColor = accent.copy(alpha = 0.78f),
+                inactiveTrackColor = InteractiveLine,
+                activeTickColor = Color.Transparent,
+                inactiveTickColor = Color.Transparent,
+            ),
         )
 
+        Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
         Text(
             text = observationText(selectedScene, animatedValue),
             modifier = Modifier.fillMaxWidth(),
-            color = InteractiveWhite.copy(alpha = 0.82f),
+            color = InteractiveWhite.copy(alpha = 0.84f),
             fontSize = 14.sp,
             lineHeight = 22.sp,
-            textAlign = TextAlign.Center,
+            textAlign = TextAlign.Start,
         )
     }
 }
