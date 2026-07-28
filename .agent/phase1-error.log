@@ -1,0 +1,2 @@
+app/src/main/java/com/majortomman/school/ui/SchoolApp.kt: expected one occurrence, found 0: '    val textbookPage = openedTextbookPage\n    if (textbookPage != null && openedTextbook != null) {\n'
+exit_status=1
