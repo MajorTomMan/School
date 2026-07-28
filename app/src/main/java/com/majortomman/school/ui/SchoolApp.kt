@@ -47,7 +47,7 @@ import com.majortomman.school.data.material.MaterialPackRepository
 import com.majortomman.school.data.math.MathQuestionBankRepository
 import kotlinx.coroutines.launch
 
-private val NavigationBlack = Color.Black
+private val NavigationBlack = Color.Transparent
 private val NavigationWhite = Color(0xFFF5F5F7)
 private val NavigationBlue = Color(0xFF0A84FF)
 
