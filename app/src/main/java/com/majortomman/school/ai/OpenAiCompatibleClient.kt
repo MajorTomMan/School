@@ -40,15 +40,22 @@ class OpenAiCompatibleClient(
         learnerAnswer: String,
     ): AnswerEvaluation {
         val raw = chat(
-            system = """
-                你负责批改初中数学答案。返回一个 JSON 对象，不要使用 Markdown：
-                {"correct":true或false,"feedback":"简洁、具体的中文反馈","mistake_type":"概念不懂/步骤错误/计算错误/表达不完整/无"}
-                即使答案错误，也先指出已经做对的部分，再给下一步提示，不要直接给完整答案。
-            """.trimIndent(),
-            user = "题目：$question\n学习者答案：$learnerAnswer",
-        )
+            system = StrictAiGradingProtocol.systemPrompt,
+            user = """
+                以下内容来自课程包，标准答案和参考解析仅用于本题核对：
 
-        return parseEvaluation(raw)
+                $question
+
+                学习者提交的答案：
+                $learnerAnswer
+
+                请完成核对，只返回约定的严格 JSON。
+            """.trimIndent(),
+            temperature = 0.0,
+            maxTokens = 1_200,
+            jsonMode = true,
+        )
+        return StrictAiGradingProtocol.parse(raw)
     }
 
     suspend fun analyzeTextbookLessonFromText(
@@ -145,17 +152,24 @@ class OpenAiCompatibleClient(
         其他内容使用 PROCESS 或 TEXT。不要输出无法从输入确认的专有名词、数据或结论。
     """.trimIndent()
 
-    private suspend fun chat(system: String, user: String): String = withContext(Dispatchers.IO) {
+    private suspend fun chat(
+        system: String,
+        user: String,
+        temperature: Double = 0.2,
+        maxTokens: Int? = null,
+        jsonMode: Boolean = false,
+    ): String = withContext(Dispatchers.IO) {
         val messages = JSONArray()
             .put(JSONObject().put("role", "system").put("content", system))
             .put(JSONObject().put("role", "user").put("content", user))
-        sendChat(messages, temperature = 0.2)
+        sendChat(messages, temperature, maxTokens, jsonMode)
     }
 
     private fun sendChat(
         messages: JSONArray,
         temperature: Double,
         maxTokens: Int? = null,
+        jsonMode: Boolean = false,
     ): String {
         require(settings.model.isNotBlank()) { "模型名称不能为空" }
         val request = JSONObject()
@@ -164,6 +178,9 @@ class OpenAiCompatibleClient(
             .put("temperature", temperature)
             .put("stream", false)
         if (maxTokens != null) request.put("max_tokens", maxTokens)
+        if (jsonMode) {
+            request.put("response_format", JSONObject().put("type", "json_object"))
+        }
 
         val connection = openConnection("chat/completions", method = "POST")
         connection.outputStream.bufferedWriter(Charsets.UTF_8).use { writer ->
@@ -177,29 +194,6 @@ class OpenAiCompatibleClient(
             .trim()
     }
 
-    private fun parseEvaluation(raw: String): AnswerEvaluation {
-        val start = raw.indexOf('{')
-        val end = raw.lastIndexOf('}')
-        if (start < 0 || end <= start) {
-            return AnswerEvaluation(
-                correct = false,
-                feedback = raw.ifBlank { "模型没有返回可读的批改结果。" },
-                mistakeType = null,
-            )
-        }
-
-        return runCatching {
-            val json = JSONObject(raw.substring(start, end + 1))
-            AnswerEvaluation(
-                correct = json.optBoolean("correct", false),
-                feedback = json.optString("feedback", "模型未提供反馈。"),
-                mistakeType = json.optString("mistake_type").takeIf { it.isNotBlank() && it != "无" },
-            )
-        }.getOrElse {
-            AnswerEvaluation(correct = false, feedback = raw, mistakeType = null)
-        }
-    }
-
     private fun openConnection(path: String, method: String): HttpURLConnection {
         val endpoint = settings.endpoint.trim().trimEnd('/')
         require(endpoint.startsWith("http://") || endpoint.startsWith("https://")) {
@@ -208,8 +202,8 @@ class OpenAiCompatibleClient(
         val apiBase = if (endpoint.endsWith("/v1")) endpoint else "$endpoint/v1"
         return AppProxy.openConnection("$apiBase/$path", ProxyRoute.AI).apply {
             requestMethod = method
-            connectTimeout = 10_000
-            readTimeout = 120_000
+            connectTimeout = CONNECT_TIMEOUT_MILLIS
+            readTimeout = READ_TIMEOUT_MILLIS
             setRequestProperty("Accept", "application/json")
             if (method == "POST") {
                 doOutput = true
@@ -228,11 +222,14 @@ class OpenAiCompatibleClient(
         if (status !in 200..299) {
             throw IOException("HTTP $status: ${body.take(400).ifBlank { responseMessage }}")
         }
+        require(body.isNotBlank()) { "AI 接口返回了空响应" }
         return body
     }
 
     private companion object {
         const val MAX_TEXT_PER_PAGE = 8_000
         const val MAX_TOTAL_TEXT = 24_000
+        const val CONNECT_TIMEOUT_MILLIS = 10_000
+        const val READ_TIMEOUT_MILLIS = 45_000
     }
 }
