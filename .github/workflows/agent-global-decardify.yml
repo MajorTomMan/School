@@ -1,0 +1,166 @@
+name: Agent global decardification
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - ".github/workflows/agent-global-decardify.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+      - name: Remove card surfaces from assessment UI
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_once(text, pattern, replacement, label, flags=0):
+              result, count = re.subn(pattern, replacement, text, count=1, flags=flags)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 replacement, got {count}')
+              return result
+
+          ai_path = Path('app/src/main/java/com/majortomman/school/ui/AssessmentAiJudgeSection.kt')
+          ai = ai_path.read_text(encoding='utf-8')
+          ai = ai.replace('import androidx.compose.foundation.shape.RoundedCornerShape\n', '')
+          ai = replace_once(
+              ai,
+              r'''        Column\(\n            modifier = Modifier\n                \.fillMaxWidth\(\)\n                \.background\(InteractivePanel, RoundedCornerShape\(14\.dp\)\)\n                \.padding\(horizontal = 15\.dp, vertical = 14\.dp\),\n            verticalArrangement = Arrangement\.spacedBy\(9\.dp\),\n        \) \{\n            Text\(''',
+              '''        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 6.dp, bottom = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp),
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(2.dp)
+                    .background(InteractiveBlue.copy(alpha = 0.58f)),
+            )
+            Text(''',
+              'AI explanation surface',
+          )
+          ai = replace_once(
+              ai,
+              r'''    Box\(\n        modifier = modifier\n            \.height\(50\.dp\)\n            \.background\(\n                if \(enabled \|\| busy\) color\.copy\(alpha = 0\.14f\) else InteractivePanel,\n                RoundedCornerShape\(12\.dp\),\n            \)\n            \.clickable\(enabled = enabled, onClick = onClick\),\n        contentAlignment = Alignment\.Center,\n    \) \{\n        if \(busy\) \{\n            CircularProgressIndicator\(\n                modifier = Modifier\.height\(21\.dp\),\n                color = color,\n                strokeWidth = 2\.dp,\n            \)\n        \} else \{\n            Text\(\n                label,\n                color = if \(enabled\) color else InteractiveMuted\.copy\(alpha = 0\.46f\),\n                fontSize = 13\.sp,\n                fontWeight = FontWeight\.Bold,\n                textAlign = TextAlign\.Center,\n            \)\n        \}\n    \}''',
+              '''    Box(
+        modifier = modifier
+            .height(50.dp)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (busy) {
+            CircularProgressIndicator(
+                modifier = Modifier.height(21.dp),
+                color = color,
+                strokeWidth = 2.dp,
+            )
+        } else {
+            Text(
+                label,
+                color = if (enabled) color else InteractiveMuted.copy(alpha = 0.46f),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
+        }
+        Box(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(if (enabled || busy) 2.dp else 1.dp)
+                .background(if (enabled || busy) color.copy(alpha = 0.76f) else InteractiveLine),
+        )
+    }''',
+              'AI action buttons',
+          )
+          ai_path.write_text(ai, encoding='utf-8')
+
+          session_path = Path('app/src/main/java/com/majortomman/school/ui/AssessmentSessionScreen.kt')
+          session = session_path.read_text(encoding='utf-8')
+          session = replace_once(
+              session,
+              r'''                    Column\(\n                        modifier = Modifier\n                            \.fillMaxWidth\(\)\n                            \.border\(\n                                1\.dp,\n                                if \(checked\) InteractiveBlue else Color\.Transparent,\n                                RoundedCornerShape\(12\.dp\),\n                            \)\n                            \.background\(\n                                if \(checked\) InteractiveBlue\.copy\(alpha = 0\.10f\) else InteractivePanel,\n                                RoundedCornerShape\(12\.dp\),\n                            \)\n                            \.clickable''',
+              '''                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable''',
+              'choice card modifier',
+          )
+          session = replace_once(
+              session,
+              r'''                            \.padding\(14\.dp\),\n                    \) \{\n                        AssessmentLearningContentList\(choice\.content, assetFiles, compact = true\)\n                    \}''',
+              '''                            .padding(horizontal = 2.dp, vertical = 12.dp),
+                    ) {
+                        AssessmentLearningContentList(choice.content, assetFiles, compact = true)
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 10.dp)
+                                .height(if (checked) 2.dp else 1.dp)
+                                .background(if (checked) InteractiveBlue else InteractiveLine),
+                        )
+                    }''',
+              'choice underline',
+          )
+          session = replace_once(
+              session,
+              r'''        modifier = Modifier\n            \.fillMaxWidth\(\)\n            \.background\(color\.copy\(alpha = 0\.10f\), RoundedCornerShape\(10\.dp\)\)\n            \.padding\(horizontal = 13\.dp, vertical = 11\.dp\),''',
+              '''        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 5.dp),''',
+              'judge feedback card',
+          )
+          session = replace_once(
+              session,
+              r'''                    modifier = Modifier\n                        \.fillMaxWidth\(\)\n                        \.background\(InteractiveBlue\.copy\(alpha = 0\.08f\), RoundedCornerShape\(10\.dp\)\)\n                        \.padding\(12\.dp\),''',
+              '''                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 5.dp),''',
+              'hint card',
+          )
+          session = replace_once(
+              session,
+              r'''    Box\(\n        modifier = modifier\n            \.height\(48\.dp\)\n            \.background\(\n                if \(enabled\) color\.copy\(alpha = 0\.12f\) else InteractivePanel\.copy\(alpha = 0\.70f\),\n                RoundedCornerShape\(10\.dp\),\n            \)\n            \.clickable\(enabled = enabled, onClick = onClick\),\n        contentAlignment = Alignment\.Center,\n    \) \{\n        Text\(\n            label,\n            color = if \(enabled\) color else InteractiveMuted\.copy\(alpha = 0\.42f\),\n            fontSize = 13\.sp,\n            fontWeight = FontWeight\.Bold,\n            textAlign = TextAlign\.Center,\n        \)\n    \}''',
+              '''    Box(
+        modifier = modifier
+            .height(48.dp)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            color = if (enabled) color else InteractiveMuted.copy(alpha = 0.42f),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+        )
+        Box(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(if (enabled) 2.dp else 1.dp)
+                .background(if (enabled) color.copy(alpha = 0.76f) else InteractiveLine),
+        )
+    }''',
+              'assessment navigation actions',
+          )
+          session_path.write_text(session, encoding='utf-8')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/com/majortomman/school/ui/AssessmentAiJudgeSection.kt app/src/main/java/com/majortomman/school/ui/AssessmentSessionScreen.kt
+          git commit -m "refactor(ui): remove assessment card surfaces"
+          git pull --rebase origin dev
+          git push origin dev
