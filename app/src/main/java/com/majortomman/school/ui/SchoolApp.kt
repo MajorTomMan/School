@@ -130,157 +130,159 @@ fun SchoolApp(
     val textbookPage = openedTextbookPage
     Box(modifier = Modifier.fillMaxSize()) {
         AnimatedContent(
-        targetState = openedLesson,
-        transitionSpec = {
-            if (targetState != null) {
-                (fadeIn(tween(300)) + slideInHorizontally(tween(420)) { it / 7 }) togetherWith
-                    (fadeOut(tween(170)) + slideOutHorizontally(tween(280)) { -it / 9 })
-            } else {
-                (fadeIn(tween(280)) + slideInHorizontally(tween(400)) { -it / 8 }) togetherWith
-                    (fadeOut(tween(170)) + slideOutHorizontally(tween(280)) { it / 9 })
-            }
-        },
-        label = "appNavigation",
-    ) { lesson ->
-        if (lesson != null && activeTextbook != null) {
-            val openTextbook: (Int) -> Unit = { printedPage ->
-                openedTextbookKey = activeTextbook.key
-                openedTextbookPage = printedPage
-            }
-            val completeLesson: () -> Unit = {
-                val nextId = nextLesson?.id
-                scope.launch {
-                    repository.finishLessonAndStartNext(lesson.id, nextId)
-                }
-                if (nextLesson != null) {
-                    openedLessonId = nextLesson.id
+            targetState = openedLesson,
+            transitionSpec = {
+                if (targetState != null) {
+                    (fadeIn(tween(300)) + slideInHorizontally(tween(420)) { it / 7 }) togetherWith
+                        (fadeOut(tween(170)) + slideOutHorizontally(tween(280)) { -it / 9 })
                 } else {
-                    openedLessonId = null
-                    selectedTabName = MainTab.PATH.name
+                    (fadeIn(tween(280)) + slideInHorizontally(tween(400)) { -it / 8 }) togetherWith
+                        (fadeOut(tween(170)) + slideOutHorizontally(tween(280)) { it / 9 })
                 }
-            }
-            val interactiveSpec = InteractiveLessonCatalog.resolve(activeTextbook.slot.subjectId, lesson)
-            if (interactiveSpec != null) {
-                InteractiveLessonScreen(
-                    lesson = lesson,
-                    spec = interactiveSpec,
-                    installedMaterial = activeTextbook.pack,
-                    nextLessonTitle = nextLesson?.title,
-                    onOpenTextbook = openTextbook,
-                    onBack = { openedLessonId = null },
-                    onComplete = completeLesson,
-                )
-            } else {
-                CourseDataUnavailableScreen(
-                    lessonTitle = lesson.title,
-                    onBack = { openedLessonId = null },
-                )
-            }
-        } else {
-            Scaffold(
-                containerColor = NavigationBlack,
-                bottomBar = {
-                    MinimalBottomBar(
-                        selected = selectedTab,
-                        onSelect = { selectedTabName = it.name },
+            },
+            label = "appNavigation",
+        ) { lesson ->
+            if (lesson != null && activeTextbook != null) {
+                val openTextbook: (Int) -> Unit = { printedPage ->
+                    openedTextbookKey = activeTextbook.key
+                    openedTextbookPage = printedPage
+                }
+                val completeLesson: () -> Unit = {
+                    val nextId = nextLesson?.id
+                    scope.launch {
+                        repository.finishLessonAndStartNext(lesson.id, nextId)
+                    }
+                    if (nextLesson != null) {
+                        openedLessonId = nextLesson.id
+                    } else {
+                        openedLessonId = null
+                        selectedTabName = MainTab.PATH.name
+                    }
+                }
+                val interactiveSpec = InteractiveLessonCatalog.resolve(activeTextbook.slot.subjectId, lesson)
+                if (interactiveSpec != null) {
+                    InteractiveLessonScreen(
+                        lesson = lesson,
+                        spec = interactiveSpec,
+                        installedMaterial = activeTextbook.pack,
+                        nextLessonTitle = nextLesson?.title,
+                        onOpenTextbook = openTextbook,
+                        onBack = { openedLessonId = null },
+                        onComplete = completeLesson,
                     )
-                },
-            ) { innerPadding ->
-                Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-                    AnimatedContent(
-                        targetState = selectedTab,
-                        transitionSpec = {
-                            (fadeIn(tween(260)) + slideInHorizontally(tween(360)) { it / 14 }) togetherWith
-                                (fadeOut(tween(150)) + slideOutHorizontally(tween(260)) { -it / 14 })
-                        },
-                        label = "mainTabs",
-                    ) { tab ->
-                        when (tab) {
-                            MainTab.SUBJECTS -> SubjectTextbookCenterScreen(
-                                libraryState = libraryState,
-                                onEnterCourse = { textbook ->
-                                    activeTextbookKey = textbook.key
-                                    openedLessonId = null
-                                    selectedTabName = MainTab.TODAY.name
-                                },
-                                onOpenTextbook = { textbook, page ->
-                                    openedTextbookKey = textbook.key
-                                    openedTextbookPage = page
-                                },
-                            )
-
-                            MainTab.TODAY -> {
-                                if (activeTextbook == null || dailyPlan == null || lessons.isEmpty()) {
-                                    NoActiveTextbookScreen { selectedTabName = MainTab.SUBJECTS.name }
-                                } else {
-                                    SceneTodayScreen(
-                                        plan = dailyPlan,
-                                        lessons = lessons,
-                                        progress = progress,
-                                        onStartLesson = { openedLessonId = it },
-                                        onOpenPath = { selectedTabName = MainTab.PATH.name },
-                                    )
-                                }
-                            }
-
-                            MainTab.PATH -> {
-                                when {
-                                    activeTextbook == null || lessons.isEmpty() -> {
-                                        NoActiveTextbookScreen { selectedTabName = MainTab.SUBJECTS.name }
-                                    }
-                                    activeCurriculumId != null && activeCurriculumId in curriculumState.curriculumById -> {
-                                        CurriculumTreeScreen(
-                                            snapshot = curriculumState,
-                                            curriculumId = activeCurriculumId,
-                                            progress = curriculumProgress,
-                                            activeLegacyLessonId = currentLesson?.id,
-                                            onOpenLesson = { openedLessonId = it },
-                                        )
-                                    }
-                                    else -> {
-                                        SceneCoursePathScreen(
-                                            lessons = lessons,
-                                            onOpenLesson = { openedLessonId = it },
-                                        )
-                                    }
-                                }
-                            }
-
-                            MainTab.BANK -> MathQuestionBankScreen(
-                                repository = mathQuestionRepository,
-                                textbook = activeTextbook,
-                                onOpenSubjects = { selectedTabName = MainTab.SUBJECTS.name },
-                                onOpenTextbook = { page ->
-                                    activeTextbook?.let { textbook ->
+                } else {
+                    CourseDataUnavailableScreen(
+                        lessonTitle = lesson.title,
+                        onBack = { openedLessonId = null },
+                    )
+                }
+            } else {
+                Scaffold(
+                    containerColor = NavigationBlack,
+                    bottomBar = {
+                        MinimalBottomBar(
+                            selected = selectedTab,
+                            onSelect = { selectedTabName = it.name },
+                        )
+                    },
+                ) { innerPadding ->
+                    Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+                        AnimatedContent(
+                            targetState = selectedTab,
+                            transitionSpec = {
+                                (fadeIn(tween(260)) + slideInHorizontally(tween(360)) { it / 14 }) togetherWith
+                                    (fadeOut(tween(150)) + slideOutHorizontally(tween(260)) { -it / 14 })
+                            },
+                            label = "mainTabs",
+                        ) { tab ->
+                            when (tab) {
+                                MainTab.SUBJECTS -> SubjectTextbookCenterScreen(
+                                    libraryState = libraryState,
+                                    onEnterCourse = { textbook ->
+                                        activeTextbookKey = textbook.key
+                                        openedLessonId = null
+                                        selectedTabName = MainTab.TODAY.name
+                                    },
+                                    onOpenTextbook = { textbook, page ->
                                         openedTextbookKey = textbook.key
                                         openedTextbookPage = page
+                                    },
+                                )
+
+                                MainTab.TODAY -> {
+                                    if (activeTextbook == null || dailyPlan == null || lessons.isEmpty()) {
+                                        NoActiveTextbookScreen { selectedTabName = MainTab.SUBJECTS.name }
+                                    } else {
+                                        SceneTodayScreen(
+                                            plan = dailyPlan,
+                                            lessons = lessons,
+                                            progress = progress,
+                                            onStartLesson = { openedLessonId = it },
+                                            onOpenPath = { selectedTabName = MainTab.PATH.name },
+                                        )
                                     }
-                                },
-                            )
+                                }
 
-                            MainTab.REVIEW -> MinimalRoomReviewScreen(
-                                fallbackItems = emptyList(),
-                                progress = progress,
-                                scheduledReviews = reviewQueue,
-                                recentAttempts = recentAttempts,
-                                onOpenLesson = { lessonId ->
-                                    if (lessons.any { it.id == lessonId }) openedLessonId = lessonId
-                                },
-                            )
+                                MainTab.PATH -> {
+                                    when {
+                                        activeTextbook == null || lessons.isEmpty() -> {
+                                            NoActiveTextbookScreen { selectedTabName = MainTab.SUBJECTS.name }
+                                        }
+                                        activeCurriculumId != null && activeCurriculumId in curriculumState.curriculumById -> {
+                                            CurriculumTreeScreen(
+                                                snapshot = curriculumState,
+                                                curriculumId = activeCurriculumId,
+                                                progress = curriculumProgress,
+                                                activeLegacyLessonId = currentLesson?.id,
+                                                onOpenLesson = { openedLessonId = it },
+                                            )
+                                        }
+                                        else -> {
+                                            SceneCoursePathScreen(
+                                                lessons = lessons,
+                                                onOpenLesson = { openedLessonId = it },
+                                            )
+                                        }
+                                    }
+                                }
 
-                            MainTab.LAB -> VerificationHubScreen()
+                                MainTab.BANK -> MathQuestionBankScreen(
+                                    repository = mathQuestionRepository,
+                                    textbook = activeTextbook,
+                                    onOpenSubjects = { selectedTabName = MainTab.SUBJECTS.name },
+                                    onOpenTextbook = { page ->
+                                        activeTextbook?.let { textbook ->
+                                            openedTextbookKey = textbook.key
+                                            openedTextbookPage = page
+                                        }
+                                    },
+                                )
 
-                            MainTab.SETTINGS -> MaterialSettingsScreen(
-                                settings = aiSettings,
-                                onSave = { updated -> scope.launch { repository.saveAiSettings(updated) } },
-                                onOpenSubjects = { selectedTabName = MainTab.SUBJECTS.name },
-                                onClearProgress = { scope.launch { repository.clearLearningProgress() } },
-                            )
+                                MainTab.REVIEW -> MinimalRoomReviewScreen(
+                                    fallbackItems = emptyList(),
+                                    progress = progress,
+                                    scheduledReviews = reviewQueue,
+                                    recentAttempts = recentAttempts,
+                                    onOpenLesson = { lessonId ->
+                                        if (lessons.any { it.id == lessonId }) openedLessonId = lessonId
+                                    },
+                                )
+
+                                MainTab.LAB -> VerificationHubScreen()
+
+                                MainTab.SETTINGS -> MaterialSettingsScreen(
+                                    settings = aiSettings,
+                                    onSave = { updated -> scope.launch { repository.saveAiSettings(updated) } },
+                                    onOpenSubjects = { selectedTabName = MainTab.SUBJECTS.name },
+                                    onClearProgress = { scope.launch { repository.clearLearningProgress() } },
+                                )
+                            }
                         }
                     }
                 }
             }
         }
+
         if (textbookPage != null && openedTextbook != null) {
             PdfTextbookScreen(
                 pack = openedTextbook.pack,
