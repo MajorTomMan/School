@@ -24,8 +24,22 @@ jobs:
           ref: agent/section-assessment-ai
           fetch-depth: 0
       - name: Apply repository changes
-        run: python tools/agent_apply_section_assessment.py
-      - name: Commit generated changes
+        id: apply
+        shell: bash
+        run: |
+          set +e
+          python tools/agent_apply_section_assessment.py > "$RUNNER_TEMP/agent-apply.log" 2>&1
+          status=$?
+          cat "$RUNNER_TEMP/agent-apply.log"
+          if [ "$status" -ne 0 ]; then
+            git reset --hard HEAD
+            cp "$RUNNER_TEMP/agent-apply.log" tools/agent_last_error.txt
+            echo "failed=true" >> "$GITHUB_OUTPUT"
+          else
+            rm -f tools/agent_last_error.txt
+            echo "failed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Commit generated changes or diagnostics
         shell: bash
         run: |
           set -euo pipefail
@@ -36,5 +50,9 @@ jobs:
             echo "No generated changes"
             exit 0
           fi
-          git commit -m "重构小节练习与AI判题流程"
+          if [ "${{ steps.apply.outputs.failed }}" = "true" ]; then
+            git commit -m "记录课程重构脚本错误"
+          else
+            git commit -m "重构小节练习与AI判题流程"
+          fi
           git push origin HEAD:agent/section-assessment-ai
