@@ -8,9 +8,12 @@ import com.majortomman.school.network.AppProxy
 import com.majortomman.school.network.ProxyRoute
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.net.HttpURLConnection
 import java.net.URI
 import java.security.MessageDigest
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -44,10 +47,12 @@ object CourseSyncManager {
                             kind = kind,
                             textbookCount = planned.size,
                             estimatedBytes = planned.sumOf(::estimatedTransferBytes),
+                            textbooks = planned.map(::toUpdateItem),
                         ),
                     )
                 }
             }.getOrElse { error ->
+                error.rethrowCancellation()
                 Log.w(LOG_TAG, "course update check failed", error)
                 CourseUpdateCheckResult.Failed(error.message ?: error::class.java.simpleName)
             }
@@ -105,6 +110,7 @@ object CourseSyncManager {
                                     downloadToFile(appContext, file, destination, tracker)
                                 }
                             }.getOrElse { incrementalError ->
+                                incrementalError.rethrowCancellation()
                                 Log.w(LOG_TAG, "incremental update failed; retry full package", incrementalError)
                                 tracker.addTotal(estimatedFullTransferBytes(remote, update.local))
                                 installFull(appContext, store, remote, tracker)
@@ -118,6 +124,7 @@ object CourseSyncManager {
                 if (updatedCount > 0) CloudCourseRepository.markContentChanged()
                 CourseSyncResult.Success(updatedCount)
             }.getOrElse { error ->
+                error.rethrowCancellation()
                 Log.e(LOG_TAG, "course sync failed; keep the previous verified cloud cache", error)
                 CourseSyncResult.Failed(error.message ?: error::class.java.simpleName)
             }
@@ -139,6 +146,26 @@ object CourseSyncManager {
         CourseUpdatePlan.None -> 0L
         is CourseUpdatePlan.Incremental -> plan.changedFiles.sumOf(CourseFileSpec::size)
         is CourseUpdatePlan.Full -> estimatedFullTransferBytes(update.remote, update.local)
+    }
+
+    private fun toUpdateItem(update: PlannedCourseUpdate): CourseTextbookUpdate {
+        val plan = update.plan
+        return CourseTextbookUpdate(
+            id = update.remote.id,
+            kind = when {
+                update.local == null -> CourseUpdateKind.INITIAL
+                plan is CourseUpdatePlan.Full -> CourseUpdateKind.FULL
+                else -> CourseUpdateKind.INCREMENTAL
+            },
+            estimatedBytes = estimatedTransferBytes(update),
+            changedFiles = when (plan) {
+                CourseUpdatePlan.None -> 0
+                is CourseUpdatePlan.Full -> update.remote.files.size
+                is CourseUpdatePlan.Incremental -> plan.changedFiles.size
+            },
+            deletedFiles = (plan as? CourseUpdatePlan.Incremental)?.deletedFiles?.size ?: 0,
+            reason = (plan as? CourseUpdatePlan.Full)?.reason.orEmpty(),
+        )
     }
 
     private fun estimatedFullTransferBytes(
@@ -163,13 +190,15 @@ object CourseSyncManager {
         tracker: ProgressTracker,
     ) {
         val packageFile = store.temporaryDownloadFile(remote.id, "full")
+        var installed = false
         try {
             downloadToFile(context, remote.packageFile, packageFile, tracker)
             store.installFull(remote, packageFile) { file, destination ->
                 downloadToFile(context, file, destination, tracker)
             }
+            installed = true
         } finally {
-            packageFile.delete()
+            if (installed) packageFile.delete()
         }
     }
 
@@ -178,10 +207,25 @@ object CourseSyncManager {
         spec: CourseDownloadSpec,
         destination: File,
         tracker: ProgressTracker,
+        allowResume: Boolean = true,
     ) {
         require(spec.url.isNotBlank()) { "课程文件 ${spec.path} 缺少下载地址" }
         destination.parentFile?.mkdirs()
-        destination.delete()
+        if (!destination.isFile || destination.length() > spec.size || !allowResume) {
+            destination.delete()
+        }
+
+        var existingBytes = destination.takeIf(File::isFile)?.length() ?: 0L
+        if (existingBytes == spec.size) {
+            if (CoursePackStore.sha256(destination) == spec.sha256) {
+                tracker.beginFile(spec.path)
+                tracker.addRecoveredBytes(existingBytes, spec.path)
+                return
+            }
+            destination.delete()
+            existingBytes = 0L
+        }
+
         tracker.beginFile(spec.path)
         val connection = AppProxy.openConnection(
             context,
@@ -193,17 +237,45 @@ object CourseSyncManager {
             readTimeout = READ_TIMEOUT_MS
             requestMethod = "GET"
             setRequestProperty("Accept", "application/octet-stream, application/json")
+            setRequestProperty("Accept-Encoding", "identity")
             setRequestProperty("User-Agent", "School-Course/${BuildConfig.VERSION_NAME}")
             setRequestProperty("Cache-Control", "no-cache")
+            if (existingBytes > 0L) setRequestProperty("Range", "bytes=$existingBytes-")
         }
         try {
-            require(connection.responseCode in 200..299) {
-                "课程服务器返回 ${connection.responseCode}：${spec.path}"
+            val responseCode = connection.responseCode
+            if (responseCode == HTTP_RANGE_NOT_SATISFIABLE && existingBytes > 0L) {
+                connection.disconnect()
+                destination.delete()
+                return downloadToFile(context, spec, destination, tracker, allowResume = false)
             }
+
+            val append = existingBytes > 0L && responseCode == HttpURLConnection.HTTP_PARTIAL
+            if (existingBytes > 0L && responseCode == HttpURLConnection.HTTP_OK) {
+                destination.delete()
+                existingBytes = 0L
+            }
+            require(responseCode == HttpURLConnection.HTTP_OK || responseCode == HttpURLConnection.HTTP_PARTIAL) {
+                "课程服务器返回 $responseCode：${spec.path}"
+            }
+            if (append) validateContentRange(connection.getHeaderField("Content-Range"), existingBytes, spec.size)
+
             val digest = MessageDigest.getInstance("SHA-256")
-            var downloaded = 0L
+            if (append) {
+                FileInputStream(destination).buffered().use { input ->
+                    val buffer = ByteArray(64 * 1024)
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        if (count > 0) digest.update(buffer, 0, count)
+                    }
+                }
+                tracker.addRecoveredBytes(existingBytes, spec.path)
+            }
+
+            var downloaded = if (append) existingBytes else 0L
             connection.inputStream.use { input ->
-                FileOutputStream(destination).buffered().use { output ->
+                FileOutputStream(destination, append).buffered().use { output ->
                     val buffer = ByteArray(64 * 1024)
                     while (true) {
                         val count = input.read(buffer)
@@ -219,10 +291,19 @@ object CourseSyncManager {
             }
             require(downloaded == spec.size) { "课程文件下载不完整：${spec.path}" }
             val actualSha = digest.digest().joinToString("") { "%02x".format(it) }
+            if (actualSha != spec.sha256) destination.delete()
             require(actualSha == spec.sha256) { "课程文件 SHA-256 校验失败：${spec.path}" }
         } finally {
             connection.disconnect()
         }
+    }
+
+    private fun validateContentRange(header: String?, expectedStart: Long, expectedTotal: Long) {
+        val match = header?.let { CONTENT_RANGE_PATTERN.matchEntire(it.trim()) }
+            ?: error("课程服务器返回了无效的 Content-Range")
+        require(match.groupValues[1].toLong() == expectedStart) { "课程断点续传起点不一致" }
+        val total = match.groupValues[3]
+        require(total == "*" || total.toLong() == expectedTotal) { "课程断点续传总大小不一致" }
     }
 
     private fun downloadManifest(context: Context, url: String): CourseManifest =
@@ -306,6 +387,12 @@ object CourseSyncManager {
             emit(force = true, stage = "正在下载")
         }
 
+        fun addRecoveredBytes(count: Long, path: String) {
+            downloadedBytes += count.coerceAtLeast(0L)
+            currentItem = path.substringAfterLast('/')
+            emit(force = true, stage = "正在继续上次下载")
+        }
+
         fun addBytes(count: Long, path: String) {
             downloadedBytes += count
             currentItem = path.substringAfterLast('/')
@@ -337,6 +424,12 @@ object CourseSyncManager {
         }
     }
 
+    private fun Throwable.rethrowCancellation() {
+        if (this is CancellationException) throw this
+    }
+
+    private val CONTENT_RANGE_PATTERN = Regex("bytes\\s+(\\d+)-(\\d+)/(\\d+|\\*)", RegexOption.IGNORE_CASE)
+    private const val HTTP_RANGE_NOT_SATISFIABLE = 416
     private const val MAX_MANIFEST_BYTES = 2 * 1024 * 1024
     private const val CONNECT_TIMEOUT_MS = 15_000
     private const val READ_TIMEOUT_MS = 120_000
@@ -356,10 +449,20 @@ enum class CourseUpdateKind {
     INCREMENTAL,
 }
 
+data class CourseTextbookUpdate(
+    val id: String,
+    val kind: CourseUpdateKind,
+    val estimatedBytes: Long,
+    val changedFiles: Int,
+    val deletedFiles: Int,
+    val reason: String,
+)
+
 data class CourseUpdateOffer(
     val kind: CourseUpdateKind,
     val textbookCount: Int,
     val estimatedBytes: Long,
+    val textbooks: List<CourseTextbookUpdate> = emptyList(),
 )
 
 sealed interface CourseUpdateCheckResult {

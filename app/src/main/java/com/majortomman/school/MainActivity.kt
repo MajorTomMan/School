@@ -79,6 +79,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         AppProxy.initialize(applicationContext)
         CloudCourseRepository.initialize(applicationContext)
+        CourseDownloadCoordinator.initialize(applicationContext)
         enableEdgeToEdge()
         val initialTextbookKey = intent.getStringExtra("open_textbook_slot")
         val courseContentInstalled = CloudCourseRepository.hasInstalledCourseContent()
@@ -97,7 +98,6 @@ class MainActivity : ComponentActivity() {
                         showInitialCoursePrompt = false
                         pendingCourseUpdate.value = null
                         materialPackRepository.refreshCurrent()
-                        CourseDownloadCoordinator.clearTerminalState()
                     }
                     else -> Unit
                 }
@@ -116,8 +116,9 @@ class MainActivity : ComponentActivity() {
 
                     val downloadActive = courseDownloadState is CourseDownloadUiState.Queued ||
                         courseDownloadState is CourseDownloadUiState.Running
+                    val downloadBusy = courseDownloadState is CourseDownloadUiState.Restoring || downloadActive
                     when {
-                        showInitialCoursePrompt && !downloadActive -> {
+                        showInitialCoursePrompt && !downloadBusy -> {
                             CourseDownloadConfirmationDialog(
                                 title = "下载课程包",
                                 message = "学习内容尚未下载。确认后将从已配置的课程源获取课程包和教材，" +
@@ -131,7 +132,7 @@ class MainActivity : ComponentActivity() {
                                 onLater = { showInitialCoursePrompt = false },
                             )
                         }
-                        courseUpdateOffer != null && !downloadActive -> {
+                        courseUpdateOffer != null && !downloadBusy -> {
                             val offer = requireNotNull(courseUpdateOffer)
                             CourseDownloadConfirmationDialog(
                                 title = when (offer.kind) {
@@ -294,11 +295,11 @@ private fun updateOfferMessage(offer: CourseUpdateOffer): String {
         CourseUpdateKind.FULL -> "完整课程更新"
         CourseUpdateKind.INCREMENTAL -> "增量课程更新"
     }
-    return "$kindText 已准备好，预计下载 ${formatBytes(offer.estimatedBytes)}。" +
-        "确认后将在后台下载，下载进度会同时显示在应用和通知栏中。"
+    return "$kindText 已准备好，涉及 ${offer.textbookCount} 册教材，预计下载 ${formatBytes(offer.estimatedBytes)}。" +
+        "确认后将在后台下载；切换应用或界面重建不会重新创建任务。"
 }
 
-private fun formatBytes(bytes: Long): String = when {
+internal fun formatBytes(bytes: Long): String = when {
     bytes >= 1024L * 1024L * 1024L -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
     bytes >= 1024L * 1024L -> String.format("%.1f MB", bytes / (1024.0 * 1024.0))
     bytes >= 1024L -> String.format("%.1f KB", bytes / 1024.0)
@@ -306,7 +307,9 @@ private fun formatBytes(bytes: Long): String = when {
 }
 
 private fun CourseDownloadUiState.operationIdOrNull(): Long? = when (this) {
-    CourseDownloadUiState.Idle -> null
+    CourseDownloadUiState.Restoring,
+    CourseDownloadUiState.Idle,
+    -> null
     is CourseDownloadUiState.Queued -> operationId
     is CourseDownloadUiState.Running -> operationId
     is CourseDownloadUiState.Success -> operationId

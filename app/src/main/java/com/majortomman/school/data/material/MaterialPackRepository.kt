@@ -1,6 +1,7 @@
 package com.majortomman.school.data.material
 
 import android.content.Context
+import com.majortomman.school.learning.cloud.CloudCourseRepository
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -8,6 +9,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -28,6 +30,9 @@ class MaterialPackRepository(
 
     init {
         refreshCurrent()
+        ioScope.launch {
+            CloudCourseRepository.revision.collectLatest { publish() }
+        }
     }
 
     suspend fun loadLessonAnalysis(
@@ -43,7 +48,7 @@ class MaterialPackRepository(
     suspend fun removeInstalled(slot: TextbookSlot) = withContext(Dispatchers.IO) {
         val removed = MaterialLibraryStore.remove(appContext, slot.key)
         removed?.pack?.rootPath?.let { File(it).deleteRecursively() }
-        publish()
+        CloudCourseRepository.markContentChanged()
     }
 
     fun refreshCurrent() {

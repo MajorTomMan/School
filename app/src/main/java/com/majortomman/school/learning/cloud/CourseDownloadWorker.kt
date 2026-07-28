@@ -15,6 +15,8 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.majortomman.school.MainActivity
 import com.majortomman.school.data.material.MaterialLibraryStore
+import java.util.UUID
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 class CourseDownloadWorker(
@@ -22,15 +24,22 @@ class CourseDownloadWorker(
     workerParameters: WorkerParameters,
 ) : CoroutineWorker(appContext, workerParameters) {
 
+    private val operationId: Long = inputData
+        .getLong(CourseDownloadCoordinator.KEY_OPERATION_ID, 0L)
+        .takeIf { it != 0L }
+        ?: id.stableLong()
+
     override suspend fun getForegroundInfo(): ForegroundInfo {
         createNotificationChannels()
         return foregroundInfo(0, "正在准备课程下载", indeterminate = true)
     }
 
     override suspend fun doWork(): Result {
+        CourseDownloadCoordinator.initialize(applicationContext)
         createNotificationChannels()
         setForeground(foregroundInfo(0, "正在检查课程资源", indeterminate = true))
         CourseDownloadCoordinator.reportRunning(
+            operationId,
             CourseSyncProgress(0L, 0L, "课程清单", "正在检查更新"),
         )
 
@@ -41,36 +50,37 @@ class CourseDownloadWorker(
         ) {
             CourseSyncResult.Disabled -> {
                 val message = "课程下载地址尚未配置"
-                CourseDownloadCoordinator.reportFailure(message)
+                CourseDownloadCoordinator.reportFailure(operationId, message)
                 showResultNotification(success = false, message = message)
-                Result.failure(workDataOf(KEY_ERROR to message))
+                Result.failure(resultData(error = message))
             }
             is CourseSyncResult.Failed -> {
                 val message = userFacingFailure(result.message)
-                CourseDownloadCoordinator.reportFailure(message)
+                CourseDownloadCoordinator.reportFailure(operationId, message)
                 showResultNotification(success = false, message = message)
-                Result.failure(workDataOf(KEY_ERROR to message))
+                Result.failure(resultData(error = message))
             }
             is CourseSyncResult.Success -> {
                 CloudCourseCatalogInstaller.refreshFromCache(applicationContext)
                 MaterialLibraryStore.read(applicationContext)
-                CourseDownloadCoordinator.reportSuccess(result.updatedTextbooks)
+                CourseDownloadCoordinator.reportSuccess(operationId, result.updatedTextbooks)
                 val message = if (result.updatedTextbooks > 0) {
                     "课程内容已下载完成，可以离线学习"
                 } else {
                     "课程内容已经是最新版本"
                 }
                 showResultNotification(success = true, message = message)
-                Result.success(workDataOf(KEY_UPDATED_TEXTBOOKS to result.updatedTextbooks))
+                Result.success(resultData(updatedTextbooks = result.updatedTextbooks))
             }
         }
     }
 
     private fun publishProgress(progress: CourseSyncProgress) {
-        CourseDownloadCoordinator.reportRunning(progress)
+        CourseDownloadCoordinator.reportRunning(operationId, progress)
         val percent = progress.percent
         setProgressAsync(
             workDataOf(
+                CourseDownloadCoordinator.KEY_OPERATION_ID to operationId,
                 KEY_DOWNLOADED_BYTES to progress.downloadedBytes,
                 KEY_TOTAL_BYTES to progress.totalBytes,
                 KEY_CURRENT_ITEM to progress.currentItem,
@@ -87,6 +97,12 @@ class CourseDownloadWorker(
             ),
         )
     }
+
+    private fun resultData(updatedTextbooks: Int? = null, error: String? = null) = workDataOf(
+        CourseDownloadCoordinator.KEY_OPERATION_ID to operationId,
+        KEY_UPDATED_TEXTBOOKS to (updatedTextbooks ?: 0),
+        KEY_ERROR to error.orEmpty(),
+    )
 
     private fun foregroundInfo(percent: Int, text: String, indeterminate: Boolean): ForegroundInfo {
         val notification = progressNotification(percent, text, indeterminate)
@@ -183,6 +199,10 @@ class CourseDownloadWorker(
         get() = if (totalBytes <= 0L) 0 else {
             (downloadedBytes.toDouble() * 100.0 / totalBytes.toDouble()).roundToInt().coerceIn(0, 100)
         }
+
+    private fun UUID.stableLong(): Long = (mostSignificantBits xor leastSignificantBits).let {
+        if (it == Long.MIN_VALUE) 1L else abs(it).coerceAtLeast(1L)
+    }
 
     companion object {
         const val KEY_DOWNLOADED_BYTES = "downloaded_bytes"

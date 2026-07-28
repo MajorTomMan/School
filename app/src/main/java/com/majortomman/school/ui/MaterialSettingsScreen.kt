@@ -66,7 +66,8 @@ private val SettingsLine = SettingsWhite.copy(alpha = 0.13f)
 
 private enum class SettingsPage(val label: String) {
     PROXY("代理"),
-    UPDATE("更新"),
+    UPDATE("应用"),
+    COURSE("课程"),
     AI("AI"),
 }
 
@@ -174,6 +175,8 @@ fun MaterialSettingsScreen(
                     onShowUpdateStatus = updateCoordinator::showDialog,
                 )
 
+                SettingsPage.COURSE -> CourseStorageSettingsPage()
+
                 SettingsPage.AI -> AiSettingsPage(
                     endpoint = endpoint,
                     onEndpointChange = {
@@ -223,20 +226,19 @@ fun MaterialSettingsScreen(
 @Composable
 private fun SettingsPageSelector(selected: SettingsPage, onSelect: (SettingsPage) -> Unit) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(30.dp),
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(22.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         SettingsPage.entries.forEach { page ->
             Column(
-                modifier = Modifier
-                    .clickable { onSelect(page) }
-                    .padding(vertical = 8.dp),
+                modifier = Modifier.clickable { onSelect(page) }.padding(vertical = 8.dp),
                 horizontalAlignment = Alignment.Start,
             ) {
                 Text(
                     page.label,
                     color = if (selected == page) SettingsWhite else SettingsMuted,
-                    fontSize = 19.sp,
+                    fontSize = 18.sp,
                     fontWeight = if (selected == page) FontWeight.Bold else FontWeight.Medium,
                 )
                 Spacer(Modifier.height(8.dp))
@@ -279,7 +281,7 @@ private fun ProxySettingsPage(
             lineHeight = 19.sp,
         )
         Spacer(Modifier.height(20.dp))
-        SettingsToggleRow("版本更新走代理", useForUpdates, onToggleUpdates)
+        SettingsToggleRow("版本与课程更新走代理", useForUpdates, onToggleUpdates)
         SettingsToggleRow("AI 请求走代理", useForAi, onToggleAi)
         Spacer(Modifier.height(20.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
