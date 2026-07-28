@@ -5,11 +5,13 @@ on:
     branches: [agent/section-assessment-ai]
     paths:
       - "tools/agent_apply_section_assessment.py"
+      - "tools/agent_fix_transform.py"
       - ".github/workflows/agent-section-assessment.yml"
   pull_request:
     branches: [master]
     paths:
       - "tools/agent_apply_section_assessment.py"
+      - "tools/agent_fix_transform.py"
       - ".github/workflows/agent-section-assessment.yml"
 
 permissions:
@@ -28,8 +30,12 @@ jobs:
         shell: bash
         run: |
           set +e
-          python tools/agent_apply_section_assessment.py > "$RUNNER_TEMP/agent-apply.log" 2>&1
+          python tools/agent_fix_transform.py > "$RUNNER_TEMP/agent-apply.log" 2>&1
           status=$?
+          if [ "$status" -eq 0 ]; then
+            python tools/agent_apply_section_assessment.py >> "$RUNNER_TEMP/agent-apply.log" 2>&1
+            status=$?
+          fi
           cat "$RUNNER_TEMP/agent-apply.log"
           if [ "$status" -ne 0 ]; then
             git reset --hard HEAD
