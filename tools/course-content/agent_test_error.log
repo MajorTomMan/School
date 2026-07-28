@@ -1,6 +1,6 @@
 test_checked_in_grade7_documents_match_distribution_contract (test_course_assessment_distribution.CourseAssessmentDistributionTest.test_checked_in_grade7_documents_match_distribution_contract) ... ERROR
 test_deterministic_zip_contains_extensions_and_assets_in_sorted_order (test_course_assessment_distribution.CourseAssessmentDistributionTest.test_deterministic_zip_contains_extensions_and_assets_in_sorted_order) ... ok
-test_extension_pair_is_required (test_course_assessment_distribution.CourseAssessmentDistributionTest.test_extension_pair_is_required) ... ok
+test_extension_pair_is_required (test_course_assessment_distribution.CourseAssessmentDistributionTest.test_extension_pair_is_required) ... FAIL
 test_manual_section_overlay_ignores_package_extension_json (test_course_assessment_distribution.CourseAssessmentDistributionTest.test_manual_section_overlay_ignores_package_extension_json) ... ok
 test_duplicate_generic_ids_receive_stable_namespace (test_course_distribution.CourseDistributionTest.test_duplicate_generic_ids_receive_stable_namespace) ... ok
 test_legacy_course_becomes_strict_business_contract (test_course_distribution.CourseDistributionTest.test_legacy_course_becomes_strict_business_contract) ... ok
@@ -16,12 +16,34 @@ Traceback (most recent call last):
   File "/home/runner/work/School/School/tools/course-content/test_course_assessment_distribution.py", line 47, in test_checked_in_grade7_documents_match_distribution_contract
     result = validate_package(root)
              ^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/runner/work/School/School/tools/course-content/prepare_assessment_packages.py", line 326, in validate_package
-    raise ValueError(f"{where} references unknown sections")
-ValueError: knowledge-points.json.knowledgePoints[9] references unknown sections
+  File "/home/runner/work/School/School/tools/course-content/prepare_assessment_packages.py", line 381, in validate_package
+    question_id = validate_question(
+                  ^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/School/School/tools/course-content/prepare_assessment_packages.py", line 182, in validate_question
+    validate_content_array(question["explanation"], f"{where}.explanation", referenced_assets, True)
+  File "/home/runner/work/School/School/tools/course-content/prepare_assessment_packages.py", line 170, in validate_content_array
+    validate_content(item, f"{where}[{index}]", referenced_assets)
+  File "/home/runner/work/School/School/tools/course-content/prepare_assessment_packages.py", line 163, in validate_content
+    validate_scene(value, where)
+  File "/home/runner/work/School/School/tools/course-content/prepare_assessment_packages.py", line 117, in validate_scene
+    raise ValueError(f"{where}.data.mode is unsupported")
+ValueError: assessments.json.questionSets[3].questions[0].explanation[0].data.mode is unsupported
+
+======================================================================
+FAIL: test_extension_pair_is_required (test_course_assessment_distribution.CourseAssessmentDistributionTest.test_extension_pair_is_required)
+----------------------------------------------------------------------
+ValueError: /tmp/tmppyfio041/source: assessment extension files must appear together
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/runner/work/School/School/tools/course-content/test_course_assessment_distribution.py", line 92, in test_extension_pair_is_required
+    with self.assertRaisesRegex(ValueError, "must be provided together"):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "must be provided together" does not match "/tmp/tmppyfio041/source: assessment extension files must appear together"
 
 ----------------------------------------------------------------------
-Ran 10 tests in 0.061s
+Ran 10 tests in 0.059s
 
-FAILED (errors=1)
+FAILED (failures=1, errors=1)
 Consider using the pymupdf_layout package for a greatly improved page layout analysis.
