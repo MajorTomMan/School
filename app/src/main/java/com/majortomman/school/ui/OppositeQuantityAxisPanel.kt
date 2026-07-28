@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.weight
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -25,10 +25,11 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
- * 相对基准类场景的通用布局。
+ * 相对基准类场景的连续画布布局。
  *
- * 文字全部由 Compose 布局；Canvas 只绘制轴线、方向和当前位置，避免文字缩放后与
- * 基准、数值或其他标签发生重叠。
+ * 遵循项目的极简技术风格：不用卡片承载信息，只使用留白、细线与数学语义色建立层级。
+ * Canvas 仅绘制轴线、刻度、方向和当前位置；所有文字由 Compose 独立排版，因此字号变化
+ * 不会与点位、基准或其他标签重叠。
  */
 @Composable
 internal fun OppositeQuantityAxisPanel(
@@ -48,74 +49,111 @@ internal fun OppositeQuantityAxisPanel(
 
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(9.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.Bottom,
         ) {
-            QuantitySummaryCell(
+            InlineQuantitySummary(
                 label = "基准",
                 value = baselineText,
                 color = InteractiveWhite,
                 modifier = Modifier.weight(1f),
             )
-            QuantitySummaryCell(
+            Text(
+                text = "→",
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 2.dp),
+                color = InteractiveMuted.copy(alpha = 0.55f),
+                fontSize = 18.sp,
+            )
+            InlineQuantitySummary(
                 label = "当前记录",
                 value = displayOppositeSignedQuantity(value, unit),
                 color = valueColor,
                 modifier = Modifier.weight(1f),
+                endAligned = true,
             )
         }
 
+        Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
+
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            DirectionMeaningCell(
+            Text(
                 text = negativeMeaning,
+                modifier = Modifier.weight(1f),
                 color = InteractiveYellow,
-                modifier = Modifier.weight(1f),
+                fontSize = 15.sp,
+                lineHeight = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Start,
+                maxLines = 2,
             )
-            DirectionMeaningCell(
+            Text(
+                text = "0",
+                modifier = Modifier.padding(horizontal = 14.dp),
+                color = InteractiveWhite,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
+            Text(
                 text = positiveMeaning,
-                color = InteractiveBlue,
                 modifier = Modifier.weight(1f),
+                color = InteractiveBlue,
+                fontSize = 15.sp,
+                lineHeight = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.End,
+                maxLines = 2,
             )
         }
 
         ZoomableMathCanvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(190.dp),
+            modifier = Modifier.fillMaxWidth().height(154.dp),
         ) {
-            val left = 30.dp.toPx()
-            val right = size.width - 30.dp.toPx()
+            val left = 22.dp.toPx()
+            val right = size.width - 22.dp.toPx()
             val centerX = size.width / 2f
             val axisY = size.height / 2f
+            val halfWidth = right - centerX
             val normalized = (value / bound.coerceAtLeast(0.0001f)).coerceIn(-1f, 1f)
-            val endX = centerX + normalized * (right - centerX)
-            val stroke = 3.dp.toPx()
+            val endX = centerX + normalized * halfWidth
 
             drawLine(
-                color = InteractiveYellow.copy(alpha = 0.38f),
+                color = InteractiveYellow.copy(alpha = 0.34f),
                 start = Offset(left, axisY),
                 end = Offset(centerX, axisY),
-                strokeWidth = stroke,
+                strokeWidth = 2.dp.toPx(),
                 cap = StrokeCap.Round,
             )
             drawLine(
-                color = InteractiveBlue.copy(alpha = 0.38f),
+                color = InteractiveBlue.copy(alpha = 0.34f),
                 start = Offset(centerX, axisY),
                 end = Offset(right, axisY),
-                strokeWidth = stroke,
+                strokeWidth = 2.dp.toPx(),
                 cap = StrokeCap.Round,
             )
+
+            for (tick in -4..4) {
+                if (tick == 0) continue
+                val x = centerX + tick / 4f * halfWidth
+                drawLine(
+                    color = InteractiveWhite.copy(alpha = 0.16f),
+                    start = Offset(x, axisY - 5.dp.toPx()),
+                    end = Offset(x, axisY + 5.dp.toPx()),
+                    strokeWidth = 1.dp.toPx(),
+                )
+            }
+
             drawLine(
-                color = InteractiveWhite,
-                start = Offset(centerX, axisY - 20.dp.toPx()),
-                end = Offset(centerX, axisY + 20.dp.toPx()),
-                strokeWidth = 3.dp.toPx(),
+                color = InteractiveWhite.copy(alpha = 0.92f),
+                start = Offset(centerX, axisY - 21.dp.toPx()),
+                end = Offset(centerX, axisY + 21.dp.toPx()),
+                strokeWidth = 2.dp.toPx(),
                 cap = StrokeCap.Round,
             )
 
@@ -124,33 +162,36 @@ internal fun OppositeQuantityAxisPanel(
                     color = valueColor,
                     start = Offset(centerX, axisY),
                     end = Offset(endX, axisY),
-                    strokeWidth = 10.dp.toPx(),
+                    strokeWidth = 5.dp.toPx(),
                     cap = StrokeCap.Round,
                 )
                 drawCircle(
                     color = valueColor,
-                    radius = 8.dp.toPx(),
+                    radius = 7.dp.toPx(),
                     center = Offset(endX, axisY),
                 )
+
                 val direction = if (value > 0f) 1f else -1f
+                val arrowLength = 12.dp.toPx()
+                val arrowHeight = 8.dp.toPx()
                 drawLine(
                     color = valueColor,
                     start = Offset(endX, axisY),
-                    end = Offset(endX - direction * 13.dp.toPx(), axisY - 9.dp.toPx()),
-                    strokeWidth = 3.dp.toPx(),
+                    end = Offset(endX - direction * arrowLength, axisY - arrowHeight),
+                    strokeWidth = 2.5.dp.toPx(),
                     cap = StrokeCap.Round,
                 )
                 drawLine(
                     color = valueColor,
                     start = Offset(endX, axisY),
-                    end = Offset(endX - direction * 13.dp.toPx(), axisY + 9.dp.toPx()),
-                    strokeWidth = 3.dp.toPx(),
+                    end = Offset(endX - direction * arrowLength, axisY + arrowHeight),
+                    strokeWidth = 2.5.dp.toPx(),
                     cap = StrokeCap.Round,
                 )
             } else {
                 drawCircle(
                     color = InteractiveWhite,
-                    radius = 8.dp.toPx(),
+                    radius = 6.dp.toPx(),
                     center = Offset(centerX, axisY),
                 )
             }
@@ -159,23 +200,22 @@ internal fun OppositeQuantityAxisPanel(
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "负方向",
-                color = InteractiveMuted,
-                fontSize = 13.sp,
+                text = "−${displayOppositeQuantity(bound)}$unit",
+                color = InteractiveMuted.copy(alpha = 0.68f),
+                fontSize = 11.sp,
             )
             Text(
-                text = "基准 0",
-                color = InteractiveWhite,
-                fontSize = 14.sp,
+                text = "0",
+                color = InteractiveWhite.copy(alpha = 0.78f),
+                fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = "正方向",
-                color = InteractiveMuted,
-                fontSize = 13.sp,
+                text = "+${displayOppositeQuantity(bound)}$unit",
+                color = InteractiveMuted.copy(alpha = 0.68f),
+                fontSize = 11.sp,
             )
         }
 
@@ -183,63 +223,44 @@ internal fun OppositeQuantityAxisPanel(
             text = if (abs(value) < 0.0001f) {
                 "当前记录位于基准，没有向任一方向偏离。"
             } else {
-                "距基准 ${displayOppositeQuantity(abs(value))}$unit · 方向：$directionMeaning"
+                "距基准 ${displayOppositeQuantity(abs(value))}$unit   ·   $directionMeaning"
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(valueColor.copy(alpha = 0.09f), RoundedCornerShape(12.dp))
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            color = InteractiveWhite.copy(alpha = 0.84f),
+            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+            color = valueColor.copy(alpha = 0.92f),
             fontSize = 14.sp,
-            lineHeight = 22.sp,
+            lineHeight = 21.sp,
+            fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center,
         )
     }
 }
 
 @Composable
-private fun QuantitySummaryCell(
+private fun InlineQuantitySummary(
     label: String,
     value: String,
     color: Color,
     modifier: Modifier,
+    endAligned: Boolean = false,
 ) {
     Column(
-        modifier = modifier
-            .background(InteractivePanel.copy(alpha = 0.82f), RoundedCornerShape(12.dp))
-            .padding(horizontal = 13.dp, vertical = 11.dp),
-        verticalArrangement = Arrangement.spacedBy(5.dp),
+        modifier = modifier,
+        horizontalAlignment = if (endAligned) Alignment.End else Alignment.Start,
+        verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
-        Text(label, color = InteractiveMuted, fontSize = 12.sp)
         Text(
-            value,
+            text = label,
+            color = InteractiveMuted,
+            fontSize = 11.sp,
+        )
+        Text(
+            text = value,
             color = color,
-            fontSize = 17.sp,
+            fontSize = 18.sp,
             lineHeight = 23.sp,
             fontWeight = FontWeight.SemiBold,
-        )
-    }
-}
-
-@Composable
-private fun DirectionMeaningCell(
-    text: String,
-    color: Color,
-    modifier: Modifier,
-) {
-    Box(
-        modifier = modifier
-            .background(color.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
-            .padding(horizontal = 10.dp, vertical = 10.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            color = color,
-            fontSize = 16.sp,
-            lineHeight = 21.sp,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center,
+            textAlign = if (endAligned) TextAlign.End else TextAlign.Start,
+            maxLines = 2,
         )
     }
 }
