@@ -1,10 +1,10 @@
 package com.majortomman.school.ai
 
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
+import org.junit.Test
 
 class StrictAiGradingProtocolTest {
     @Test
@@ -41,7 +41,7 @@ class StrictAiGradingProtocolTest {
 
     @Test
     fun rejectsMissingCompletionFlag() {
-        assertFailsWith<IllegalArgumentException> {
+        assertThrows(IllegalArgumentException::class.java) {
             StrictAiGradingProtocol.parse(
                 """{"answer_correct":true,"feedback":"正确。","explanation":"解释。"}""",
             )
@@ -50,7 +50,7 @@ class StrictAiGradingProtocolTest {
 
     @Test
     fun rejectsMissingCorrectnessFlag() {
-        assertFailsWith<IllegalArgumentException> {
+        assertThrows(IllegalArgumentException::class.java) {
             StrictAiGradingProtocol.parse(
                 """{"completed":true,"feedback":"正确。","explanation":"解释。"}""",
             )
@@ -59,7 +59,7 @@ class StrictAiGradingProtocolTest {
 
     @Test
     fun rejectsStringBoolean() {
-        assertFailsWith<IllegalArgumentException> {
+        assertThrows(IllegalArgumentException::class.java) {
             StrictAiGradingProtocol.parse(
                 """{"completed":"true","answer_correct":true,"feedback":"正确。","explanation":"解释。"}""",
             )
@@ -68,7 +68,7 @@ class StrictAiGradingProtocolTest {
 
     @Test
     fun rejectsMarkdownWrappedJson() {
-        assertFailsWith<IllegalArgumentException> {
+        assertThrows(IllegalArgumentException::class.java) {
             StrictAiGradingProtocol.parse(
                 """```json
                 {"completed":true,"answer_correct":true,"feedback":"正确。","explanation":"解释。"}
@@ -79,7 +79,7 @@ class StrictAiGradingProtocolTest {
 
     @Test
     fun rejectsEmptyExplanation() {
-        assertFailsWith<IllegalArgumentException> {
+        assertThrows(IllegalArgumentException::class.java) {
             StrictAiGradingProtocol.parse(
                 """{"completed":true,"answer_correct":true,"feedback":"正确。","explanation":""}""",
             )
@@ -88,7 +88,7 @@ class StrictAiGradingProtocolTest {
 
     @Test
     fun rejectsUnknownFields() {
-        assertFailsWith<IllegalArgumentException> {
+        assertThrows(IllegalArgumentException::class.java) {
             StrictAiGradingProtocol.parse(
                 """{"completed":true,"answer_correct":true,"feedback":"正确。","explanation":"解释。","pass":true}""",
             )
