@@ -1,7 +1,6 @@
 package com.majortomman.school.learning.cloud
 
 import android.content.Context
-import com.majortomman.school.data.material.InstalledTextbook
 import com.majortomman.school.data.material.MaterialLibraryStore
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -39,7 +38,7 @@ object CourseStorageManager {
     suspend fun clearCache(context: Context): CourseCacheClearResult = withContext(Dispatchers.IO) {
         val appContext = context.applicationContext
         synchronized(clearLock) {
-            if (CourseDownloadCoordinator.state.value.isActiveDownload()) {
+            if (CourseDownloadCoordinator.isBusy()) {
                 return@synchronized CourseCacheClearResult.Busy
             }
 
@@ -139,6 +138,3 @@ internal object CourseCacheFiles {
     private fun directorySize(directory: File): Long =
         if (!directory.exists()) 0L else directory.walkTopDown().filter(File::isFile).sumOf(File::length)
 }
-
-private fun CourseDownloadUiState.isActiveDownload(): Boolean =
-    this is CourseDownloadUiState.Queued || this is CourseDownloadUiState.Running
