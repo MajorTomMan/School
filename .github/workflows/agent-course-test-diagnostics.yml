@@ -1,0 +1,52 @@
+name: Course test diagnostics
+
+on:
+  push:
+    branches: [agent/section-assessment-ai]
+    paths:
+      - ".github/workflows/agent-course-test-diagnostics.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/section-assessment-ai
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run course tests and capture full output
+        id: test
+        shell: bash
+        run: |
+          set +e
+          python3 -m py_compile tools/course-content/*.py > "$RUNNER_TEMP/course-tests.log" 2>&1
+          status=$?
+          if [ "$status" -eq 0 ]; then
+            python3 -m unittest discover -s tools/course-content -p 'test_*.py' -v >> "$RUNNER_TEMP/course-tests.log" 2>&1
+            status=$?
+          fi
+          cat "$RUNNER_TEMP/course-tests.log"
+          if [ "$status" -ne 0 ]; then
+            cp "$RUNNER_TEMP/course-tests.log" tools/course-content/agent_test_error.log
+            echo "failed=true" >> "$GITHUB_OUTPUT"
+          else
+            rm -f tools/course-content/agent_test_error.log
+            echo "failed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Commit diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tools/course-content/agent_test_error.log || true
+          git add -u tools/course-content/agent_test_error.log || true
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "记录课程测试诊断"
+          git push origin HEAD:agent/section-assessment-ai
