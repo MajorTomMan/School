@@ -5,9 +5,15 @@ data class AiMessage(
     val content: String,
 )
 
+/**
+ * Strict result returned by the AI grading protocol.
+ * A result may only be accepted after [completed] and [answerCorrect] are both true.
+ */
 data class AnswerEvaluation(
-    val correct: Boolean,
+    val completed: Boolean,
+    val answerCorrect: Boolean,
     val feedback: String,
+    val explanation: String,
     val mistakeType: String? = null,
 )
 
@@ -30,7 +36,9 @@ class OfflinePlaceholderAiProvider : AiProvider {
         question: String,
         learnerAnswer: String,
     ): AnswerEvaluation = AnswerEvaluation(
-        correct = false,
-        feedback = "AI 批改将在接入 llama.cpp 或 OpenAI 兼容接口后启用。",
+        completed = false,
+        answerCorrect = false,
+        feedback = "AI 服务尚未配置。",
+        explanation = "请先在设置中配置可用的 OpenAI 兼容接口和模型。",
     )
 }
