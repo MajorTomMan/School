@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 object CourseDownloadCoordinator {
     internal const val UNIQUE_WORK_NAME = "school-course-download"
     internal const val KEY_OPERATION_ID = "operation_id"
+    private const val OPERATION_TAG_PREFIX = "school-course-operation:"
 
     private val operationCounter = AtomicLong(System.currentTimeMillis())
     private val initialized = AtomicBoolean(false)
@@ -70,6 +71,7 @@ object CourseDownloadCoordinator {
         mutableState.value = CourseDownloadUiState.Queued(operationId)
         val request = OneTimeWorkRequestBuilder<CourseDownloadWorker>()
             .setInputData(workDataOf(KEY_OPERATION_ID to operationId))
+            .addTag("$OPERATION_TAG_PREFIX$operationId")
             .setConstraints(
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -159,9 +161,11 @@ object CourseDownloadCoordinator {
     }
 
     private fun WorkInfo.operationId(): Long {
-        val stored = inputData.getLong(KEY_OPERATION_ID, 0L)
-            .takeIf { it != 0L }
-            ?: progress.getLong(KEY_OPERATION_ID, 0L).takeIf { it != 0L }
+        val stored = tags.firstNotNullOfOrNull { tag ->
+            tag.takeIf { it.startsWith(OPERATION_TAG_PREFIX) }
+                ?.removePrefix(OPERATION_TAG_PREFIX)
+                ?.toLongOrNull()
+        } ?: progress.getLong(KEY_OPERATION_ID, 0L).takeIf { it != 0L }
             ?: outputData.getLong(KEY_OPERATION_ID, 0L).takeIf { it != 0L }
         return stored ?: id.stableLong()
     }
