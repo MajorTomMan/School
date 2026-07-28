@@ -23,17 +23,18 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
+          report = []
 
-          # Course lesson notice and navigation.
+          def save(path, text, original):
+              path.write_text(text, encoding='utf-8')
+              report.append(f'{path}: changed={text != original}')
+
           path = Path('app/src/main/java/com/majortomman/school/ui/CloudCourseLessonScreen.kt')
-          text = path.read_text(encoding='utf-8')
-          text = text.replace('import androidx.compose.foundation.shape.RoundedCornerShape\n', '')
-          text = text.replace(
-              '''                .padding(top = 14.dp)
+          original = path.read_text(encoding='utf-8')
+          text = original.replace('import androidx.compose.foundation.shape.RoundedCornerShape\n', '')
+          text = text.replace('''                .padding(top = 14.dp)
                 .background(InteractivePanel, RoundedCornerShape(12.dp))
-                .padding(horizontal = 14.dp, vertical = 10.dp),''',
-              '''                .padding(top = 14.dp, bottom = 4.dp),''',
-          )
+                .padding(horizontal = 14.dp, vertical = 10.dp),''', '''                .padding(top = 14.dp, bottom = 4.dp),''')
           marker = '@Composable\nprivate fun CloudNavigationAction('
           if marker in text:
               start = text.index(marker)
@@ -73,38 +74,34 @@ private fun CloudNavigationAction(
     }
 }
 '''
-          path.write_text(text, encoding='utf-8')
+          save(path, text, original)
 
-          # PDF page status: preserve layout, remove pill surface.
           path = Path('app/src/main/java/com/majortomman/school/ui/PdfTextbookScreen.kt')
-          text = path.read_text(encoding='utf-8')
-          text = text.replace('import androidx.compose.foundation.shape.RoundedCornerShape\n', '')
-          text = text.replace(
-              '''                    .background(ReaderWhite.copy(alpha = 0.07f), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 11.dp, vertical = 7.dp),''',
-              '''                    .padding(horizontal = 2.dp, vertical = 7.dp),''',
-          )
-          path.write_text(text, encoding='utf-8')
+          original = path.read_text(encoding='utf-8')
+          text = original.replace('import androidx.compose.foundation.shape.RoundedCornerShape\n', '')
+          text = text.replace('''                    .background(ReaderWhite.copy(alpha = 0.07f), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 11.dp, vertical = 7.dp),''', '''                    .padding(horizontal = 2.dp, vertical = 7.dp),''')
+          save(path, text, original)
 
-          # Path row no longer needs a rounded hit-area clip.
           path = Path('app/src/main/java/com/majortomman/school/ui/Screens.kt')
-          text = path.read_text(encoding='utf-8')
-          text = text.replace('import androidx.compose.foundation.shape.RoundedCornerShape\n', '')
+          original = path.read_text(encoding='utf-8')
+          text = original.replace('import androidx.compose.foundation.shape.RoundedCornerShape\n', '')
           text = text.replace('import androidx.compose.ui.draw.clip\n', '')
           text = text.replace('            .clip(RoundedCornerShape(24.dp))\n', '')
-          path.write_text(text, encoding='utf-8')
+          save(path, text, original)
 
-          # Bank selections and inputs become open text regions. Semantic color remains the state signal.
           path = Path('app/src/main/java/com/majortomman/school/ui/MathQuestionBankScreen.kt')
-          text = path.read_text(encoding='utf-8')
-          text = text.replace('import androidx.compose.foundation.shape.RoundedCornerShape\n', '')
+          original = path.read_text(encoding='utf-8')
+          text = original.replace('import androidx.compose.foundation.shape.RoundedCornerShape\n', '')
           text = text.replace('import androidx.compose.foundation.border\n', '')
           text = re.sub(r'\n\s*\.border\([^\n]*RoundedCornerShape\(5\.dp\)\)', '', text)
-          path.write_text(text, encoding='utf-8')
+          save(path, text, original)
+
+          Path('.agent-active-ui-result.txt').write_text('\n'.join(report) + '\n', encoding='utf-8')
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/src/main/java/com/majortomman/school/ui/CloudCourseLessonScreen.kt app/src/main/java/com/majortomman/school/ui/PdfTextbookScreen.kt app/src/main/java/com/majortomman/school/ui/Screens.kt app/src/main/java/com/majortomman/school/ui/MathQuestionBankScreen.kt
-          git commit -m "refactor(ui): decardify active navigation and question bank" || exit 0
+          git add app/src/main/java/com/majortomman/school/ui/CloudCourseLessonScreen.kt app/src/main/java/com/majortomman/school/ui/PdfTextbookScreen.kt app/src/main/java/com/majortomman/school/ui/Screens.kt app/src/main/java/com/majortomman/school/ui/MathQuestionBankScreen.kt .agent-active-ui-result.txt
+          git commit -m "refactor(ui): decardify active navigation and question bank" || true
           git pull --rebase origin dev
           git push origin dev
