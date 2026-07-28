@@ -7,6 +7,7 @@ import com.majortomman.school.learning.assessment.contract.AssessmentPackageCont
 import com.majortomman.school.learning.assessment.contract.CourseAssessmentQuestionSet
 import com.majortomman.school.learning.assessment.contract.KNOWLEDGE_POINTS_FILE_NAME
 import com.majortomman.school.learning.assessment.contract.KnowledgePointDefinition
+import com.majortomman.school.learning.assessment.contract.KnowledgePointDocumentParser
 import com.majortomman.school.learning.assessment.domain.KnowledgePointId
 import com.majortomman.school.learning.assessment.domain.QuestionSetId
 import com.majortomman.school.learning.content.ContentAssetId
