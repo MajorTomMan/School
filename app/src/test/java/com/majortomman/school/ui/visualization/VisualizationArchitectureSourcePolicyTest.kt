@@ -58,6 +58,25 @@ class VisualizationArchitectureSourcePolicyTest {
         assertTrue("趋势图应使用 TechnicalLineChart", renderers.countOccurrences("TechnicalLineChart(") >= 2)
     }
 
+    @Test
+    fun toleranceSceneUsesRegisteredPartOverlayRenderer() {
+        val entry = source("app/src/main/java/com/majortomman/school/ui/OppositeQuantitiesSceneVisual.kt")
+        val catalog = source("app/src/main/java/com/majortomman/school/ui/visualization/SchoolVisualizationCatalog.kt")
+        val part = source(
+            "app/src/main/java/com/majortomman/school/ui/visualization/subjects/math/PartToleranceVisualizationRenderer.kt",
+        )
+
+        assertTrue("允许偏差应走零件叠影渲染器", "PartToleranceVisualizationRenderer.key" in entry)
+        assertTrue("零件公差渲染器应注册到数学模块", "PartToleranceVisualizationRenderer" in catalog)
+        assertTrue("零件公差必须继承数学父类", "PartToleranceVisualizationRenderer : MathematicsVisualizationRenderer()" in part)
+        assertTrue("零件图必须包含标准件虚线轮廓", "dashPathEffect" in part && "标准件" in part)
+        assertTrue("零件图必须包含当前件实线轮廓", "实线：当前件" in part)
+        assertTrue("零件图必须包含允许公差带", "ToleranceBand(" in part && "允许范围" in part)
+        assertTrue("零件图应明确教学比例放大", "教学比例放大" in part)
+        assertFalse("零件可视化 Canvas 内不得绘制文字", "nativeCanvas" in part || "drawText(" in part)
+        assertFalse("零件可视化不得退化成卡片", "RoundedCornerShape" in part || "Card(" in part)
+    }
+
     private fun String.countOccurrences(token: String): Int = windowed(token.length).count { it == token }
 
     private fun source(relative: String): String = repositoryFile(relative).readText(Charsets.UTF_8)
