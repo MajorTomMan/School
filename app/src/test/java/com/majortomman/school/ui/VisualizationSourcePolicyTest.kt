@@ -12,6 +12,7 @@ class VisualizationSourcePolicyTest {
         "TextbookMathVisualizations.kt",
         "RationalExamplesVisual.kt",
         "OppositeQuantityAxisPanel.kt",
+        "OppositeQuantityIllustratedPanels.kt",
         "NumberLineLessonVisual.kt",
     )
 
@@ -27,11 +28,19 @@ class VisualizationSourcePolicyTest {
 
         val oppositeScene = uiFile("OppositeQuantitiesSceneVisual.kt").readText(Charsets.UTF_8)
         assertTrue(
-            "相反意义量场景应委托给统一的基准轴布局",
+            "相反意义量场景仍应保留通用基准轴",
             "OppositeQuantityAxisPanel(" in oppositeScene,
         )
+        assertTrue(
+            "温度、海拔和质量偏差应使用专用具象场景",
+            listOf(
+                "TemperatureQuantityPanel(",
+                "ElevationQuantityPanel(",
+                "MassDeviationQuantityPanel(",
+            ).all(oppositeScene::contains),
+        )
         assertFalse(
-            "相反意义量场景本身不应再直接绘制带文字的 Canvas",
+            "相反意义量入口本身不应直接绘制带文字的 Canvas",
             "nativeCanvas" in oppositeScene || "drawSceneLabel" in oppositeScene,
         )
     }
@@ -61,6 +70,17 @@ class VisualizationSourcePolicyTest {
     }
 
     @Test
+    fun illustratedScenesKeepLabelsOutsideCanvas() {
+        val source = uiFile("OppositeQuantityIllustratedPanels.kt").readText(Charsets.UTF_8)
+        assertTrue("温度场景必须绘制温度计", "TemperatureQuantityPanel(" in source && "tubeHalfWidth" in source)
+        assertTrue("海拔场景必须包含山脉与海平面", "foregroundMountain" in source && "seaY" in source)
+        assertTrue("质量偏差场景必须包含天平与偏差轴", "MassDeviationQuantityPanel(" in source && "drawPan(" in source)
+        assertTrue("具象场景文字应由 Compose 排版", "DirectionLegend(" in source && "IllustratedStatusLine(" in source)
+        assertFalse("具象场景不得使用 nativeCanvas 绘制文字", "nativeCanvas" in source || "drawText(" in source)
+        assertFalse("具象场景不得退化成圆角信息卡片", "RoundedCornerShape" in source)
+    }
+
+    @Test
     fun coreLearningStyleUsesLinesAndWhitespaceInsteadOfCards() {
         val shared = uiFile("InteractiveLessonScreen.kt").readText(Charsets.UTF_8)
         val opposite = uiFile("OppositeQuantitiesSceneVisual.kt").readText(Charsets.UTF_8)
@@ -69,6 +89,23 @@ class VisualizationSourcePolicyTest {
         assertFalse("相反意义量场景不应使用圆角卡片", "RoundedCornerShape" in opposite)
         assertTrue("通用操作应使用底部强调线", "Alignment.BottomCenter" in shared)
         assertTrue("场景分区应使用细线", "InteractiveLine" in opposite)
+    }
+
+    @Test
+    fun courseNavigationUsesAdaptiveLineActions() {
+        val source = uiFile("CloudCourseLessonScreen.kt").readText(Charsets.UTF_8)
+        assertFalse(
+            "翻页按钮不得使用固定面板背景",
+            "InteractivePanel.copy(alpha = 0.72f)" in source,
+        )
+        assertFalse(
+            "翻页按钮不得使用固定圆角背景",
+            "shape = RoundedCornerShape(18.dp)" in source,
+        )
+        assertTrue(
+            "翻页按钮应使用随背景融合的底部强调线",
+            "Alignment.BottomStart" in source && "Alignment.BottomEnd" in source,
+        )
     }
 
     @Test
