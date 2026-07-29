@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
@@ -45,7 +44,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -376,20 +374,41 @@ private fun CloudNavigationAction(
     alignment: TextAlign,
     onClick: () -> Unit,
 ) {
-    Text(
-        label,
+    Box(
         modifier = Modifier
             .width(112.dp)
             .heightIn(min = 44.dp)
-            .background(
-                color = if (enabled) InteractivePanel.copy(alpha = 0.72f) else Color.Transparent,
-                shape = RoundedCornerShape(18.dp),
-            )
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 12.dp),
-        color = if (enabled) InteractiveBlue else InteractiveMuted.copy(alpha = 0.35f),
-        fontSize = 14.sp,
-        fontWeight = FontWeight.SemiBold,
-        textAlign = alignment,
-    )
+        contentAlignment = when (alignment) {
+            TextAlign.Start -> Alignment.CenterStart
+            TextAlign.End -> Alignment.CenterEnd
+            else -> Alignment.Center
+        },
+    ) {
+        Text(
+            label,
+            color = if (enabled) InteractiveBlue else InteractiveMuted.copy(alpha = 0.35f),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = alignment,
+            maxLines = 1,
+        )
+        Box(
+            Modifier
+                .align(
+                    when (alignment) {
+                        TextAlign.Start -> Alignment.BottomStart
+                        TextAlign.End -> Alignment.BottomEnd
+                        else -> Alignment.BottomCenter
+                    },
+                )
+                .fillMaxWidth(if (enabled) 0.72f else 0.42f)
+                .height(if (enabled) 2.dp else 1.dp)
+                .background(
+                    if (enabled) InteractiveBlue.copy(alpha = 0.82f)
+                    else InteractiveLine.copy(alpha = 0.55f),
+                ),
+        )
+    }
 }
