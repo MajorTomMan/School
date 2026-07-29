@@ -9,6 +9,7 @@ import com.majortomman.school.ui.visualization.core.VisualizationRegistry
 import com.majortomman.school.ui.visualization.core.VisualizationSubject
 import com.majortomman.school.ui.visualization.subjects.math.AccountTrendVisualizationRenderer
 import com.majortomman.school.ui.visualization.subjects.math.GrowthRateTrendVisualizationRenderer
+import com.majortomman.school.ui.visualization.subjects.math.PartToleranceVisualizationRenderer
 
 /**
  * One module per subject. New scenes inherit their subject renderer parent and are added to the matching module.
@@ -31,6 +32,7 @@ object MathematicsVisualizationModule : SubjectVisualizationModule() {
     override val renderers: List<SubjectVisualizationRenderer> = listOf(
         AccountTrendVisualizationRenderer,
         GrowthRateTrendVisualizationRenderer,
+        PartToleranceVisualizationRenderer,
     )
 }
 
