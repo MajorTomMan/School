@@ -1,0 +1,111 @@
+name: Agent adaptive course navigation
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - ".github/workflows/agent-adaptive-course-navigation.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+      - name: Replace fixed navigation surfaces
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("app/src/main/java/com/majortomman/school/ui/CloudCourseLessonScreen.kt")
+          text = path.read_text(encoding="utf-8")
+          old = '''@Composable
+          private fun CloudNavigationAction(
+              label: String,
+              enabled: Boolean,
+              alignment: TextAlign,
+              onClick: () -> Unit,
+          ) {
+              Text(
+                  label,
+                  modifier = Modifier
+                      .width(112.dp)
+                      .heightIn(min = 44.dp)
+                      .background(
+                          color = if (enabled) InteractivePanel.copy(alpha = 0.72f) else Color.Transparent,
+                          shape = RoundedCornerShape(18.dp),
+                      )
+                      .clickable(enabled = enabled, onClick = onClick)
+                      .padding(horizontal = 10.dp, vertical = 12.dp),
+                  color = if (enabled) InteractiveBlue else InteractiveMuted.copy(alpha = 0.35f),
+                  fontSize = 14.sp,
+                  fontWeight = FontWeight.SemiBold,
+                  textAlign = alignment,
+              )
+          }
+          '''
+          new = '''@Composable
+          private fun CloudNavigationAction(
+              label: String,
+              enabled: Boolean,
+              alignment: TextAlign,
+              onClick: () -> Unit,
+          ) {
+              Box(
+                  modifier = Modifier
+                      .width(112.dp)
+                      .heightIn(min = 44.dp)
+                      .clickable(enabled = enabled, onClick = onClick)
+                      .padding(horizontal = 10.dp, vertical = 12.dp),
+                  contentAlignment = when (alignment) {
+                      TextAlign.Start -> Alignment.CenterStart
+                      TextAlign.End -> Alignment.CenterEnd
+                      else -> Alignment.Center
+                  },
+              ) {
+                  Text(
+                      label,
+                      color = if (enabled) InteractiveBlue else InteractiveMuted.copy(alpha = 0.35f),
+                      fontSize = 14.sp,
+                      fontWeight = FontWeight.SemiBold,
+                      textAlign = alignment,
+                      maxLines = 1,
+                  )
+                  Box(
+                      Modifier
+                          .align(
+                              when (alignment) {
+                                  TextAlign.Start -> Alignment.BottomStart
+                                  TextAlign.End -> Alignment.BottomEnd
+                                  else -> Alignment.BottomCenter
+                              },
+                          )
+                          .fillMaxWidth(if (enabled) 0.72f else 0.42f)
+                          .height(if (enabled) 2.dp else 1.dp)
+                          .background(
+                              if (enabled) InteractiveBlue.copy(alpha = 0.82f)
+                              else InteractiveLine.copy(alpha = 0.55f),
+                          ),
+                  )
+              }
+          }
+          '''
+          if old not in text:
+              raise SystemExit("navigation function did not match expected source")
+          text = text.replace(old, new, 1)
+          text = text.replace("import androidx.compose.foundation.shape.RoundedCornerShape\n", "")
+          text = text.replace("import androidx.compose.ui.graphics.Color\n", "")
+          path.write_text(text, encoding="utf-8")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/com/majortomman/school/ui/CloudCourseLessonScreen.kt
+          git commit -m "让课程翻页操作随背景自然融合"
+          git pull --rebase origin dev
+          git push origin dev
