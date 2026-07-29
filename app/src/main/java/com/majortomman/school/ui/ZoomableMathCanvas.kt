@@ -24,11 +24,11 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 
 /**
- * Shared zoom/pan surface for mathematical visualizations.
+ * Shared zoom/pan surface for every subject visualization.
  * Pinch zooms, one-finger drag pans while zoomed, and double tap resets or zooms to 2x.
  */
 @Composable
-internal fun ZoomableMathCanvas(
+internal fun ZoomableVisualizationCanvas(
     modifier: Modifier = Modifier,
     minScale: Float = 1f,
     maxScale: Float = 3.5f,
@@ -42,17 +42,17 @@ internal fun ZoomableMathCanvas(
         val maxX = viewport.width * (nextScale - 1f) / 2f
         val maxY = viewport.height * (nextScale - 1f) / 2f
         return Offset(
-  x = nextOffset.x.coerceIn(-maxX, maxX),
-  y = nextOffset.y.coerceIn(-maxY, maxY),
+            x = nextOffset.x.coerceIn(-maxX, maxX),
+            y = nextOffset.y.coerceIn(-maxY, maxY),
         )
     }
 
     val transformState = rememberTransformableState { zoomChange, panChange, _ ->
         val nextScale = (scale * zoomChange).coerceIn(minScale, maxScale)
         offset = if (nextScale <= minScale + 0.001f) {
-  Offset.Zero
+            Offset.Zero
         } else {
-  constrained(nextScale, offset + panChange)
+            constrained(nextScale, offset + panChange)
         }
         scale = nextScale
     }
@@ -63,34 +63,48 @@ internal fun ZoomableMathCanvas(
 
     Box(
         modifier = modifier
-  .clipToBounds()
-  .onSizeChanged { viewport = it }
-  .pointerInput(minScale, maxScale) {
-      detectTapGestures(
-          onDoubleTap = {
-              if (scale > minScale + 0.05f) {
-                  scale = minScale
-                  offset = Offset.Zero
-              } else {
-                  scale = 2f.coerceAtMost(maxScale)
-                  offset = Offset.Zero
-              }
-          },
-      )
-  }
-  .transformable(transformState),
+            .clipToBounds()
+            .onSizeChanged { viewport = it }
+            .pointerInput(minScale, maxScale) {
+                detectTapGestures(
+                    onDoubleTap = {
+                        if (scale > minScale + 0.05f) {
+                            scale = minScale
+                            offset = Offset.Zero
+                        } else {
+                            scale = 2f.coerceAtMost(maxScale)
+                            offset = Offset.Zero
+                        }
+                    },
+                )
+            }
+            .transformable(transformState),
     ) {
         Canvas(
-  modifier = Modifier
-      .fillMaxSize()
-      .graphicsLayer {
-          scaleX = scale
-          scaleY = scale
-          translationX = offset.x
-          translationY = offset.y
-          transformOrigin = TransformOrigin.Center
-      },
-  onDraw = content,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    translationX = offset.x
+                    translationY = offset.y
+                    transformOrigin = TransformOrigin.Center
+                },
+            onDraw = content,
         )
     }
 }
+
+/** Backward-compatible mathematical alias used by existing lesson visualizations. */
+@Composable
+internal fun ZoomableMathCanvas(
+    modifier: Modifier = Modifier,
+    minScale: Float = 1f,
+    maxScale: Float = 3.5f,
+    content: DrawScope.() -> Unit,
+) = ZoomableVisualizationCanvas(
+    modifier = modifier,
+    minScale = minScale,
+    maxScale = maxScale,
+    content = content,
+)
