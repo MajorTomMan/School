@@ -62,7 +62,7 @@ object SchoolVisualizationCatalog {
         BiologyVisualizationModule,
         GeneralVisualizationModule,
     )
-    private val registry = VisualizationRegistry(modules.flatMap(SubjectVisualizationModule::validatedRenderers))
+    private val registry = VisualizationRegistry(modules.flatMap { it.validatedRenderers() })
 
     fun registeredKeys(): Set<VisualizationKey> = registry.registeredKeys()
 
