@@ -29,6 +29,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.majortomman.school.learning.course.CourseSceneData
+import com.majortomman.school.ui.visualization.SchoolVisualizationCatalog
+import com.majortomman.school.ui.visualization.core.VisualizationArguments
+import com.majortomman.school.ui.visualization.subjects.math.AccountTrendVisualizationRenderer
+import com.majortomman.school.ui.visualization.subjects.math.GrowthRateTrendVisualizationRenderer
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.round
@@ -57,8 +61,8 @@ private val oppositeQuantityScenes = listOf(
 /**
  * “相反意义的量”统一交互入口。
  *
- * 温度、海拔和质量偏差使用各自最直观的场景隐喻；收支、变化率和允许偏差继续复用通用
- * 基准轴。所有说明文字均由 Compose 测量，Canvas 只绘制数学图形，因此兼顾美观与字号适配。
+ * 温度、海拔和质量偏差使用专用具象场景；收支与增长率由跨学科可视化目录提供折线趋势图；
+ * 允许偏差继续使用通用基准轴。所有说明文字均由 Compose 测量，Canvas 只绘制图形。
  */
 @Composable
 internal fun OppositeQuantitiesSceneVisual(data: CourseSceneData) {
@@ -146,6 +150,16 @@ internal fun OppositeQuantitiesSceneVisual(data: CourseSceneData) {
                 bound = selectedScene.bound,
                 unit = selectedScene.unit,
             )
+            "account" -> SchoolVisualizationCatalog.Render(
+                key = AccountTrendVisualizationRenderer.key,
+                arguments = trendArguments(selectedScene, animatedValue),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            "change" -> SchoolVisualizationCatalog.Render(
+                key = GrowthRateTrendVisualizationRenderer.key,
+                arguments = trendArguments(selectedScene, animatedValue),
+                modifier = Modifier.fillMaxWidth(),
+            )
             else -> OppositeQuantityAxisPanel(
                 baselineText = baselineText(selectedScene),
                 value = animatedValue,
@@ -184,6 +198,13 @@ internal fun OppositeQuantitiesSceneVisual(data: CourseSceneData) {
         )
     }
 }
+
+private fun trendArguments(scene: OppositeQuantityScene, value: Float): VisualizationArguments =
+    VisualizationArguments.of(
+        "value" to value,
+        "bound" to scene.bound,
+        "unit" to scene.unit,
+    )
 
 private fun baselineText(scene: OppositeQuantityScene): String = when (scene.id) {
     "temperature" -> "0 ℃"
