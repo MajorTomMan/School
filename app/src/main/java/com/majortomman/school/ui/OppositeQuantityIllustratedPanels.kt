@@ -547,18 +547,10 @@ private fun QuantityScaleLabels(
     }
 }
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 private fun IllustratedStatusLine(text: String, color: Color) {
-    Text(
-        text = text,
-        modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-        color = color.copy(alpha = 0.94f),
-        fontSize = 13.sp,
-        lineHeight = 19.sp,
-        fontWeight = FontWeight.Medium,
-        textAlign = TextAlign.Center,
-        maxLines = 2,
-    )
+    // The shared explanation below the interactive control is the single source of narrative feedback.
 }
 
 private fun illustratedValueColor(value: Float): Color = when {
