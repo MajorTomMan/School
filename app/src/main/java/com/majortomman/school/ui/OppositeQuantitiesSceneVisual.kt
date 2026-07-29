@@ -33,6 +33,7 @@ import com.majortomman.school.ui.visualization.SchoolVisualizationCatalog
 import com.majortomman.school.ui.visualization.core.VisualizationArguments
 import com.majortomman.school.ui.visualization.subjects.math.AccountTrendVisualizationRenderer
 import com.majortomman.school.ui.visualization.subjects.math.GrowthRateTrendVisualizationRenderer
+import com.majortomman.school.ui.visualization.subjects.math.PartToleranceVisualizationRenderer
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.round
@@ -61,8 +62,8 @@ private val oppositeQuantityScenes = listOf(
 /**
  * “相反意义的量”统一交互入口。
  *
- * 温度、海拔和质量偏差使用专用具象场景；收支与增长率由跨学科可视化目录提供折线趋势图；
- * 允许偏差继续使用通用基准轴。所有说明文字均由 Compose 测量，Canvas 只绘制图形。
+ * 温度、海拔和质量偏差使用专用具象场景；收支与增长率使用折线趋势图；允许偏差使用
+ * 标准件与当前件叠影。所有说明文字均由 Compose 测量，Canvas 只绘制图形。
  */
 @Composable
 internal fun OppositeQuantitiesSceneVisual(data: CourseSceneData) {
@@ -87,6 +88,7 @@ internal fun OppositeQuantitiesSceneVisual(data: CourseSceneData) {
         label = "opposite-quantity-value",
     )
     val accent = when {
+        selectedScene.id == "tolerance" && abs(animatedValue) > 0.0501f -> InteractiveRed
         animatedValue > 0.0001f -> InteractiveBlue
         animatedValue < -0.0001f -> InteractiveYellow
         else -> InteractiveWhite
@@ -160,6 +162,17 @@ internal fun OppositeQuantitiesSceneVisual(data: CourseSceneData) {
                 arguments = trendArguments(selectedScene, animatedValue),
                 modifier = Modifier.fillMaxWidth(),
             )
+            "tolerance" -> SchoolVisualizationCatalog.Render(
+                key = PartToleranceVisualizationRenderer.key,
+                arguments = VisualizationArguments.of(
+                    "value" to animatedValue,
+                    "bound" to selectedScene.bound,
+                    "unit" to selectedScene.unit,
+                    "standard" to 40f,
+                    "tolerance" to 0.05f,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
             else -> OppositeQuantityAxisPanel(
                 baselineText = baselineText(selectedScene),
                 value = animatedValue,
@@ -217,10 +230,12 @@ private fun baselineText(scene: OppositeQuantityScene): String = when (scene.id)
 }
 
 private fun observationText(scene: OppositeQuantityScene, value: Float): String = when {
+    scene.id == "tolerance" && abs(value) < 0.0001f ->
+        "当前零件与 40.00 mm 标准件轮廓重合，偏差为 0 mm。"
     scene.id == "tolerance" && abs(value) <= 0.0501f ->
-        "实际直径是 ${displayQuantity(40f + value)} mm，位于 39.95～40.05 mm 的合格范围内。"
+        "当前直径 ${displayQuantity(40f + value)} mm，${if (value < 0f) "偏小" else "偏大"} ${displayQuantity(abs(value))} mm，但仍在允许范围内。"
     scene.id == "tolerance" ->
-        "实际直径是 ${displayQuantity(40f + value)} mm，已经超出 ±0.05 mm 的允许偏差。"
+        "当前直径 ${displayQuantity(40f + value)} mm，已经超出 39.95～40.05 mm 的合格范围。"
     abs(value) < 0.0001f ->
         "0 是两个相反方向共同的基准，不属于任何一个方向。"
     value > 0f ->
