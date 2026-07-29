@@ -50,15 +50,15 @@ private val oppositeQuantityScenes = listOf(
     OppositeQuantityScene("account", "收支", "万元", "盈利", "亏损", 50f, 10f, 50f),
     OppositeQuantityScene("change", "变化", "%", "增长", "减少", 10f, 0.1f, -0.7f),
     OppositeQuantityScene("deviation", "质量偏差", "g", "超过标准", "低于标准", 100f, 5f, -30f),
-    OppositeQuantityScene("elevation", "海拔", "m", "高于海平面", "低于海平面", 300f, 10f, 120f),
+    OppositeQuantityScene("elevation", "海拔", "m", "高于海平面", "低于海平面", 300f, 10f, 60f),
     OppositeQuantityScene("tolerance", "允许偏差", "mm", "偏大", "偏小", 0.08f, 0.01f, 0.03f),
 )
 
 /**
- * “相反意义的量”统一交互场景。
+ * “相反意义的量”统一交互入口。
  *
- * 使用连续画布、细线和数学语义色，不使用卡片分区。Canvas 只绘制轴线与点位；所有文字
- * 交给 Compose 测量和换行，避免字号调整后重叠。
+ * 温度、海拔和质量偏差使用各自最直观的场景隐喻；收支、变化率和允许偏差继续复用通用
+ * 基准轴。所有说明文字均由 Compose 测量，Canvas 只绘制数学图形，因此兼顾美观与字号适配。
  */
 @Composable
 internal fun OppositeQuantitiesSceneVisual(data: CourseSceneData) {
@@ -92,7 +92,7 @@ internal fun OppositeQuantitiesSceneVisual(data: CourseSceneData) {
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 8.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (availableScenes.size > 1) {
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -127,25 +127,45 @@ internal fun OppositeQuantitiesSceneVisual(data: CourseSceneData) {
             }
         }
 
-        OppositeQuantityAxisPanel(
-            baselineText = baselineText(selectedScene),
-            value = animatedValue,
-            bound = selectedScene.bound,
-            negativeMeaning = selectedScene.negativeMeaning,
-            positiveMeaning = selectedScene.positiveMeaning,
-            unit = selectedScene.unit,
-        )
+        when (selectedScene.id) {
+            "temperature" -> TemperatureQuantityPanel(
+                baselineText = baselineText(selectedScene),
+                value = animatedValue,
+                bound = selectedScene.bound,
+                unit = selectedScene.unit,
+            )
+            "elevation" -> ElevationQuantityPanel(
+                baselineText = baselineText(selectedScene),
+                value = animatedValue,
+                bound = selectedScene.bound,
+                unit = selectedScene.unit,
+            )
+            "deviation" -> MassDeviationQuantityPanel(
+                baselineText = baselineText(selectedScene),
+                value = animatedValue,
+                bound = selectedScene.bound,
+                unit = selectedScene.unit,
+            )
+            else -> OppositeQuantityAxisPanel(
+                baselineText = baselineText(selectedScene),
+                value = animatedValue,
+                bound = selectedScene.bound,
+                negativeMeaning = selectedScene.negativeMeaning,
+                positiveMeaning = selectedScene.positiveMeaning,
+                unit = selectedScene.unit,
+            )
+        }
 
         Slider(
             value = value.coerceIn(-selectedScene.bound, selectedScene.bound),
             onValueChange = { raw -> value = snapToStep(raw, selectedScene.step) },
-            modifier = Modifier.fillMaxWidth().height(36.dp),
+            modifier = Modifier.fillMaxWidth().height(34.dp),
             valueRange = -selectedScene.bound..selectedScene.bound,
             steps = ((selectedScene.bound * 2f / selectedScene.step).roundToInt() - 1)
                 .coerceAtLeast(0),
             colors = SliderDefaults.colors(
                 thumbColor = accent,
-                activeTrackColor = accent.copy(alpha = 0.78f),
+                activeTrackColor = accent.copy(alpha = 0.72f),
                 inactiveTrackColor = InteractiveLine,
                 activeTickColor = Color.Transparent,
                 inactiveTickColor = Color.Transparent,
@@ -158,8 +178,9 @@ internal fun OppositeQuantitiesSceneVisual(data: CourseSceneData) {
             modifier = Modifier.fillMaxWidth(),
             color = InteractiveWhite.copy(alpha = 0.84f),
             fontSize = 14.sp,
-            lineHeight = 22.sp,
+            lineHeight = 21.sp,
             textAlign = TextAlign.Start,
+            maxLines = 2,
         )
     }
 }
@@ -168,7 +189,7 @@ private fun baselineText(scene: OppositeQuantityScene): String = when (scene.id)
     "temperature" -> "0 ℃"
     "account" -> "收支平衡 0 万元"
     "change" -> "变化率 0%"
-    "deviation" -> "标准质量对应偏差 0 g"
+    "deviation" -> "标准质量 2.5 kg · 偏差 0 g"
     "elevation" -> "海平面 0 m"
     "tolerance" -> "标准直径 40.00 mm"
     else -> "以 0 为基准"
