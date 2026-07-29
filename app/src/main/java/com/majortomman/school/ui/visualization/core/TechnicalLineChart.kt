@@ -45,6 +45,7 @@ data class TechnicalLineChartModel(
         require(points.size >= 2) { "折线图至少需要两个数据点" }
         require(maximum > minimum) { "折线图最大值必须大于最小值" }
         require(baseline in minimum..maximum) { "基准值必须位于图表范围内" }
+        require(decimals in 0..4) { "小数位数必须位于 0 到 4 之间" }
     }
 }
 
@@ -98,51 +99,23 @@ fun TechnicalLineChart(
             modifier = Modifier.fillMaxWidth().height(190.dp),
             maxScale = 3f,
         ) {
-            val left = 18f
-            val right = size.width - 18f
-            val top = 12f
-            val bottom = size.height - 12f
-            val width = right - left
-            val height = bottom - top
+            val area = plotArea()
 
-            fun xAt(index: Int): Float = if (model.points.lastIndex == 0) {
-                left
-            } else {
-                left + width * index / model.points.lastIndex.toFloat()
-            }
+            fun xAt(index: Int): Float = area.xAt(index / model.points.lastIndex.toFloat())
+            fun yAt(value: Float): Float = area.yFor(value, model.minimum, model.maximum)
 
-            fun yAt(value: Float): Float {
-                val ratio = (value - model.minimum) / (model.maximum - model.minimum)
-                return bottom - ratio.coerceIn(0f, 1f) * height
-            }
-
-            repeat(5) { index ->
-                val y = top + height * index / 4f
-                drawLine(
-                    color = palette.grid.copy(alpha = if (index == 2) 0.85f else 0.48f),
-                    start = Offset(left, y),
-                    end = Offset(right, y),
-                    strokeWidth = if (index == 2) 1.5f else 1f,
-                )
-            }
-
-            model.points.indices.forEach { index ->
-                val x = xAt(index)
-                drawLine(
-                    color = palette.grid.copy(alpha = 0.26f),
-                    start = Offset(x, top),
-                    end = Offset(x, bottom),
-                    strokeWidth = 1f,
-                )
-            }
+            drawTechnicalGrid(
+                area = area,
+                rows = 4,
+                columns = model.points.lastIndex.coerceAtLeast(1),
+                color = palette.grid.copy(alpha = 0.38f),
+            )
 
             val baselineY = yAt(model.baseline)
-            drawLine(
+            drawReferenceLine(
+                area = area,
+                y = baselineY,
                 color = palette.foreground.copy(alpha = 0.64f),
-                start = Offset(left, baselineY),
-                end = Offset(right, baselineY),
-                strokeWidth = 2f,
-                cap = StrokeCap.Round,
             )
 
             val linePath = Path().apply {
@@ -172,23 +145,17 @@ fun TechnicalLineChart(
                     point.value < model.baseline -> palette.negative
                     else -> palette.foreground
                 }
-                val center = Offset(xAt(index), yAt(point.value))
-                drawCircle(
-                    color = color.copy(alpha = 0.20f),
-                    radius = if (index == model.points.lastIndex) 13f else 9f,
-                    center = center,
-                )
-                drawCircle(
+                drawDataMarker(
+                    center = Offset(xAt(index), yAt(point.value)),
                     color = color,
-                    radius = if (index == model.points.lastIndex) 6.5f else 4.5f,
-                    center = center,
+                    emphasized = index == model.points.lastIndex,
                 )
             }
 
             val latestCenter = Offset(xAt(model.points.lastIndex), yAt(latest))
             drawLine(
                 color = latestColor.copy(alpha = 0.44f),
-                start = Offset(latestCenter.x, latestCenter.y),
+                start = latestCenter,
                 end = Offset(latestCenter.x, baselineY),
                 strokeWidth = 2f,
             )
@@ -234,7 +201,7 @@ fun formatSignedChartValue(value: Float, unit: String, decimals: Int): String {
     val number = if (decimals <= 0) {
         normalized.roundToInt().toString()
     } else {
-        String.format(Locale.US, ".${decimals}f", normalized).trimEnd('0').trimEnd('.')
+        String.format(Locale.US, "%.$decimals" + "f", normalized).trimEnd('0').trimEnd('.')
     }
     return when {
         normalized > 0f -> "+$number$unit"
