@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "textbookId": "pep-math-7-1",
+  "pages": {
+    "pep-math-7-1-01-02-p003-2": {
+      "title": "正数和负数的实际表示练习",
+      "blocks": [
+        {
+          "type": "exercise_group",
+          "title": "课堂练习",
+          "items": [
+            "读出下列各数，并指出哪些是正数，哪些是负数：43，−1，2.5，+14，0，−3.14，120，−27.2。",
+            "如果80 m表示向右走80 m，那么向左走60 m应怎样表示？",
+            "月球表面白天最高温度为零上126 ℃，记作126 ℃；夜间最低温度为零下150 ℃，应怎样记？",
+            "在足球比赛中，如果甲队进3个球记作+3个，那么甲队失2个球应怎样记？"
+          ]
+        },
+        {
+          "type": "textbook_text",
+          "text": "把0以外的数分为正数和负数，它们可以用来表示具有相反意义的量。随着人们对正数、负数意义认识的加深，正数和负数在实践中得到了广泛应用。"
+        },
+        {
+          "type": "textbook_text",
+          "text": "例如，在表示某地的高度时，通常以海平面为基准，用0 m表示海平面的海拔，用正数表示高于海平面的海拔，用负数表示低于海平面的海拔。"
+        },
+        {
+          "type": "visualization",
+          "renderer": "opposite_quantities",
+          "params": {
+            "title": "以海平面为基准表示海拔",
+            "scene": "elevation"
+          }
+        }
+      ],
+      "refinement": {
+        "editorialStatus": "reconstructed-from-source-anchor-pending-pdf-line-check",
+        "notes": "替换原OCR残缺段落；后续仍须与教材印刷第3页逐行核对。"
+      }
+    }
+  }
+}
