@@ -2,7 +2,6 @@ package com.majortomman.school.ui
 
 import android.graphics.Paint
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -93,7 +92,7 @@ private fun RoadScene(signed: Boolean) {
             lineHeight = 21.sp,
             textAlign = TextAlign.Center,
         )
-        Canvas(Modifier.fillMaxWidth().weight(1f)) {
+        ZoomableMathCanvas(Modifier.fillMaxWidth().weight(1f)) {
             val left = 18.dp.toPx()
             val right = size.width - 18.dp.toPx()
             val roadY = size.height * 0.58f
@@ -209,7 +208,7 @@ private fun NumberLineConstruction() {
                 }
             }
         }
-        Canvas(Modifier.fillMaxWidth().weight(1f)) {
+        ZoomableMathCanvas(Modifier.fillMaxWidth().weight(1f)) {
             val left = 20.dp.toPx()
             val right = size.width - 20.dp.toPx()
             val center = size.width / 2f
@@ -222,8 +221,8 @@ private fun NumberLineConstruction() {
             label("0", center, y + 26.dp.toPx(), InteractiveWhite, 13.sp)
             if (stage >= 1) {
                 drawArrowHead(right, y, InteractiveBlue)
-                label("正方向", right, y - 20.dp.toPx(), InteractiveBlue, 13.sp, Paint.Align.RIGHT)
-                label("负方向", left, y - 20.dp.toPx(), InteractiveYellow, 13.sp, Paint.Align.LEFT)
+                label("正方向", right - 8.dp.toPx(), y - 44.dp.toPx(), InteractiveBlue, 16.sp, Paint.Align.RIGHT)
+                label("负方向", left + 8.dp.toPx(), y - 44.dp.toPx(), InteractiveYellow, 16.sp, Paint.Align.LEFT)
             }
             if (stage >= 2) {
                 for (value in -4..4) {
@@ -278,7 +277,7 @@ private fun NumberLineValue(initial: Float) {
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
         )
-        Canvas(Modifier.fillMaxWidth().weight(1f)) {
+        ZoomableMathCanvas(Modifier.fillMaxWidth().weight(1f)) {
             val left = 18.dp.toPx()
             val right = size.width - 18.dp.toPx()
             val center = (left + right) / 2f
@@ -300,14 +299,14 @@ private fun NumberLineValue(initial: Float) {
                     if (tick == 0) 2.dp.toPx() else 1.dp.toPx(),
                 )
                 if (tick % 2 != 0 || tick == 0) {
-                    label(numberText(tick.toFloat()), x, y + 25.dp.toPx(), InteractiveMuted, 12.sp)
+                    label(numberText(tick.toFloat()), x, y + 31.dp.toPx(), InteractiveMuted, 13.sp)
                 }
             }
             drawLine(accent, Offset(center, y), Offset(pointX, y), 5.dp.toPx(), StrokeCap.Round)
             drawCircle(accent, 7.dp.toPx(), Offset(pointX, y))
-            label(numberText(animatedValue), pointX, y - 20.dp.toPx(), accent, 18.sp)
-            label("负半轴", left, y - 34.dp.toPx(), InteractiveYellow, 13.sp, Paint.Align.LEFT)
-            label("正半轴", right, y - 34.dp.toPx(), InteractiveBlue, 13.sp, Paint.Align.RIGHT)
+            label(numberText(animatedValue), pointX, y - 25.dp.toPx(), accent, 19.sp)
+            label("负半轴", xFor(-4.5f), y - 63.dp.toPx(), InteractiveYellow, 17.sp)
+            label("正半轴", xFor(4.5f), y - 63.dp.toPx(), InteractiveBlue, 17.sp)
         }
         Slider(
             value = snapped,
@@ -343,7 +342,7 @@ private fun FixedPointsScene(readingExercise: Boolean) {
             fontSize = 14.sp,
             textAlign = TextAlign.Center,
         )
-        Canvas(Modifier.fillMaxWidth().weight(1f)) {
+        ZoomableMathCanvas(Modifier.fillMaxWidth().weight(1f)) {
             val left = 18.dp.toPx()
             val right = size.width - 18.dp.toPx()
             val y = size.height * 0.52f
@@ -357,7 +356,7 @@ private fun FixedPointsScene(readingExercise: Boolean) {
             integerTicks.forEach { tick ->
                 val x = xFor(tick.toFloat())
                 drawLine(InteractiveMuted, Offset(x, y - 6.dp.toPx()), Offset(x, y + 6.dp.toPx()), 1.dp.toPx())
-                label(numberText(tick.toFloat()), x, y + 25.dp.toPx(), InteractiveMuted, 12.sp)
+                label(numberText(tick.toFloat()), x, y + 31.dp.toPx(), InteractiveMuted, 13.sp)
             }
             if (readingExercise) {
                 listOf(
@@ -409,7 +408,7 @@ private fun OppositeMirrorScene(initial: Float) {
             lineHeight = 21.sp,
             textAlign = TextAlign.Center,
         )
-        Canvas(Modifier.fillMaxWidth().weight(1f)) {
+        ZoomableMathCanvas(Modifier.fillMaxWidth().weight(1f)) {
             val left = 18.dp.toPx()
             val right = size.width - 18.dp.toPx()
             val center = (left + right) / 2f
@@ -426,7 +425,7 @@ private fun OppositeMirrorScene(initial: Float) {
                     Offset(x, y + 6.dp.toPx()),
                     if (tick == 0) 2.dp.toPx() else 1.dp.toPx(),
                 )
-                label(numberText(tick.toFloat()), x, y + 25.dp.toPx(), InteractiveMuted, 12.sp)
+                label(numberText(tick.toFloat()), x, y + 31.dp.toPx(), InteractiveMuted, 13.sp)
             }
             val negativeX = xFor(-animatedDistance)
             val positiveX = xFor(animatedDistance)

@@ -32,6 +32,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.majortomman.school.data.DisplayPreferences
+import com.majortomman.school.data.DisplaySettings
 import com.majortomman.school.data.PreferencesRepository
 import com.majortomman.school.data.curriculum.CurriculumRepository
 import com.majortomman.school.data.material.MaterialPackRepository
@@ -77,6 +79,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val activityStartedAt = SystemClock.elapsedRealtime()
         super.onCreate(savedInstanceState)
+        DisplayPreferences.initialize(applicationContext)
         AppProxy.initialize(applicationContext)
         CloudCourseRepository.initialize(applicationContext)
         CourseDownloadCoordinator.initialize(applicationContext)
@@ -85,6 +88,7 @@ class MainActivity : ComponentActivity() {
         val courseContentInstalled = CloudCourseRepository.hasInstalledCourseContent()
         val courseSyncConfigured = BuildConfig.COURSE_MANIFEST_URL.isNotBlank()
         setContent {
+            val displaySettings by DisplayPreferences.state.collectAsState(initial = DisplaySettings())
             val courseUpdateOffer by pendingCourseUpdate.collectAsState()
             val courseDownloadState by CourseDownloadCoordinator.state.collectAsState()
             var showInitialCoursePrompt by rememberSaveable {
@@ -103,7 +107,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            SchoolTheme {
+            SchoolTheme(textScale = displaySettings.textScale) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     SchoolApp(
                         repository = preferencesRepository,

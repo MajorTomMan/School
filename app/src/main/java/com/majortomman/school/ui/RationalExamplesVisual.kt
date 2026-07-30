@@ -1,7 +1,6 @@
 package com.majortomman.school.ui
 
 import android.graphics.Paint
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -110,7 +109,7 @@ internal fun RationalExamplesVisual() {
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
         )
-        Canvas(Modifier.fillMaxWidth().weight(1f)) {
+        ZoomableMathCanvas(Modifier.fillMaxWidth().weight(1f)) {
             val left = 24f
             val right = size.width - 24f
             val axisY = size.height * 0.43f
@@ -213,13 +212,13 @@ private fun RationalTag(label: String, color: Color) {
     Box(
         modifier = Modifier
             .border(1.dp, color.copy(alpha = 0.42f), RoundedCornerShape(4.dp))
-            .padding(horizontal = 4.dp, vertical = 2.dp),
+            .padding(horizontal = 7.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = label,
             color = color,
-            fontSize = 8.sp,
+            fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
         )
@@ -235,7 +234,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRationalLabel(
 ) {
     val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         this.color = color.toArgb()
-        this.textSize = textSize
+        this.textSize = visualTextSizePx(textSize)
         textAlign = Paint.Align.CENTER
     }
     drawContext.canvas.nativeCanvas.drawText(text, x, y, paint)

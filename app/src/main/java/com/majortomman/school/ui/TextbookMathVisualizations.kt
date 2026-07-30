@@ -1,7 +1,6 @@
 package com.majortomman.school.ui
 
 import android.graphics.Paint
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -94,7 +93,7 @@ internal fun IntegerToFractionTextbookVisual() {
         androidx.compose.foundation.layout.Box(
             Modifier.fillMaxWidth().height(1.dp).then(Modifier),
         ) {
-            Canvas(Modifier.fillMaxSize()) {
+            ZoomableMathCanvas(Modifier.fillMaxSize()) {
                 drawLine(
                     InteractiveBlue.copy(alpha = 0.55f),
                     Offset(0f, size.height / 2),
@@ -131,7 +130,7 @@ internal fun TextbookMathVisual(
                 modifier = Modifier.padding(bottom = 8.dp),
             )
         }
-        Canvas(Modifier.fillMaxWidth().weight(1f)) {
+        ZoomableMathCanvas(Modifier.fillMaxWidth().weight(1f)) {
             when (kind) {
                 CourseSceneTemplate.ALGEBRA_PROCESS -> drawAlgebraProcess(data)
                 CourseSceneTemplate.EQUATION_BALANCE -> drawEquationBalance(data)
@@ -375,7 +374,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCenteredText(
 ) {
     val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         this.color = color.toArgb()
-        this.textSize = textSize
+        this.textSize = visualTextSizePx(textSize)
         textAlign = Paint.Align.CENTER
     }
     drawContext.canvas.nativeCanvas.drawText(text, x, y, paint)

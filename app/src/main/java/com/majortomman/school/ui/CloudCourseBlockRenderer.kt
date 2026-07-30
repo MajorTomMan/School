@@ -1,7 +1,6 @@
 package com.majortomman.school.ui
 
 import android.graphics.Paint
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -261,6 +260,11 @@ private fun sceneHeight(scene: CourseScene, compact: Boolean): Dp {
             else -> if (compact) 360.dp else 420.dp
         }
     }
+    if (scene.template == CourseSceneTemplate.OPPOSITE_QUANTITIES) {
+        val includesPartTolerance = scene.data.string("scene") == "tolerance" ||
+            "tolerance" in scene.data.strings("scenes")
+        if (includesPartTolerance) return if (compact) 500.dp else 540.dp
+    }
     return when (scene.template) {
         CourseSceneTemplate.OPPOSITE_QUANTITIES,
         CourseSceneTemplate.INTEGER_TO_FRACTION,
@@ -313,7 +317,7 @@ private fun CoursePage.firstFormula(): String? =
 @Composable
 private fun DeclarativeDiagram(data: CourseSceneData) {
     val elements = data.objects("elements")
-    Canvas(Modifier.fillMaxSize()) {
+    ZoomableMathCanvas(Modifier.fillMaxSize()) {
         elements.forEach { element -> drawDiagramElement(element) }
     }
 }
@@ -337,7 +341,11 @@ private fun DrawScope.drawDiagramElement(element: Map<String, Any?>) {
             drawLine(color, start, end, stroke, StrokeCap.Round)
             if (type == "arrow") drawDiagramArrowHead(start, end, color, stroke)
         }
-        "point" -> drawCircle(color, element.numberValue("radius", 0.015).toFloat() * size.minDimension, Offset(x("x"), y("y")))
+        "point" -> drawCircle(
+            color,
+            element.numberValue("radius", 0.015).toFloat() * size.minDimension,
+            Offset(x("x"), y("y")),
+        )
         "circle" -> drawCircle(
             color = color,
             radius = element.numberValue("radius").toFloat() * size.minDimension,
@@ -347,11 +355,16 @@ private fun DrawScope.drawDiagramElement(element: Map<String, Any?>) {
         "rectangle" -> drawRect(
             color = color,
             topLeft = Offset(x("x"), y("y")),
-            size = Size(size.width * element.numberValue("width").toFloat(), size.height * element.numberValue("height").toFloat()),
+            size = Size(
+                size.width * element.numberValue("width").toFloat(),
+                size.height * element.numberValue("height").toFloat(),
+            ),
             style = Stroke(stroke),
         )
         "polyline" -> {
-            val points = element.objectList("points").map { Offset(size.width * it.numberValue("x").toFloat(), size.height * it.numberValue("y").toFloat()) }
+            val points = element.objectList("points").map {
+                Offset(size.width * it.numberValue("x").toFloat(), size.height * it.numberValue("y").toFloat())
+            }
             if (points.size > 1) {
                 val path = Path().apply {
                     moveTo(points.first().x, points.first().y)
@@ -360,7 +373,12 @@ private fun DrawScope.drawDiagramElement(element: Map<String, Any?>) {
                 drawPath(path, color, style = Stroke(stroke))
             }
         }
-        "text" -> drawDiagramText(element.stringValue("text"), Offset(x("x"), y("y")), color, element.numberValue("size", 18.0).toFloat())
+        "text" -> drawDiagramText(
+            element.stringValue("text"),
+            Offset(x("x"), y("y")),
+            color,
+            element.numberValue("size", 18.0).toFloat(),
+        )
         "number_line" -> drawDiagramNumberLine(element, color)
     }
 }
@@ -404,14 +422,19 @@ private fun DrawScope.drawDiagramArrowHead(start: Offset, end: Offset, color: Co
 private fun DrawScope.drawDiagramText(text: String, point: Offset, color: Color, textSize: Float) {
     val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         this.color = color.toArgb()
-        this.textSize = textSize
+        this.textSize = visualTextSizePx(textSize)
         textAlign = Paint.Align.CENTER
     }
     drawContext.canvas.nativeCanvas.drawText(text, point.x, point.y, paint)
 }
 
 private fun Map<String, Any?>.stringValue(key: String): String = this[key] as? String ?: ""
-private fun Map<String, Any?>.numberValue(key: String, default: Double = 0.0): Double = (this[key] as? Number)?.toDouble() ?: default
+private fun Map<String, Any?>.numberValue(key: String, default: Double = 0.0): Double =
+    (this[key] as? Number)?.toDouble() ?: default
+
 @Suppress("UNCHECKED_CAST")
-private fun Map<String, Any?>.objectList(key: String): List<Map<String, Any?>> = this[key] as? List<Map<String, Any?>> ?: emptyList()
-private fun formatDiagramNumber(value: Double): String = if (value % 1.0 == 0.0) value.toInt().toString() else value.toString()
+private fun Map<String, Any?>.objectList(key: String): List<Map<String, Any?>> =
+    this[key] as? List<Map<String, Any?>> ?: emptyList()
+
+private fun formatDiagramNumber(value: Double): String =
+    if (value % 1.0 == 0.0) value.toInt().toString() else value.toString()

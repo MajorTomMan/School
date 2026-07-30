@@ -20,12 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,8 +30,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
@@ -81,6 +74,9 @@ internal fun PageHeading(
     }
 }
 
+/**
+ * 连续页面中的重点区域。名称保留以兼容现有页面，但不再创建封闭卡片。
+ */
 @Composable
 internal fun FocusSurface(
     modifier: Modifier = Modifier,
@@ -89,38 +85,41 @@ internal fun FocusSurface(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.985f else 1f,
+    val alpha by animateFloatAsState(
+        targetValue = if (pressed) 0.72f else 1f,
         animationSpec = tween(120),
-        label = "focusSurfaceScale",
+        label = "focusSurfaceAlpha",
     )
     val clickModifier = if (onClick == null) Modifier else Modifier.clickable(
         interactionSource = interactionSource,
         indication = null,
         onClick = onClick,
     )
-    val gradient = Brush.linearGradient(
-        colors = listOf(
-            MaterialTheme.colorScheme.primaryContainer,
-            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.72f),
-        ),
-    )
 
     Column(
         modifier = modifier
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clip(RoundedCornerShape(30.dp))
-            .background(gradient)
+            .graphicsLayer { this.alpha = alpha }
             .then(clickModifier)
-            .padding(22.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-        content = content,
-    )
+            .animateContentSize(),
+        verticalArrangement = Arrangement.spacedBy(13.dp),
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(2.dp)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.68f)),
+        )
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            content = content,
+        )
+    }
 }
 
+/**
+ * 旧名称 MotionCard 现在表示一个开放的信息段落：没有背景、圆角或阴影。
+ */
 @Composable
 internal fun MotionCard(
     modifier: Modifier = Modifier,
@@ -130,38 +129,33 @@ internal fun MotionCard(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.987f else 1f,
+    val alpha by animateFloatAsState(
+        targetValue = if (pressed) 0.68f else 1f,
         animationSpec = tween(120),
-        label = "cardScale",
+        label = "sectionPressAlpha",
     )
-    val containerColor = when (tone) {
-        CardTone.SURFACE -> MaterialTheme.colorScheme.surface
-        CardTone.ACCENT -> MaterialTheme.colorScheme.primaryContainer
-        CardTone.SOFT -> MaterialTheme.colorScheme.surfaceContainer
-        CardTone.SUCCESS -> MaterialTheme.colorScheme.tertiaryContainer
-        CardTone.WARNING -> MaterialTheme.colorScheme.secondaryContainer
-    }
+    val accent = toneAccent(tone)
     val clickModifier = if (onClick == null) Modifier else Modifier.clickable(
         interactionSource = interactionSource,
         indication = null,
         onClick = onClick,
     )
 
-    Card(
+    Column(
         modifier = modifier
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
+            .graphicsLayer { this.alpha = alpha }
             .then(clickModifier)
             .animateContentSize(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (tone == CardTone.SURFACE) 1.dp else 0.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(if (tone == CardTone.SURFACE || tone == CardTone.SOFT) 1.dp else 2.dp)
+                .background(accent),
+        )
         Column(
-            modifier = Modifier.fillMaxWidth().padding(18.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(11.dp),
             content = content,
         )
@@ -207,6 +201,7 @@ internal fun SectionTitle(
     }
 }
 
+/** 标签使用文字与短线，不再使用胶囊背景。 */
 @Composable
 internal fun LabelPill(
     text: String,
@@ -214,36 +209,39 @@ internal fun LabelPill(
     background: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
     foreground: Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
-    Surface(
-        modifier = modifier,
-        color = background,
-        contentColor = foreground,
-        shape = CircleShape,
+    Column(
+        modifier = modifier.padding(vertical = 3.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         Text(
             text = text,
-            modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
             style = MaterialTheme.typography.labelMedium,
+            color = foreground,
             fontWeight = FontWeight.SemiBold,
+        )
+        Box(
+            Modifier
+                .width(28.dp)
+                .height(1.dp)
+                .background(background.copy(alpha = 0.82f)),
         )
     }
 }
 
+/** 图标保持为符号，不再放入圆形气泡。 */
 @Composable
 internal fun IconBubble(
     symbol: String,
     modifier: Modifier = Modifier,
-    background: Color = MaterialTheme.colorScheme.surface.copy(alpha = 0.76f),
+    background: Color = MaterialTheme.colorScheme.primary,
 ) {
-    Box(
-        modifier = modifier
-            .clip(CircleShape)
-            .background(background)
-            .padding(11.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(symbol, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-    }
+    Text(
+        text = symbol,
+        modifier = modifier.padding(vertical = 4.dp),
+        style = MaterialTheme.typography.titleMedium,
+        color = background,
+        fontWeight = FontWeight.Bold,
+    )
 }
 
 @Composable
@@ -266,15 +264,13 @@ internal fun StepProgressBar(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(5.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                    .height(2.dp)
+                    .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.22f)),
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(fill)
-                        .height(5.dp)
-                        .clip(CircleShape)
+                        .height(2.dp)
                         .background(MaterialTheme.colorScheme.primary),
                 )
             }
@@ -289,9 +285,8 @@ internal fun PathConnector(
 ) {
     Box(
         modifier = modifier
-            .width(3.dp)
+            .width(2.dp)
             .height(46.dp)
-            .clip(CircleShape)
             .background(
                 if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.48f)
                 else MaterialTheme.colorScheme.outline.copy(alpha = 0.22f),
@@ -303,7 +298,7 @@ internal fun PathConnector(
 internal fun MetricRow(content: @Composable RowScope.() -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(18.dp),
         content = content,
     )
 }
@@ -315,13 +310,25 @@ internal fun RowScope.MetricTile(
     modifier: Modifier = Modifier.weight(1f),
 ) {
     Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(18.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
-            .padding(horizontal = 13.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(3.dp),
+        modifier = modifier.padding(vertical = 7.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.24f)),
+        )
     }
+}
+
+@Composable
+private fun toneAccent(tone: CardTone): Color = when (tone) {
+    CardTone.SURFACE -> MaterialTheme.colorScheme.outline.copy(alpha = 0.24f)
+    CardTone.ACCENT -> MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
+    CardTone.SOFT -> MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)
+    CardTone.SUCCESS -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.72f)
+    CardTone.WARNING -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.72f)
 }

@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -57,10 +56,7 @@ private val rationalDefinitionExamples = integerFractionExamples + listOf(
 )
 
 /**
- * “有理数的概念”原创交互。
- *
- * 学习者点选不同写法，观察数值如何在保持相等的前提下改写为整数比，
- * 再沿同一条关系落到“有理数”这个共同概念上。
+ * “有理数的概念”原创交互。使用连续画布、等号和引导线表达关系，不使用卡片容器。
  */
 @Composable
 internal fun RationalConceptFlowVisual(data: CourseSceneData) {
@@ -90,7 +86,7 @@ internal fun RationalConceptFlowVisual(data: CourseSceneData) {
             examples.forEach { example ->
                 val active = example.id == selected.id
                 val indicatorColor by animateColorAsState(
-                    targetValue = if (active) InteractiveBlue else Color.Transparent,
+                    targetValue = if (active) InteractiveBlue else InteractiveLine,
                     animationSpec = tween(durationMillis = 180),
                     label = "rational-tab-${example.id}",
                 )
@@ -112,7 +108,7 @@ internal fun RationalConceptFlowVisual(data: CourseSceneData) {
                     Box(
                         Modifier
                             .fillMaxWidth()
-                            .height(2.dp)
+                            .height(if (active) 2.dp else 1.dp)
                             .background(indicatorColor),
                     )
                 }
@@ -166,13 +162,12 @@ private fun RationalRelationship(
             color = InteractiveMuted,
             fontSize = 12.sp,
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
+        Spacer(Modifier.height(18.dp))
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(InteractivePanel.copy(alpha = 0.58f), RoundedCornerShape(18.dp))
-                .padding(horizontal = 18.dp, vertical = 16.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -195,7 +190,9 @@ private fun RationalRelationship(
             )
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(18.dp))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
+        Spacer(Modifier.height(10.dp))
         Text(
             text = "左右两边表示同一个数",
             color = InteractiveBlue,
@@ -208,20 +205,23 @@ private fun RationalRelationship(
                 text = "↓  可以写成两个整数之比",
                 color = InteractiveMuted,
                 fontSize = 12.sp,
-                modifier = Modifier.padding(top = 12.dp, bottom = 6.dp),
+                modifier = Modifier.padding(top = 12.dp, bottom = 7.dp),
             )
             Text(
                 text = "有理数",
-                modifier = Modifier
-                    .background(InteractiveYellow.copy(alpha = 0.14f), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 20.dp, vertical = 9.dp),
                 color = InteractiveYellow,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.SemiBold,
             )
+            Box(
+                Modifier
+                    .width(76.dp)
+                    .height(2.dp)
+                    .background(InteractiveYellow.copy(alpha = 0.76f)),
+            )
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(14.dp))
         Text(
             text = if (definitionMode) {
                 "${example.display}可以写成${example.numerator}/${example.denominator}，因此它属于有理数。"

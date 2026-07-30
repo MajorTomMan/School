@@ -1,7 +1,6 @@
 package com.majortomman.school.ui
 
 import android.graphics.Paint
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -71,7 +70,7 @@ internal fun SignedMovementNumberLineVisual() {
             valueRange = -6f..6f,
             steps = 11,
         )
-        Canvas(Modifier.fillMaxWidth().weight(1f)) {
+        ZoomableMathCanvas(Modifier.fillMaxWidth().weight(1f)) {
             val axis = drawSymmetricAxis(model.symmetricAxisBound)
             val startX = axis.xFor(model.start)
             val endX = axis.xFor(model.end)
@@ -136,7 +135,7 @@ internal fun AbsoluteValueNumberLineVisual() {
             onValueChange = { value = (it * 2f).roundToInt() / 2f },
             valueRange = -5f..5f,
         )
-        Canvas(Modifier.fillMaxWidth().weight(1f)) {
+        ZoomableMathCanvas(Modifier.fillMaxWidth().weight(1f)) {
             val axis = drawSymmetricAxis(5)
             val zeroX = axis.xFor(0f)
             val valueX = axis.xFor(model.value)
@@ -450,7 +449,7 @@ internal fun AdjustableNumberLine(mode: NumberLineMode) {
             )
         }
         Slider(value = value, onValueChange = { value = (it * 2f).roundToInt() / 2f }, valueRange = -5f..5f)
-        Canvas(Modifier.fillMaxWidth().weight(1f)) { drawLabeledNumberLine(points, 5) }
+        ZoomableMathCanvas(Modifier.fillMaxWidth().weight(1f)) { drawLabeledNumberLine(points, 5) }
     }
 }
 
@@ -461,7 +460,7 @@ internal fun ComparisonVisual() {
     Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.SpaceEvenly) {
         Slider(value = left, onValueChange = { left = it.roundToInt().toFloat() }, valueRange = -5f..5f)
         Slider(value = right, onValueChange = { right = it.roundToInt().toFloat() }, valueRange = -5f..5f)
-        Canvas(Modifier.fillMaxWidth().weight(1f)) {
+        ZoomableMathCanvas(Modifier.fillMaxWidth().weight(1f)) {
             drawLabeledNumberLine(
                 listOf(
                     LabeledPoint(left, InteractiveYellow, displayNumber(left), true),
@@ -636,11 +635,11 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCanvasLabel(
     x: Float,
     y: Float,
     color: Color,
-    textSize: Float = 24f,
+    textSize: Float = 16f,
 ) {
     val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         this.color = color.toArgb()
-        this.textSize = textSize
+        this.textSize = visualTextSizePx(textSize)
         textAlign = Paint.Align.CENTER
     }
     drawContext.canvas.nativeCanvas.drawText(text, x, y, paint)

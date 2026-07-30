@@ -1,16 +1,12 @@
 package com.majortomman.school.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -22,8 +18,8 @@ import androidx.compose.ui.unit.sp
 import com.majortomman.school.data.Lesson
 import com.majortomman.school.data.material.InstalledMaterialPack
 
-internal val InteractiveBlack = Color(0xFF050608)
-internal val InteractivePanel = Color(0xFF0D1015)
+internal val InteractiveBlack = Color.Transparent
+internal val InteractivePanel = Color.Transparent
 internal val InteractiveWhite = Color(0xFFF5F7FA)
 internal val InteractiveMuted = InteractiveWhite.copy(alpha = 0.52f)
 internal val InteractiveLine = InteractiveWhite.copy(alpha = 0.12f)
@@ -87,11 +83,6 @@ internal fun InteractiveAction(
     Box(
         modifier = modifier
             .height(48.dp)
-            .border(
-                1.dp,
-                if (enabled) color.copy(alpha = 0.85f) else InteractiveLine,
-                RoundedCornerShape(10.dp),
-            )
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -100,6 +91,13 @@ internal fun InteractiveAction(
             color = if (enabled) color else InteractiveMuted.copy(alpha = 0.45f),
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
+        )
+        Box(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(if (enabled) 2.dp else 1.dp)
+                .background(if (enabled) color.copy(alpha = 0.78f) else InteractiveLine),
         )
     }
 }

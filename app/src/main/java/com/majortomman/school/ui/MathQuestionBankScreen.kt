@@ -59,7 +59,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import kotlin.math.roundToInt
 
-private val BankBlack = Color(0xFF050608)
+private val BankBlack = Color.Transparent
 private val BankWhite = Color(0xFFF5F7FA)
 private val BankBlue = Color(0xFF2D7BFF)
 private val BankRed = Color(0xFFFF453A)
