@@ -1,0 +1,19 @@
+{
+  "pages": 558,
+  "generic_titles_before": 350,
+  "titles_replaced": 350,
+  "generic_titles_after": 0,
+  "printed_pages_before": 194,
+  "missing_before": [
+    194
+  ],
+  "source_page_changes": [
+    [
+      "pep-math-7-1-06-10-p193-2",
+      193,
+      194
+    ]
+  ],
+  "printed_pages_after": 195,
+  "missing_after": []
+}

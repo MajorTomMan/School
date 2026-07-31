@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "textbookId": "pep-math-7-1",
+  "chapterNumber": "1",
+  "source": {
+    "pdfPageIndexOffset": 7,
+    "printedPages": "11-23",
+    "reviewMethod": "对照教材 PDF 正文与现行 R2 course.json 页面块逐项核对"
+  },
+  "pages": {
+    "pep-math-7-1-01-05-p011-2": {
+      "sourcePage": 11,
+      "title": "相反数的定义"
+    },
+    "pep-math-7-1-01-05-p011-3": {
+      "sourcePage": 11,
+      "title": "图1.2-6：关于原点对称的点"
+    },
+    "pep-math-7-1-01-05-p012-2": {
+      "sourcePage": 12,
+      "title": "相反数的表示与例3"
+    },
+    "pep-math-7-1-01-05-p012-3": {
+      "sourcePage": 12,
+      "title": "练习：相反数与多重符号"
+    },
+    "pep-math-7-1-01-06-p013-2": {
+      "sourcePage": 13,
+      "title": "绝对值的定义与性质"
+    },
+    "pep-math-7-1-01-06-p013-3": {
+      "sourcePage": 13,
+      "title": "例4：求绝对值与判断距离"
+    },
+    "pep-math-7-1-01-07-p014-2": {
+      "sourcePage": 14,
+      "title": "练习：绝对值与符号化简"
+    },
+    "pep-math-7-1-01-07-p014-3": {
+      "sourcePage": 14,
+      "title": "探究：用气温比较有理数大小"
+    },
+    "pep-math-7-1-01-07-p014-4": {
+      "sourcePage": 14,
+      "title": "图1.2-9：一周气温（上）"
+    },
+    "pep-math-7-1-01-07-p014-5": {
+      "sourcePage": 14,
+      "title": "图1.2-9：一周气温（下）"
+    },
+    "pep-math-7-1-01-07-p015-2": {
+      "sourcePage": 15,
+      "title": "有理数大小比较法则与例5"
+    },
+    "pep-math-7-1-01-07-p015-3": {
+      "sourcePage": 15,
+      "title": "例5：负数与化简后的大小比较"
+    },
+    "pep-math-7-1-01-07-p016-2": {
+      "sourcePage": 16,
+      "title": "练习：排序与城市气温"
+    },
+    "pep-math-7-1-01-07-p016-3": {
+      "sourcePage": 16,
+      "title": "复习题：有理数分类"
+    },
+    "pep-math-7-1-01-07-p017-2": {
+      "sourcePage": 17,
+      "title": "复习题：数轴表示与近视度数"
+    },
+    "pep-math-7-1-01-07-p017-3": {
+      "sourcePage": 17,
+      "title": "复习题：相反数与字母条件"
+    },
+    "pep-math-7-1-01-07-p018-2": {
+      "sourcePage": 18,
+      "title": "阅读材料：负数的历史"
+    },
+    "pep-math-7-1-01-07-p019-2": {
+      "sourcePage": 19,
+      "title": "阅读材料：欧洲对负数的认识"
+    },
+    "pep-math-7-1-01-07-p020-2": {
+      "sourcePage": 20,
+      "title": "数学活动：猜数策略"
+    },
+    "pep-math-7-1-01-08-p021-2": {
+      "sourcePage": 21,
+      "title": "第一章小结：知识回顾"
+    },
+    "pep-math-7-1-01-08-p022-2": {
+      "sourcePage": 22,
+      "title": "第一章复习题：比较大小与实际增幅"
+    },
+    "pep-math-7-1-01-08-p022-3": {
+      "sourcePage": 22,
+      "title": "第一章复习题：整数范围与字母排序"
+    },
+    "pep-math-7-1-01-08-p023-2": {
+      "sourcePage": 23,
+      "title": "第一章复习题：数的范围与绝对值"
+    }
+  }
+}

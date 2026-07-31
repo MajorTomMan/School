@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import shutil
 
+from course_refinement_overrides import apply_refinement_overrides
 from course_release_bundle import (
     collect_bundled_files, copy_optional_extensions, file_spec, public_release_url,
     safe_identifier, write_deterministic_zip,
@@ -34,7 +35,8 @@ def main() -> int:
     output.mkdir(parents=True)
     textbooks: list[dict[str, object]] = []
     for spec in BOOKS:
-        source = source_root / spec.textbook_id / "course.json"
+        textbook_root = source_root / spec.textbook_id
+        source = textbook_root / "course.json"
         pdf = pdf_root / spec.filename
         if not source.is_file():
             raise SystemExit(f"missing course source: {source}")
@@ -42,7 +44,9 @@ def main() -> int:
             raise SystemExit(f"missing textbook PDF: {pdf}")
         if file_sha256(pdf) != spec.sha256:
             raise SystemExit(f"textbook PDF digest mismatch: {pdf.name}")
-        normalized = normalize_course(json.loads(source.read_text(encoding="utf-8")))
+        raw_course = json.loads(source.read_text(encoding="utf-8"))
+        refined_course = apply_refinement_overrides(raw_course, textbook_root)
+        normalized = normalize_course(refined_course)
         textbook = normalized["textbook"]
         if textbook["id"] != spec.textbook_id or int(textbook["pdf"]["pageCount"]) != spec.page_count:
             raise SystemExit(f"textbook metadata mismatch: {source}")
@@ -50,7 +54,7 @@ def main() -> int:
         book_root.mkdir(parents=True)
         course_output = book_root / "course.json"
         course_output.write_text(json.dumps(normalized, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        copy_optional_extensions(source.parent, book_root)
+        copy_optional_extensions(textbook_root, book_root)
         bundled = collect_bundled_files(book_root)
         package_output = book_root / "course.zip"
         write_deterministic_zip(bundled, package_output)
