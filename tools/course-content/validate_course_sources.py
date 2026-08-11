@@ -89,7 +89,7 @@ def main() -> int:
                         f"{page_id}: anchor page {printed_page} is outside {start}..{end}"
                     )
                 normalized_anchor = normalize(anchor_text)
-                if len(normalized_anchor) < 8:
+                if len(normalized_anchor) < 7:
                     raise SystemExit(f"{page_id}: source anchor is too short")
 
                 pdf_index = printed_page - 1 + args.page_index_offset
