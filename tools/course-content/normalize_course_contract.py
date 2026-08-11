@@ -63,6 +63,29 @@ def string_list(value: Any, location: str) -> list[str]:
     return result
 
 
+def normalize_source_references(value: Any, page_count: int, location: str) -> list[dict[str, Any]]:
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise ValueError(f"{location} must be an array")
+    result: list[dict[str, Any]] = []
+    seen: set[tuple[str, int]] = set()
+    for index, raw in enumerate(value):
+        item_location = f"{location}[{index}]"
+        if not isinstance(raw, dict) or set(raw) != {"label", "sourcePage"}:
+            raise ValueError(f"{item_location} must contain only label and sourcePage")
+        label = require_text(raw.get("label"), f"{item_location}.label")
+        source_page = raw.get("sourcePage")
+        if not isinstance(source_page, int) or source_page <= 0 or source_page > page_count:
+            raise ValueError(f"{item_location}.sourcePage is invalid")
+        key = (label, source_page)
+        if key in seen:
+            raise ValueError(f"{location} contains duplicate reference: {label}")
+        seen.add(key)
+        result.append({"label": label, "sourcePage": source_page})
+    return result
+
+
 def number_from_string(value: str) -> int | float | str:
     text = value.strip()
     if re.fullmatch(r"[-+]?\d+", text):
@@ -185,6 +208,9 @@ def normalize_page(raw: Any, location: str, page_count: int, seen_ids: set[str],
         "sourcePage": source_page,
         "blocks": [normalize_block(item, f"{location}.blocks[{index}]") for index, item in enumerate(blocks_raw)],
     }
+    source_references = normalize_source_references(raw.get("sourceReferences"), page_count, f"{location}.sourceReferences")
+    if source_references:
+        result["sourceReferences"] = source_references
     if source_page_end != source_page:
         result["sourcePageEnd"] = source_page_end
     return result
