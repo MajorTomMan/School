@@ -181,6 +181,12 @@
       "type": "lesson",
       "title": "练习1：逐组比较大小",
       "sourcePage": 16,
+      "sourceAnchors": [
+        {
+          "page": 16,
+          "text": "比较下列各组数的大小"
+        }
+      ],
       "blocks": [
         {
           "type": "exercise",
@@ -198,6 +204,12 @@
       "type": "lesson",
       "title": "练习2：按从小到大排序",
       "sourcePage": 16,
+      "sourceAnchors": [
+        {
+          "page": 16,
+          "text": "将下列各组数按从小到大的顺序排列，并用“<”连接"
+        }
+      ],
       "blocks": [
         {
           "type": "exercise",
@@ -214,6 +226,12 @@
       "type": "lesson",
       "title": "练习3：城市平均气温排序",
       "sourcePage": 16,
+      "sourceAnchors": [
+        {
+          "page": 16,
+          "text": "下面是我国几个城市某年1月份的平均气温"
+        }
+      ],
       "blocks": [
         {
           "type": "exercise",
@@ -230,6 +248,12 @@
       "type": "lesson",
       "title": "习题1.2 第1题：有理数分类",
       "sourcePage": 16,
+      "sourceAnchors": [
+        {
+          "page": 16,
+          "text": "把下列各有理数填在相应的集合内"
+        }
+      ],
       "blocks": [
         {
           "type": "exercise",
@@ -246,6 +270,12 @@
       "type": "lesson",
       "title": "习题1.2 第2题：读数轴上的点",
       "sourcePage": 17,
+      "sourceAnchors": [
+        {
+          "page": 17,
+          "text": "如图，数轴上点A表示的数是"
+        }
+      ],
       "sourceReferences": [
         {
           "label": "习题1.2 第2题数轴",
@@ -275,6 +305,12 @@
       "type": "lesson",
       "title": "习题1.2 第3题：相反数",
       "sourcePage": 17,
+      "sourceAnchors": [
+        {
+          "page": 17,
+          "text": "7的相反数"
+        }
+      ],
       "blocks": [
         {
           "type": "exercise",
@@ -291,6 +327,12 @@
       "type": "lesson",
       "title": "习题1.2 第4题：比较绝对值",
       "sourcePage": 17,
+      "sourceAnchors": [
+        {
+          "page": 17,
+          "text": "写出下列各数的绝对值，并指出哪个数的绝对值最大"
+        }
+      ],
       "blocks": [
         {
           "type": "exercise",
@@ -307,6 +349,12 @@
       "type": "lesson",
       "title": "习题1.2 第5题：填比较符号",
       "sourcePage": 17,
+      "sourceAnchors": [
+        {
+          "page": 17,
+          "text": "比较大小：−21和0，−10和−5"
+        }
+      ],
       "blocks": [
         {
           "type": "exercise",
@@ -323,6 +371,12 @@
       "type": "lesson",
       "title": "习题1.2 第6题：在数轴上表示数",
       "sourcePage": 17,
+      "sourceAnchors": [
+        {
+          "page": 17,
+          "text": "在数轴上表示下列各数"
+        }
+      ],
       "blocks": [
         {
           "type": "exercise",
@@ -348,6 +402,12 @@
       "type": "lesson",
       "title": "习题1.2 第7题：近视度数",
       "sourcePage": 17,
+      "sourceAnchors": [
+        {
+          "page": 17,
+          "text": "如果平时不注意爱护眼睛，就有可能形成近视"
+        }
+      ],
       "blocks": [
         {
           "type": "exercise",
@@ -364,6 +424,12 @@
       "type": "lesson",
       "title": "习题1.2 第8题：距离为5的相反数",
       "sourcePage": 17,
+      "sourceAnchors": [
+        {
+          "page": 17,
+          "text": "在数轴上，如果点A，B分别表示互为相反数的两个数"
+        }
+      ],
       "blocks": [
         {
           "type": "exercise",
@@ -380,6 +446,12 @@
       "type": "lesson",
       "title": "习题1.2 第9题：a与−a的大小关系",
       "sourcePage": 17,
+      "sourceAnchors": [
+        {
+          "page": 17,
+          "text": "如果a是一个有理数，那么当a满足什么条件时"
+        }
+      ],
       "blocks": [
         {
           "type": "exercise",
@@ -396,6 +468,12 @@
       "type": "lesson",
       "title": "图说数学史：负数认识的早期发展",
       "sourcePage": 18,
+      "sourceAnchors": [
+        {
+          "page": 18,
+          "text": "今天，负数在我们的日常生活中无处不在"
+        }
+      ],
       "blocks": [
         {
           "type": "historical_note",
@@ -420,6 +498,12 @@
       "type": "lesson",
       "title": "图说数学史：欧洲接受负数的曲折过程",
       "sourcePage": 19,
+      "sourceAnchors": [
+        {
+          "page": 19,
+          "text": "在欧洲，对于负数的认识和使用进程缓慢而又艰难"
+        }
+      ],
       "blocks": [
         {
           "type": "historical_note",
@@ -444,6 +528,12 @@
       "type": "lesson",
       "title": "数学活动1：体重调查",
       "sourcePage": 20,
+      "sourceAnchors": [
+        {
+          "page": 20,
+          "text": "下表是七年级某小组6位同学的体重情况"
+        }
+      ],
       "blocks": [
         {
           "type": "textbook_text",
@@ -479,6 +569,12 @@
       "type": "lesson",
       "title": "数学活动2：猜数游戏",
       "sourcePage": 20,
+      "sourceAnchors": [
+        {
+          "page": 20,
+          "text": "两个人合作，按下面的步骤完成游戏"
+        }
+      ],
       "blocks": [
         {
           "type": "textbook_text",
