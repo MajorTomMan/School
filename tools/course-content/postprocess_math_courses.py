@@ -150,25 +150,43 @@ def apply_manual_sections(course: dict[str, Any]) -> int:
     if not directory.is_dir():
         return 0
 
-    sections_by_id = {
-        str(section.get("id")): (chapter, index)
-        for chapter in course.get("chapters", [])
-        for index, section in enumerate(chapter.get("sections", []))
-    }
+    targets_by_section_id: dict[str, list[tuple[str, dict[str, Any], int]]] = {}
+    for chapter in course.get("chapters", []):
+        chapter_id = str(chapter.get("id") or "").strip()
+        for index, section in enumerate(chapter.get("sections", [])):
+            section_id = str(section.get("id") or "").strip()
+            targets_by_section_id.setdefault(section_id, []).append((chapter_id, chapter, index))
+
     applied = 0
     for path in manual_section_paths(directory):
         override = json.loads(path.read_text(encoding="utf-8"))
         section_id = str(override.get("id") or "").strip()
+        chapter_id = str(override.get("chapterId") or "").strip()
         if not section_id:
             raise SystemExit(f"{path}: manual section id is empty")
-        target = sections_by_id.get(section_id)
-        if target is None:
+        candidates = targets_by_section_id.get(section_id, [])
+        if chapter_id:
+            candidates = [candidate for candidate in candidates if candidate[0] == chapter_id]
+            if not candidates:
+                raise SystemExit(
+                    f"{path}: section {section_id!r} was not found in chapter {chapter_id!r}"
+                )
+        if not candidates:
             raise SystemExit(f"{path}: section {section_id!r} was not found in generated course")
-        chapter, index = target
+        if len(candidates) != 1:
+            chapters = ", ".join(candidate[0] or "<unknown>" for candidate in candidates)
+            raise SystemExit(
+                f"{path}: section {section_id!r} is ambiguous across chapters [{chapters}]; "
+                "add chapterId to the manual section"
+            )
+
+        _, chapter, index = candidates[0]
         pages = override.get("pages")
         if not isinstance(pages, list) or not pages:
             raise SystemExit(f"{path}: manual section has no pages")
-        chapter["sections"][index] = override
+        runtime_override = dict(override)
+        runtime_override.pop("chapterId", None)
+        chapter["sections"][index] = runtime_override
         applied += 1
     return applied
 
