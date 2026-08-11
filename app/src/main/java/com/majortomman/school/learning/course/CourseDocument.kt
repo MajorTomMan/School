@@ -51,6 +51,12 @@ data class CoursePage(
     val sourcePage: Int,
     val sourcePageEnd: Int,
     val blocks: List<CourseBlock>,
+    val sourceReferences: List<CourseSourceReference> = emptyList(),
+)
+
+data class CourseSourceReference(
+    val label: String,
+    val sourcePage: Int,
 )
 
 enum class CourseTextStyle {
