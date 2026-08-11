@@ -28,6 +28,12 @@ class CourseDownloadWorker(
         .getLong(CourseDownloadCoordinator.KEY_OPERATION_ID, 0L)
         .takeIf { it != 0L }
         ?: id.stableLong()
+    private val textbookIds: Set<String> = inputData
+        .getStringArray(CourseDownloadCoordinator.KEY_TEXTBOOK_IDS)
+        .orEmpty()
+        .map(String::trim)
+        .filter(String::isNotBlank)
+        .toSet()
 
     override suspend fun getForegroundInfo(): ForegroundInfo {
         createNotificationChannels()
@@ -44,7 +50,10 @@ class CourseDownloadWorker(
         )
 
         return when (
-            val result = CourseSyncManager.syncAfterConfirmation(applicationContext) { progress ->
+            val result = CourseSyncManager.syncAfterConfirmation(
+                context = applicationContext,
+                textbookIds = textbookIds,
+            ) { progress ->
                 publishProgress(progress)
             }
         ) {
@@ -65,9 +74,9 @@ class CourseDownloadWorker(
                 MaterialLibraryStore.read(applicationContext)
                 CourseDownloadCoordinator.reportSuccess(operationId, result.updatedTextbooks)
                 val message = if (result.updatedTextbooks > 0) {
-                    "课程内容已下载完成，可以离线学习"
+                    if (textbookIds.size == 1) "所选教材已下载完成，可以离线学习" else "课程内容已下载完成，可以离线学习"
                 } else {
-                    "课程内容已经是最新版本"
+                    "所选课程内容已经是最新版本"
                 }
                 showResultNotification(success = true, message = message)
                 Result.success(resultData(updatedTextbooks = result.updatedTextbooks))
