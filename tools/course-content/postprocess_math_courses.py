@@ -144,18 +144,33 @@ def manual_section_paths(directory: Path) -> list[Path]:
     ]
 
 
+def source_range(section: dict[str, Any]) -> tuple[int, int] | None:
+    pages = section.get("pages")
+    if not isinstance(pages, list) or not pages:
+        return None
+    starts = [page.get("sourcePage") for page in pages if isinstance(page, dict) and isinstance(page.get("sourcePage"), int)]
+    ends = [
+        page.get("sourcePageEnd", page.get("sourcePage"))
+        for page in pages
+        if isinstance(page, dict) and isinstance(page.get("sourcePage"), int)
+    ]
+    if not starts or not ends:
+        return None
+    return min(starts), max(int(value) for value in ends if isinstance(value, int))
+
+
 def apply_manual_sections(course: dict[str, Any]) -> int:
     textbook_id = str(course.get("textbook", {}).get("id") or "").strip()
     directory = MANUAL_ROOT / textbook_id
     if not directory.is_dir():
         return 0
 
-    targets_by_section_id: dict[str, list[tuple[str, dict[str, Any], int]]] = {}
+    targets_by_section_id: dict[str, list[tuple[str, dict[str, Any], int, tuple[int, int] | None]]] = {}
     for chapter in course.get("chapters", []):
         chapter_id = str(chapter.get("id") or "").strip()
         for index, section in enumerate(chapter.get("sections", [])):
             section_id = str(section.get("id") or "").strip()
-            targets_by_section_id.setdefault(section_id, []).append((chapter_id, chapter, index))
+            targets_by_section_id.setdefault(section_id, []).append((chapter_id, chapter, index, source_range(section)))
 
     applied = 0
     for path in manual_section_paths(directory):
@@ -168,9 +183,17 @@ def apply_manual_sections(course: dict[str, Any]) -> int:
         if chapter_id:
             candidates = [candidate for candidate in candidates if candidate[0] == chapter_id]
             if not candidates:
-                raise SystemExit(
-                    f"{path}: section {section_id!r} was not found in chapter {chapter_id!r}"
-                )
+                raise SystemExit(f"{path}: section {section_id!r} was not found in chapter {chapter_id!r}")
+        elif len(candidates) > 1:
+            override_range = source_range(override)
+            if override_range is not None:
+                start, end = override_range
+                ranged = [
+                    candidate for candidate in candidates
+                    if candidate[3] is not None and candidate[3][0] <= start and end <= candidate[3][1]
+                ]
+                if len(ranged) == 1:
+                    candidates = ranged
         if not candidates:
             raise SystemExit(f"{path}: section {section_id!r} was not found in generated course")
         if len(candidates) != 1:
@@ -180,7 +203,7 @@ def apply_manual_sections(course: dict[str, Any]) -> int:
                 "add chapterId to the manual section"
             )
 
-        _, chapter, index = candidates[0]
+        _, chapter, index, _ = candidates[0]
         pages = override.get("pages")
         if not isinstance(pages, list) or not pages:
             raise SystemExit(f"{path}: manual section has no pages")
