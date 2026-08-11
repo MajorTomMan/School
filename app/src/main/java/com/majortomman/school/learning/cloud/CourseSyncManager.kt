@@ -24,7 +24,10 @@ object CourseSyncManager {
 
     private val syncMutex = Mutex()
 
-    suspend fun checkForUpdates(context: Context): CourseUpdateCheckResult = withContext(Dispatchers.IO) {
+    suspend fun checkForUpdates(
+        context: Context,
+        textbookIds: Set<String> = emptySet(),
+    ): CourseUpdateCheckResult = withContext(Dispatchers.IO) {
         syncMutex.withLock {
             val manifestUrl = BuildConfig.COURSE_MANIFEST_URL.trim()
             if (manifestUrl.isBlank()) return@withLock CourseUpdateCheckResult.Disabled
@@ -33,7 +36,7 @@ object CourseSyncManager {
             runCatching {
                 val manifest = downloadManifest(appContext, manifestUrl)
                 val store = CoursePackStore(appContext)
-                val planned = plannedUpdates(manifest, store)
+                val planned = plannedUpdates(manifest, store, textbookIds)
                 if (planned.isEmpty()) {
                     CourseUpdateCheckResult.NoUpdate
                 } else {
@@ -64,6 +67,7 @@ object CourseSyncManager {
 
     suspend fun syncAfterConfirmation(
         context: Context,
+        textbookIds: Set<String> = emptySet(),
         onProgress: (CourseSyncProgress) -> Unit,
     ): CourseSyncResult = withContext(Dispatchers.IO) {
         syncMutex.withLock {
@@ -78,7 +82,7 @@ object CourseSyncManager {
             runCatching {
                 onProgress(CourseSyncProgress(0L, 0L, "课程清单", "正在检查更新"))
                 val manifest = downloadManifest(appContext, manifestUrl)
-                val planned = plannedUpdates(manifest, store)
+                val planned = plannedUpdates(manifest, store, textbookIds)
                 if (planned.isEmpty()) {
                     onProgress(CourseSyncProgress(0L, 0L, "", "课程已经是最新版本"))
                     return@runCatching CourseSyncResult.Success(0)
@@ -134,12 +138,25 @@ object CourseSyncManager {
     private fun plannedUpdates(
         manifest: CourseManifest,
         store: CoursePackStore,
-    ): List<PlannedCourseUpdate> = manifest.textbooks.mapNotNull { remote ->
-        val local = store.readLocalState(remote.id)
-        val plan = CourseUpdatePlanner.plan(remote, local)
-        plan.takeUnless { it == CourseUpdatePlan.None }?.let {
-            PlannedCourseUpdate(remote, local, it)
+        textbookIds: Set<String>,
+    ): List<PlannedCourseUpdate> {
+        val requested = textbookIds.map(String::trim).filter(String::isNotBlank).toSet()
+        if (requested.isNotEmpty()) {
+            val available = manifest.textbooks.map(CourseTextbookManifest::id).toSet()
+            val missing = requested - available
+            require(missing.isEmpty()) { "课程清单中不存在教材：${missing.sorted().joinToString()}" }
         }
+        return manifest.textbooks
+            .asSequence()
+            .filter { requested.isEmpty() || it.id in requested }
+            .mapNotNull { remote ->
+                val local = store.readLocalState(remote.id)
+                val plan = CourseUpdatePlanner.plan(remote, local)
+                plan.takeUnless { it == CourseUpdatePlan.None }?.let {
+                    PlannedCourseUpdate(remote, local, it)
+                }
+            }
+            .toList()
     }
 
     private fun estimatedTransferBytes(update: PlannedCourseUpdate): Long = when (val plan = update.plan) {

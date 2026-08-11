@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 object CourseDownloadCoordinator {
     internal const val UNIQUE_WORK_NAME = "school-course-download"
     internal const val KEY_OPERATION_ID = "operation_id"
+    internal const val KEY_TEXTBOOK_IDS = "textbook_ids"
     private const val OPERATION_TAG_PREFIX = "school-course-operation:"
 
     private val operationCounter = AtomicLong(System.currentTimeMillis())
@@ -55,7 +56,7 @@ object CourseDownloadCoordinator {
         }
     }
 
-    fun enqueue(context: Context) {
+    fun enqueue(context: Context, textbookIds: Set<String> = emptySet()) {
         val appContext = context.applicationContext
         initialize(appContext)
         val current = mutableState.value
@@ -67,10 +68,20 @@ object CourseDownloadCoordinator {
             return
         }
 
+        val normalizedTextbookIds = textbookIds
+            .map(String::trim)
+            .filter(String::isNotBlank)
+            .onEach { require(TEXTBOOK_ID_PATTERN.matches(it)) { "教材 ID 格式无效：$it" } }
+            .toSortedSet()
         val operationId = operationCounter.incrementAndGet()
         mutableState.value = CourseDownloadUiState.Queued(operationId)
         val request = OneTimeWorkRequestBuilder<CourseDownloadWorker>()
-            .setInputData(workDataOf(KEY_OPERATION_ID to operationId))
+            .setInputData(
+                workDataOf(
+                    KEY_OPERATION_ID to operationId,
+                    KEY_TEXTBOOK_IDS to normalizedTextbookIds.toTypedArray(),
+                ),
+            )
             .addTag("$OPERATION_TAG_PREFIX$operationId")
             .setConstraints(
                 Constraints.Builder()
@@ -173,6 +184,8 @@ object CourseDownloadCoordinator {
     private fun UUID.stableLong(): Long = (mostSignificantBits xor leastSignificantBits).let {
         if (it == Long.MIN_VALUE) 1L else kotlin.math.abs(it).coerceAtLeast(1L)
     }
+
+    private val TEXTBOOK_ID_PATTERN = Regex("[A-Za-z0-9._-]+")
 }
 
 sealed interface CourseDownloadUiState {

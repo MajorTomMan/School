@@ -27,12 +27,59 @@ object CourseStorageManager {
         )
     }
 
-    suspend fun checkForUpdates(context: Context): CourseStorageUpdateCheck {
+    suspend fun checkForUpdates(
+        context: Context,
+        textbookIds: Set<String> = emptySet(),
+    ): CourseStorageUpdateCheck {
         val appContext = context.applicationContext
-        val result = CourseSyncManager.checkForUpdates(appContext)
+        val result = CourseSyncManager.checkForUpdates(appContext, textbookIds)
         val checkedAt = System.currentTimeMillis()
         preferences(appContext).edit().putLong(KEY_LAST_CHECKED_AT, checkedAt).apply()
         return CourseStorageUpdateCheck(result = result, checkedAt = checkedAt)
+    }
+
+    suspend fun removeTextbook(
+        context: Context,
+        textbookId: String,
+    ): CourseTextbookRemovalResult = withContext(Dispatchers.IO) {
+        val appContext = context.applicationContext
+        synchronized(clearLock) {
+            if (CourseDownloadCoordinator.isBusy()) {
+                return@synchronized CourseTextbookRemovalResult.Busy
+            }
+
+            val root = File(appContext.filesDir, ROOT_DIRECTORY)
+            val active = File(File(root, "active"), textbookId)
+            val previousLibrary = MaterialLibraryStore.read(appContext)
+            val installed = previousLibrary.firstOrNull { textbook ->
+                runCatching { File(textbook.pack.rootPath).canonicalFile == active.canonicalFile }.getOrDefault(false)
+            }
+            if (!active.exists() && installed == null) {
+                return@synchronized CourseTextbookRemovalResult.NotInstalled
+            }
+
+            runCatching {
+                val removedBytes = CourseCacheFiles.removeTextbookAtomically(
+                    root = root,
+                    textbookId = textbookId,
+                    removeCatalog = {
+                        MaterialLibraryStore.write(
+                            appContext,
+                            previousLibrary.filterNot { textbook ->
+                                runCatching {
+                                    File(textbook.pack.rootPath).canonicalFile == active.canonicalFile
+                                }.getOrDefault(false)
+                            },
+                        )
+                    },
+                    restoreCatalog = { MaterialLibraryStore.write(appContext, previousLibrary) },
+                )
+                CloudCourseRepository.markContentChanged()
+                CourseTextbookRemovalResult.Removed(removedBytes)
+            }.getOrElse { error ->
+                CourseTextbookRemovalResult.Failed(error.message ?: error::class.java.simpleName)
+            }
+        }
     }
 
     suspend fun clearCache(context: Context): CourseCacheClearResult = withContext(Dispatchers.IO) {
@@ -70,6 +117,7 @@ data class CourseStorageSnapshot(
     val activeBytes: Long,
     val temporaryBytes: Long,
     val installedTextbooks: Int,
+    val textbookBytes: Map<String, Long> = emptyMap(),
     val lastCheckedAt: Long = 0L,
 )
 
@@ -77,6 +125,13 @@ data class CourseStorageUpdateCheck(
     val result: CourseUpdateCheckResult,
     val checkedAt: Long,
 )
+
+sealed interface CourseTextbookRemovalResult {
+    data object Busy : CourseTextbookRemovalResult
+    data object NotInstalled : CourseTextbookRemovalResult
+    data class Removed(val removedBytes: Long) : CourseTextbookRemovalResult
+    data class Failed(val message: String) : CourseTextbookRemovalResult
+}
 
 sealed interface CourseCacheClearResult {
     data object Busy : CourseCacheClearResult
@@ -86,20 +141,62 @@ sealed interface CourseCacheClearResult {
 
 internal object CourseCacheFiles {
     private const val ACTIVE_DIRECTORY = "active"
+    private val TEXTBOOK_ID_PATTERN = Regex("[A-Za-z0-9._-]+")
 
     fun snapshot(root: File): CourseStorageSnapshot {
         val active = File(root, ACTIVE_DIRECTORY)
-        val activeBytes = directorySize(active)
-        val totalBytes = directorySize(root)
-        val installed = active.listFiles()
+        val activeDirectories = active.listFiles()
             .orEmpty()
-            .count { directory -> directory.isDirectory && File(directory, "course.json").isFile }
+            .filter { directory -> directory.isDirectory && File(directory, "course.json").isFile }
+        val textbookBytes = activeDirectories.associate { directory ->
+            directory.name to directorySize(directory)
+        }
+        val activeBytes = textbookBytes.values.sum()
+        val totalBytes = directorySize(root)
         return CourseStorageSnapshot(
             totalBytes = totalBytes,
             activeBytes = activeBytes,
             temporaryBytes = (totalBytes - activeBytes).coerceAtLeast(0L),
-            installedTextbooks = installed,
+            installedTextbooks = textbookBytes.size,
+            textbookBytes = textbookBytes,
         )
+    }
+
+    fun removeTextbookAtomically(
+        root: File,
+        textbookId: String,
+        removeCatalog: () -> Unit,
+        restoreCatalog: () -> Unit,
+    ): Long {
+        require(TEXTBOOK_ID_PATTERN.matches(textbookId)) { "教材 ID 格式无效：$textbookId" }
+        val activeRoot = File(root, ACTIVE_DIRECTORY).apply { mkdirs() }
+        val active = File(activeRoot, textbookId)
+        val removedBytes = directorySize(active)
+        val trash = File(activeRoot, ".$textbookId-deleting-${System.nanoTime()}")
+        trash.deleteRecursively()
+
+        val moved = active.exists()
+        if (moved) {
+            require(active.renameTo(trash)) { "无法锁定待删除的教材缓存" }
+        }
+
+        try {
+            removeCatalog()
+            File(root, "staging/$textbookId").deleteRecursively()
+            File(root, "backup/$textbookId").deleteRecursively()
+            File(root, "downloads/$textbookId-full.part").delete()
+            if (trash.exists()) {
+                require(trash.deleteRecursively()) { "无法删除教材缓存文件" }
+            }
+            return removedBytes
+        } catch (error: Throwable) {
+            if (moved && trash.exists()) {
+                active.deleteRecursively()
+                require(trash.renameTo(active)) { "教材删除失败，且无法恢复原缓存" }
+            }
+            runCatching(restoreCatalog)
+            throw error
+        }
     }
 
     fun clearAtomically(

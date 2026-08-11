@@ -37,7 +37,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.majortomman.school.data.AiSettings
 import com.majortomman.school.data.AttemptRecord
+import com.majortomman.school.data.BackgroundMode
 import com.majortomman.school.data.DailyPlan
+import com.majortomman.school.data.DisplayPreferences
+import com.majortomman.school.data.DisplaySettings
 import com.majortomman.school.data.LearningProgress
 import com.majortomman.school.data.MasteryStatus
 import com.majortomman.school.data.PreferencesRepository
@@ -79,9 +82,14 @@ fun SchoolApp(
     val aiSettings by repository.aiSettings.collectAsState(initial = AiSettings())
     val recentAttempts by repository.recentAttempts.collectAsState(initial = emptyList<AttemptRecord>())
     val reviewQueue by repository.reviewQueue.collectAsState(initial = emptyList<ScheduledReview>())
+    val displaySettings by DisplayPreferences.state.collectAsState(initial = DisplaySettings())
     val libraryState by materialRepository.state.collectAsState()
     val curriculumState by curriculumRepository.state.collectAsState()
     val curriculumProgress by curriculumRepository.nodeProgress.collectAsState()
+    val bottomBarBackground = when (displaySettings.backgroundMode) {
+        BackgroundMode.PRESET -> Color(displaySettings.backgroundPreset.argb)
+        BackgroundMode.CUSTOM -> Color.Black.copy(alpha = 0.18f)
+    }
 
     val activeTextbook = libraryState.installedTextbooks.firstOrNull { it.key == activeTextbookKey }
     val activeCurriculumId = activeTextbook?.let(curriculumRepository::curriculumIdFor)
@@ -182,6 +190,7 @@ fun SchoolApp(
                     bottomBar = {
                         MinimalBottomBar(
                             selected = selectedTab,
+                            backgroundColor = bottomBarBackground,
                             onSelect = { selectedTabName = it.name },
                         )
                     },
@@ -338,12 +347,13 @@ private fun CourseDataUnavailableScreen(
 @Composable
 private fun MinimalBottomBar(
     selected: MainTab,
+    backgroundColor: Color,
     onSelect: (MainTab) -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(NavigationBlack)
+            .background(backgroundColor)
             .padding(horizontal = 7.dp, vertical = 13.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
