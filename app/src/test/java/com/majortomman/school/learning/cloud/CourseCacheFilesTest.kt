@@ -27,6 +27,64 @@ class CourseCacheFilesTest {
             assertEquals(40L, snapshot.activeBytes)
             assertEquals(17L, snapshot.temporaryBytes)
             assertEquals(57L, snapshot.totalBytes)
+            assertEquals(40L, snapshot.textbookBytes["pep-math-7-1"])
+        } finally {
+            parent.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun removeTextbookOnlyRemovesSelectedDirectory() {
+        val parent = Files.createTempDirectory("school-course-single-remove")
+        try {
+            val root = parent.resolve("course-packs")
+            val first = root.resolve("active/pep-math-7-1")
+            val second = root.resolve("active/pep-math-7-2")
+            Files.createDirectories(first)
+            Files.createDirectories(second)
+            first.resolve("course.json").writeBytes(ByteArray(13))
+            second.resolve("course.json").writeBytes(ByteArray(17))
+            var catalogRemoved = false
+
+            val removedBytes = CourseCacheFiles.removeTextbookAtomically(
+                root = root.toFile(),
+                textbookId = "pep-math-7-1",
+                removeCatalog = { catalogRemoved = true },
+                restoreCatalog = { error("restore must not run") },
+            )
+
+            assertTrue(catalogRemoved)
+            assertEquals(13L, removedBytes)
+            assertFalse(first.toFile().exists())
+            assertTrue(second.resolve("course.json").toFile().isFile)
+        } finally {
+            parent.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun removeTextbookRestoresFilesAndCatalogWhenCatalogWriteFails() {
+        val parent = Files.createTempDirectory("school-course-single-restore")
+        try {
+            val root = parent.resolve("course-packs")
+            val course = root.resolve("active/pep-math-7-1/course.json")
+            Files.createDirectories(course.parent)
+            course.writeBytes(ByteArray(9))
+            var catalogRestored = false
+
+            val failure = runCatching {
+                CourseCacheFiles.removeTextbookAtomically(
+                    root = root.toFile(),
+                    textbookId = "pep-math-7-1",
+                    removeCatalog = { error("catalog write failed") },
+                    restoreCatalog = { catalogRestored = true },
+                )
+            }.exceptionOrNull()
+
+            assertEquals("catalog write failed", failure?.message)
+            assertTrue(catalogRestored)
+            assertTrue(course.toFile().isFile)
+            assertEquals(9L, course.toFile().length())
         } finally {
             parent.toFile().deleteRecursively()
         }
