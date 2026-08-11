@@ -9,6 +9,7 @@ import com.majortomman.school.learning.cloud.CloudCourseCatalogInstaller
 import com.majortomman.school.learning.cloud.CourseSyncManager
 import com.majortomman.school.learning.cloud.CourseUpdateCheckResult
 import com.majortomman.school.learning.cloud.CourseUpdateOffer
+import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -54,7 +55,7 @@ object StartupInitializationCoordinator {
             }
 
             if (checkCourseUpdatesOnStartup) {
-                checkCourseUpdates(appContext, onCourseUpdateAvailable)
+                checkInstalledCourseUpdates(appContext, onCourseUpdateAvailable)
             } else {
                 Log.i(LOG_TAG, "startup course update check skipped")
             }
@@ -80,25 +81,42 @@ object StartupInitializationCoordinator {
         onCourseUpdateAvailable: (CourseUpdateOffer) -> Unit,
     ) {
         scope.launch {
-            checkCourseUpdates(context.applicationContext, onCourseUpdateAvailable)
+            checkInstalledCourseUpdates(context.applicationContext, onCourseUpdateAvailable)
         }
+    }
+
+    private suspend fun checkInstalledCourseUpdates(
+        appContext: Context,
+        onCourseUpdateAvailable: (CourseUpdateOffer) -> Unit,
+    ) {
+        val textbookIds = MaterialLibraryStore.read(appContext)
+            .map { textbook -> File(textbook.pack.rootPath).name }
+            .map(String::trim)
+            .filter(String::isNotBlank)
+            .toSet()
+        if (textbookIds.isEmpty()) {
+            Log.i(LOG_TAG, "course update check skipped because no textbook is installed")
+            return
+        }
+        checkCourseUpdates(appContext, textbookIds, onCourseUpdateAvailable)
     }
 
     private suspend fun checkCourseUpdates(
         appContext: Context,
+        textbookIds: Set<String>,
         onCourseUpdateAvailable: (CourseUpdateOffer) -> Unit,
     ) {
         val startedAt = SystemClock.elapsedRealtime()
-        when (val result = CourseSyncManager.checkForUpdates(appContext)) {
+        when (val result = CourseSyncManager.checkForUpdates(appContext, textbookIds)) {
             CourseUpdateCheckResult.Disabled -> Log.i(LOG_TAG, "cloud course synchronization is not configured")
             CourseUpdateCheckResult.NoUpdate -> Log.i(
                 LOG_TAG,
-                "course content is current; checked in ${SystemClock.elapsedRealtime() - startedAt} ms",
+                "installed course content is current; checked in ${SystemClock.elapsedRealtime() - startedAt} ms",
             )
             is CourseUpdateCheckResult.Available -> {
                 Log.i(
                     LOG_TAG,
-                    "course update available: kind=${result.offer.kind}, bytes=${result.offer.estimatedBytes}",
+                    "installed course update available: kind=${result.offer.kind}, bytes=${result.offer.estimatedBytes}",
                 )
                 withContext(Dispatchers.Main.immediate) {
                     onCourseUpdateAvailable(result.offer)
