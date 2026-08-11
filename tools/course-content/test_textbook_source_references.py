@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import json
+from pathlib import Path
+import tempfile
 import unittest
 
 import normalize_course_contract
@@ -35,6 +38,35 @@ class TextbookSourceReferenceTest(unittest.TestCase):
             [{"label": "图1.2-7", "sourcePage": 13}],
             course["chapters"][0]["sections"][0]["pages"][0]["sourceReferences"],
         )
+
+    def test_manual_section_with_chapter_id_does_not_cross_chapters(self):
+        course = self._course_with_duplicate_section_ids()
+        self._apply_temp_manual_section(
+            course,
+            {
+                "chapterId": "chapter-01",
+                "id": "section-01",
+                "title": "第一章引言",
+                "aliases": [],
+                "pages": [self._page("manual-ch1", 1)],
+            },
+        )
+        self.assertEqual("manual-ch1", course["chapters"][0]["sections"][0]["pages"][0]["id"])
+        self.assertEqual("generated-ch6", course["chapters"][1]["sections"][0]["pages"][0]["id"])
+
+    def test_ambiguous_manual_section_is_resolved_by_reviewed_page_range(self):
+        course = self._course_with_duplicate_section_ids()
+        self._apply_temp_manual_section(
+            course,
+            {
+                "id": "section-01",
+                "title": "第一章引言",
+                "aliases": [],
+                "pages": [self._page("manual-by-page", 1)],
+            },
+        )
+        self.assertEqual("manual-by-page", course["chapters"][0]["sections"][0]["pages"][0]["id"])
+        self.assertEqual("generated-ch6", course["chapters"][1]["sections"][0]["pages"][0]["id"])
 
     def test_normalizer_preserves_source_references(self):
         payload = {
@@ -86,6 +118,53 @@ class TextbookSourceReferenceTest(unittest.TestCase):
                 202,
                 "page.sourceReferences",
             )
+
+    def _apply_temp_manual_section(self, course, override):
+        old_root = postprocess_math_courses.MANUAL_ROOT
+        try:
+            with tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                directory = root / "pep-math-7-1"
+                directory.mkdir(parents=True)
+                (directory / "section-01.json").write_text(json.dumps(override, ensure_ascii=False), encoding="utf-8")
+                postprocess_math_courses.MANUAL_ROOT = root
+                self.assertEqual(1, postprocess_math_courses.apply_manual_sections(course))
+        finally:
+            postprocess_math_courses.MANUAL_ROOT = old_root
+
+    def _course_with_duplicate_section_ids(self):
+        return {
+            "textbook": {"id": "pep-math-7-1"},
+            "chapters": [
+                {
+                    "id": "chapter-01",
+                    "sections": [
+                        {
+                            "id": "section-01",
+                            "pages": [self._page("generated-ch1", 1)],
+                        }
+                    ],
+                },
+                {
+                    "id": "chapter-06",
+                    "sections": [
+                        {
+                            "id": "section-01",
+                            "pages": [self._page("generated-ch6", 149)],
+                        }
+                    ],
+                },
+            ],
+        }
+
+    def _page(self, page_id, source_page):
+        return {
+            "id": page_id,
+            "title": page_id,
+            "sourcePage": source_page,
+            "sourceAnchors": [{"page": source_page, "text": "足够长度的教材锚点文本"}],
+            "blocks": [{"type": "textbook_text", "text": "正文"}],
+        }
 
 
 if __name__ == "__main__":
