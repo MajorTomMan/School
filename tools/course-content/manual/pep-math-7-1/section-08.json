@@ -18,6 +18,12 @@
       "type": "lesson",
       "title": "第一章知识结构回顾",
       "sourcePage": 21,
+      "sourceAnchors": [
+        {
+          "page": 21,
+          "text": "本章我们通过研究实际问题中具有相反意义的量"
+        }
+      ],
       "sourceReferences": [
         {
           "label": "教材小结知识结构图",
@@ -51,6 +57,12 @@
       "type": "lesson",
       "title": "回顾与思考：数的范围、正负数与分类",
       "sourcePage": 21,
+      "sourceAnchors": [
+        {
+          "page": 21,
+          "text": "请你带着下面的问题，复习一下全章的内容吧"
+        }
+      ],
       "blocks": [
         {
           "type": "prompt",
@@ -76,6 +88,12 @@
       "title": "回顾与思考：数轴、相反数、绝对值与比较",
       "sourcePage": 21,
       "sourcePageEnd": 22,
+      "sourceAnchors": [
+        {
+          "page": 21,
+          "text": "数轴与普通的直线有什么不同"
+        }
+      ],
       "blocks": [
         {
           "type": "prompt",
@@ -100,6 +118,12 @@
       "type": "lesson",
       "title": "复习题1 第1题：相反意义的量",
       "sourcePage": 22,
+      "sourceAnchors": [
+        {
+          "page": 22,
+          "text": "如果温度上升3℃记作+3℃"
+        }
+      ],
       "blocks": [
         {
           "type": "exercise",
@@ -116,6 +140,12 @@
       "type": "lesson",
       "title": "复习题1 第2题：数轴表示与排序",
       "sourcePage": 22,
+      "sourceAnchors": [
+        {
+          "page": 22,
+          "text": "在数轴上表示下列各数，并将这些数按从小到大的顺序排列"
+        }
+      ],
       "blocks": [
         {
           "type": "exercise",
@@ -141,6 +171,12 @@
       "type": "lesson",
       "title": "复习题1 第3题：相反数与绝对值",
       "sourcePage": 22,
+      "sourceAnchors": [
+        {
+          "page": 22,
+          "text": "分别写出−2，−5，7.5的相反数和绝对值"
+        }
+      ],
       "blocks": [
         {
           "type": "exercise",
@@ -157,6 +193,12 @@
       "type": "lesson",
       "title": "复习题1 第4题：化简后比较大小",
       "sourcePage": 22,
+      "sourceAnchors": [
+        {
+          "page": 22,
+          "text": "比较下列各组数的大小"
+        }
+      ],
       "blocks": [
         {
           "type": "exercise",
@@ -173,6 +215,12 @@
       "type": "lesson",
       "title": "复习题1 第5题：季度盈利排序",
       "sourcePage": 22,
+      "sourceAnchors": [
+        {
+          "page": 22,
+          "text": "下表是某公司某年四个季度的盈利情况"
+        }
+      ],
       "blocks": [
         {
           "type": "exercise",
@@ -189,6 +237,12 @@
       "type": "lesson",
       "title": "复习题1 第6题：增长率中的负数",
       "sourcePage": 22,
+      "sourceAnchors": [
+        {
+          "page": 22,
+          "text": "某年我国人均水资源比上年的增幅是−5.6%"
+        }
+      ],
       "blocks": [
         {
           "type": "exercise",
@@ -205,6 +259,12 @@
       "type": "lesson",
       "title": "复习题1 第7题：整数范围",
       "sourcePage": 22,
+      "sourceAnchors": [
+        {
+          "page": 22,
+          "text": "已知x是整数，并且−3<x<4"
+        }
+      ],
       "blocks": [
         {
           "type": "exercise",
@@ -221,6 +281,12 @@
       "type": "lesson",
       "title": "复习题1 第8题：a、−a、b、−b排序",
       "sourcePage": 22,
+      "sourceAnchors": [
+        {
+          "page": 22,
+          "text": "数轴上表示a，b的点如图所示"
+        }
+      ],
       "sourceReferences": [
         {
           "label": "复习题1 第8题数轴",
@@ -249,6 +315,12 @@
       "type": "lesson",
       "title": "复习题1 第9题：排球质量偏差",
       "sourcePage": 23,
+      "sourceAnchors": [
+        {
+          "page": 23,
+          "text": "如图，检测5个排球，其中超过标准质量的克数记为正数"
+        }
+      ],
       "sourceReferences": [
         {
           "label": "复习题1 第9题示意图",
@@ -280,6 +352,12 @@
       "type": "lesson",
       "title": "复习题1 第10题：数之间还有多少数",
       "sourcePage": 23,
+      "sourceAnchors": [
+        {
+          "page": 23,
+          "text": "−1与0之间有有理数吗"
+        }
+      ],
       "blocks": [
         {
           "type": "exercise",
@@ -296,6 +374,12 @@
       "type": "lesson",
       "title": "复习题1 第11题：绝对值与相反数综合",
       "sourcePage": 23,
+      "sourceAnchors": [
+        {
+          "page": 23,
+          "text": "如果|x|=2，那么x一定是2吗"
+        }
+      ],
       "blocks": [
         {
           "type": "exercise",
