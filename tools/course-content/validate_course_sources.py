@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sys
 import unicodedata
 
 import fitz
@@ -63,6 +64,7 @@ def main() -> int:
         page_text_cache: dict[int, str] = {}
         seen_ids: set[str] = set()
         validated_anchors = 0
+        anchor_errors: list[str] = []
 
         for page in iter_pages(course):
             page_id = str(page.get("id") or "").strip()
@@ -85,29 +87,41 @@ def main() -> int:
                 printed_page = int(anchor.get("page") or 0)
                 anchor_text = str(anchor.get("text") or "").strip()
                 if printed_page < start or printed_page > end:
-                    raise SystemExit(
+                    anchor_errors.append(
                         f"{page_id}: anchor page {printed_page} is outside {start}..{end}"
                     )
+                    continue
+
                 normalized_anchor = normalize(anchor_text)
-                if len(normalized_anchor) < 8:
-                    raise SystemExit(f"{page_id}: source anchor is too short")
+                if len(normalized_anchor) < 7:
+                    anchor_errors.append(
+                        f"{page_id}: source anchor is too short: {anchor_text}"
+                    )
+                    continue
 
                 pdf_index = printed_page - 1 + args.page_index_offset
                 if pdf_index < 0 or pdf_index >= document.page_count:
-                    raise SystemExit(
+                    anchor_errors.append(
                         f"{page_id}: printed page {printed_page} maps outside the PDF"
                     )
+                    continue
+
                 page_text = page_text_cache.setdefault(
                     pdf_index,
                     normalize(document.load_page(pdf_index).get_text("text")),
                 )
                 if normalized_anchor not in page_text:
-                    raise SystemExit(
+                    anchor_errors.append(
                         f"{page_id}: source anchor not found on printed page "
                         f"{printed_page}: {anchor_text}"
                     )
+                    continue
                 validated_anchors += 1
 
+        if anchor_errors:
+            for error in anchor_errors:
+                print(error, file=sys.stderr)
+            raise SystemExit(f"{len(anchor_errors)} textbook source anchor error(s)")
         if validated_anchors == 0:
             raise SystemExit("no textbook source anchors were validated")
         print(

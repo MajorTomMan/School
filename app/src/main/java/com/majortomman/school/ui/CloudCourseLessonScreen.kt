@@ -182,6 +182,7 @@ private fun CloudCoursePager(
     val scope = rememberCoroutineScope()
     val currentPage = pages[pagerState.currentPage]
     val isLastPage = pagerState.currentPage == pages.lastIndex
+    val textbookAvailable = installedMaterial.pdfFile.isFile
     val sourceLabel = if (currentPage.sourcePageEnd > currentPage.sourcePage) {
         "教材第 ${currentPage.sourcePage}—${currentPage.sourcePageEnd} 页"
     } else {
@@ -226,9 +227,9 @@ private fun CloudCoursePager(
             }
             CloudTextAction(
                 sourceLabel,
-                if (installedMaterial.pdfFile.isFile) InteractiveYellow else InteractiveMuted,
+                if (textbookAvailable) InteractiveYellow else InteractiveMuted,
             ) {
-                if (installedMaterial.pdfFile.isFile) onOpenTextbook(currentPage.sourcePage)
+                if (textbookAvailable) onOpenTextbook(currentPage.sourcePage)
             }
         }
         LinearProgressIndicator(
@@ -239,7 +240,13 @@ private fun CloudCoursePager(
         )
 
         HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { index ->
-            CloudCoursePageContent(pages[index], index + 1, pages.size)
+            CloudCoursePageContent(
+                page = pages[index],
+                pageNumber = index + 1,
+                pageCount = pages.size,
+                textbookAvailable = textbookAvailable,
+                onOpenTextbook = onOpenTextbook,
+            )
         }
 
         Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
@@ -278,6 +285,8 @@ private fun CloudCoursePageContent(
     page: CoursePage,
     pageNumber: Int,
     pageCount: Int,
+    textbookAvailable: Boolean,
+    onOpenTextbook: (Int) -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val compact = maxHeight < 620.dp
@@ -304,6 +313,26 @@ private fun CloudCoursePageContent(
                 fontWeight = FontWeight.SemiBold,
             )
             InlineScrollContinuationNotice(scrollState)
+            if (page.sourceReferences.isNotEmpty()) {
+                Spacer(Modifier.height(12.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    page.sourceReferences.forEach { reference ->
+                        Text(
+                            "↗ ${reference.label} · 查看教材第 ${reference.sourcePage} 页",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = textbookAvailable) {
+                                    onOpenTextbook(reference.sourcePage)
+                                }
+                                .padding(vertical = 7.dp),
+                            color = if (textbookAvailable) InteractiveYellow else InteractiveMuted,
+                            fontSize = 13.sp,
+                            lineHeight = 20.sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                }
+            }
             Spacer(Modifier.height(14.dp))
             CloudCourseOrderedBlocks(page, compact)
             Spacer(Modifier.height(34.dp))

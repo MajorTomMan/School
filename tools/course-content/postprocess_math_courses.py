@@ -2,8 +2,8 @@
 """Prepare textbook-derived course data for School.
 
 Textbook wording, instructional stages and visual design are authored and reviewed manually.
-This module only performs packaging work: it converts legacy crop placeholders and overlays
-manually reviewed section files onto the generated course skeleton.
+This module only performs packaging work: it converts legacy crop placeholders, overlays
+manually reviewed section files and attaches reviewed textbook figure/table references.
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import re
 from typing import Any
 
 GENERIC_EXCERPT_TEXTS = (
@@ -22,6 +23,7 @@ GENERIC_EXCERPT_TEXTS = (
 )
 
 MANUAL_ROOT = Path(__file__).resolve().parent / "manual"
+REFERENCE_FILE_NAME = "textbook-references.json"
 MANUAL_EXTENSION_FILES = {
     "assessments.json",
     "knowledge-points.json",
@@ -29,7 +31,10 @@ MANUAL_EXTENSION_FILES = {
     "asset-decisions.json",
     "review.json",
     "review-decisions.json",
+    REFERENCE_FILE_NAME,
 }
+REFERENCE_PATTERN = re.compile(r"(?:图|表)\s*[0-9０-９]+(?:[.．][0-9０-９]+)*\s*[-－—–]\s*[0-9０-９]+")
+FULLWIDTH_DIGITS = str.maketrans("０１２３４５６７８９", "0123456789")
 
 
 def iter_pages(course: dict[str, Any]):
@@ -139,36 +144,158 @@ def manual_section_paths(directory: Path) -> list[Path]:
     ]
 
 
+def source_range(section: dict[str, Any]) -> tuple[int, int] | None:
+    pages = section.get("pages")
+    if not isinstance(pages, list) or not pages:
+        return None
+    starts = [page.get("sourcePage") for page in pages if isinstance(page, dict) and isinstance(page.get("sourcePage"), int)]
+    ends = [
+        page.get("sourcePageEnd", page.get("sourcePage"))
+        for page in pages
+        if isinstance(page, dict) and isinstance(page.get("sourcePage"), int)
+    ]
+    if not starts or not ends:
+        return None
+    return min(starts), max(int(value) for value in ends if isinstance(value, int))
+
+
 def apply_manual_sections(course: dict[str, Any]) -> int:
     textbook_id = str(course.get("textbook", {}).get("id") or "").strip()
     directory = MANUAL_ROOT / textbook_id
     if not directory.is_dir():
         return 0
 
-    sections_by_id = {
-        str(section.get("id")): (chapter, index)
-        for chapter in course.get("chapters", [])
-        for index, section in enumerate(chapter.get("sections", []))
-    }
+    targets_by_section_id: dict[str, list[tuple[str, dict[str, Any], int, tuple[int, int] | None]]] = {}
+    for chapter in course.get("chapters", []):
+        chapter_id = str(chapter.get("id") or "").strip()
+        for index, section in enumerate(chapter.get("sections", [])):
+            section_id = str(section.get("id") or "").strip()
+            targets_by_section_id.setdefault(section_id, []).append((chapter_id, chapter, index, source_range(section)))
+
     applied = 0
     for path in manual_section_paths(directory):
         override = json.loads(path.read_text(encoding="utf-8"))
         section_id = str(override.get("id") or "").strip()
+        chapter_id = str(override.get("chapterId") or "").strip()
         if not section_id:
             raise SystemExit(f"{path}: manual section id is empty")
-        target = sections_by_id.get(section_id)
-        if target is None:
+        candidates = targets_by_section_id.get(section_id, [])
+        if chapter_id:
+            candidates = [candidate for candidate in candidates if candidate[0] == chapter_id]
+            if not candidates:
+                raise SystemExit(f"{path}: section {section_id!r} was not found in chapter {chapter_id!r}")
+        elif len(candidates) > 1:
+            override_range = source_range(override)
+            if override_range is not None:
+                start, end = override_range
+                ranged = [
+                    candidate for candidate in candidates
+                    if candidate[3] is not None and candidate[3][0] <= start and end <= candidate[3][1]
+                ]
+                if len(ranged) == 1:
+                    candidates = ranged
+        if not candidates:
             raise SystemExit(f"{path}: section {section_id!r} was not found in generated course")
-        chapter, index = target
+        if len(candidates) != 1:
+            chapters = ", ".join(candidate[0] or "<unknown>" for candidate in candidates)
+            raise SystemExit(
+                f"{path}: section {section_id!r} is ambiguous across chapters [{chapters}]; "
+                "add chapterId to the manual section"
+            )
+
+        _, chapter, index, _ = candidates[0]
         pages = override.get("pages")
         if not isinstance(pages, list) or not pages:
             raise SystemExit(f"{path}: manual section has no pages")
-        chapter["sections"][index] = override
+        runtime_override = dict(override)
+        runtime_override.pop("chapterId", None)
+        chapter["sections"][index] = runtime_override
         applied += 1
     return applied
 
 
-def process_course(path: Path) -> tuple[int, int, int]:
+def normalize_reference_label(value: str) -> str:
+    return (
+        value.translate(FULLWIDTH_DIGITS)
+        .replace("．", ".")
+        .replace("－", "-")
+        .replace("—", "-")
+        .replace("–", "-")
+        .replace(" ", "")
+        .strip()
+    )
+
+
+def block_text_fragments(block: dict[str, Any]):
+    for key in ("text", "statement", "result", "label"):
+        value = block.get(key)
+        if isinstance(value, str) and value:
+            yield value
+    for key in ("items", "steps", "choices", "hints"):
+        values = block.get(key)
+        if isinstance(values, list):
+            for value in values:
+                if isinstance(value, str) and value:
+                    yield value
+
+
+def load_reference_map(textbook_id: str) -> dict[str, int]:
+    path = MANUAL_ROOT / textbook_id / REFERENCE_FILE_NAME
+    if not path.is_file():
+        return {}
+    document = json.loads(path.read_text(encoding="utf-8"))
+    if document.get("textbookId") != textbook_id:
+        raise SystemExit(f"{path}: textbookId does not match {textbook_id}")
+    raw = document.get("references")
+    if not isinstance(raw, dict):
+        raise SystemExit(f"{path}: references must be an object")
+    result: dict[str, int] = {}
+    for label, source_page in raw.items():
+        normalized = normalize_reference_label(str(label))
+        if not normalized or not isinstance(source_page, int) or source_page <= 0:
+            raise SystemExit(f"{path}: invalid reference {label!r}: {source_page!r}")
+        if normalized in result:
+            raise SystemExit(f"{path}: duplicate reference {normalized}")
+        result[normalized] = source_page
+    return result
+
+
+def attach_source_references(course: dict[str, Any]) -> int:
+    textbook_id = str(course.get("textbook", {}).get("id") or "").strip()
+    reference_map = load_reference_map(textbook_id)
+    if not reference_map:
+        return 0
+    attached = 0
+    for _, _, page in iter_pages(course):
+        existing = page.get("sourceReferences")
+        references = list(existing) if isinstance(existing, list) else []
+        seen = {
+            (str(item.get("label") or ""), item.get("sourcePage"))
+            for item in references
+            if isinstance(item, dict)
+        }
+        for block in page.get("blocks", []):
+            if not isinstance(block, dict):
+                continue
+            for text in block_text_fragments(block):
+                for match in REFERENCE_PATTERN.finditer(text):
+                    normalized = normalize_reference_label(match.group(0))
+                    source_page = reference_map.get(normalized)
+                    if source_page is None:
+                        continue
+                    label = normalized
+                    key = (label, source_page)
+                    if key in seen:
+                        continue
+                    references.append({"label": label, "sourcePage": source_page})
+                    seen.add(key)
+                    attached += 1
+        if references:
+            page["sourceReferences"] = references
+    return attached
+
+
+def process_course(path: Path) -> tuple[int, int, int, int]:
     course = json.loads(path.read_text(encoding="utf-8"))
     converted = 0
     for _, _, page in iter_pages(course):
@@ -178,6 +305,7 @@ def process_course(path: Path) -> tuple[int, int, int]:
         curate_pep_7_1(course)
 
     manual_sections = apply_manual_sections(course)
+    references = attach_source_references(course)
 
     remaining = sum(
         block.get("type") == "source_excerpt"
@@ -188,7 +316,7 @@ def process_course(path: Path) -> tuple[int, int, int]:
         raise SystemExit(f"{path}: {remaining} source_excerpt blocks remain")
 
     path.write_text(json.dumps(course, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    return converted, remaining, manual_sections
+    return converted, remaining, manual_sections, references
 
 
 def main() -> int:
@@ -198,15 +326,21 @@ def main() -> int:
 
     total_converted = 0
     total_manual = 0
+    total_references = 0
     for path in sorted(args.source_root.glob("pep-math-*/course.json")):
-        converted, _, manual_sections = process_course(path)
+        converted, _, manual_sections, references = process_course(path)
         total_converted += converted
         total_manual += manual_sections
+        total_references += references
         print(
             f"{path.parent.name}: converted {converted} legacy excerpts, "
-            f"applied {manual_sections} manually reviewed sections"
+            f"applied {manual_sections} manually reviewed sections, "
+            f"attached {references} textbook references"
         )
-    print(f"converted total: {total_converted}; manual sections total: {total_manual}")
+    print(
+        f"converted total: {total_converted}; manual sections total: {total_manual}; "
+        f"textbook references total: {total_references}"
+    )
     return 0
 
 

@@ -17,6 +17,7 @@ import com.majortomman.school.learning.course.CourseSceneBlock
 import com.majortomman.school.learning.course.CourseSceneData
 import com.majortomman.school.learning.course.CourseSceneTemplate
 import com.majortomman.school.learning.course.CourseSection
+import com.majortomman.school.learning.course.CourseSourceReference
 import com.majortomman.school.learning.course.CourseText
 import com.majortomman.school.learning.course.CourseTextStyle
 import com.majortomman.school.learning.course.CourseTextbook
@@ -187,12 +188,16 @@ internal object CourseDocumentParser {
         pdf: CoursePdf,
         seenIds: MutableSet<String>,
     ): CoursePage {
-        json.requireShape(required = setOf("id", "title", "sourcePage", "blocks"), optional = setOf("aliases", "sourcePageEnd"))
+        json.requireShape(
+            required = setOf("id", "title", "sourcePage", "blocks"),
+            optional = setOf("aliases", "sourcePageEnd", "sourceReferences"),
+        )
         val id = json.requireIdentifier("id", "课程页 ID").also { requireUniqueId(it, seenIds) }
         val sourcePage = json.requirePositiveInt("sourcePage")
         val sourcePageEnd = json.optInt("sourcePageEnd", sourcePage)
         require(sourcePageEnd >= sourcePage) { "课程页 $id 的教材页码范围无效" }
         require(sourcePageEnd <= pdf.pageCount) { "课程页 $id 超出教材 PDF 页数" }
+        val sourceReferences = decodeSourceReferences(json.optJSONArray("sourceReferences"), pdf, id)
         val blocks = json.requireArray("blocks").objects().mapIndexed { index, block ->
             decodeBlock(block, "$id.blocks[$index]")
         }
@@ -205,7 +210,21 @@ internal object CourseDocumentParser {
             sourcePage = sourcePage,
             sourcePageEnd = sourcePageEnd,
             blocks = blocks,
+            sourceReferences = sourceReferences,
         )
+    }
+
+    private fun decodeSourceReferences(json: JSONArray?, pdf: CoursePdf, pageId: String): List<CourseSourceReference> {
+        if (json == null) return emptyList()
+        val seen = linkedSetOf<Pair<String, Int>>()
+        return json.objects().mapIndexed { index, item ->
+            item.requireShape(required = setOf("label", "sourcePage"))
+            val label = item.requireText("label")
+            val sourcePage = item.requirePositiveInt("sourcePage")
+            require(sourcePage <= pdf.pageCount) { "课程页 $pageId 的教材引用 $label 超出 PDF 页数" }
+            require(seen.add(label to sourcePage)) { "课程页 $pageId 包含重复教材引用：$label" }
+            CourseSourceReference(label, sourcePage)
+        }
     }
 
     private fun decodeBlock(json: JSONObject, location: String): CourseBlock = when (val type = json.requireText("type")) {
@@ -317,7 +336,7 @@ internal object CourseDocumentParser {
             }
             CourseSceneTemplate.RATIONAL_CLASSIFICATION -> optionalString("mode", setOf("definition", "fraction_form"))
             CourseSceneTemplate.NUMBER_LINE -> {
-                optionalString("mode", setOf("road", "construction", "value", "example", "read_points"))
+                optionalString("mode", setOf("road", "construction", "value", "example", "read_points", "opposite", "opposite_symbol"))
                 values["signed"]?.let { require(it is Boolean) { "$location.data.signed 必须是布尔值" } }
                 values["initial"]?.let { require(it is Number && it.toDouble().isFinite()) { "$location.data.initial 必须是有限数" } }
             }
