@@ -124,15 +124,11 @@ class MainActivity : ComponentActivity() {
                     when {
                         showInitialCoursePrompt && !downloadBusy -> {
                             CourseDownloadConfirmationDialog(
-                                title = "下载课程包",
-                                message = "学习内容尚未下载。确认后将从已配置的课程源获取课程包和教材，" +
-                                    "下载完成后可以离线使用；后续更新只会获取发生变化的内容。",
-                                confirmLabel = "下载课程",
-                                onConfirm = {
-                                    showInitialCoursePrompt = false
-                                    hiddenProgressOperationId = null
-                                    CourseDownloadCoordinator.enqueue(applicationContext)
-                                },
+                                title = "选择教材下载",
+                                message = "学习内容尚未下载。请在“设置 → 课程”中选择需要的教材单独下载；" +
+                                    "如果希望全部离线使用，也可以在那里选择“全部下载 / 更新”。",
+                                confirmLabel = "知道了",
+                                onConfirm = { showInitialCoursePrompt = false },
                                 onLater = { showInitialCoursePrompt = false },
                             )
                         }
@@ -149,7 +145,10 @@ class MainActivity : ComponentActivity() {
                                 onConfirm = {
                                     pendingCourseUpdate.value = null
                                     hiddenProgressOperationId = null
-                                    CourseDownloadCoordinator.enqueue(applicationContext)
+                                    CourseDownloadCoordinator.enqueue(
+                                        applicationContext,
+                                        offer.textbooks.map { it.id }.toSet(),
+                                    )
                                 },
                                 onLater = { pendingCourseUpdate.value = null },
                             )
