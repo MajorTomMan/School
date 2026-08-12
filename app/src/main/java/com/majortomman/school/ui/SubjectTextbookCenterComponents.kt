@@ -24,7 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val CenterBlack = Color(0xFF050608)
+private val CenterBlack = Color.Transparent
 private val CenterWhite = Color(0xFFF5F7FA)
 private val CenterBlue = Color(0xFF2D7BFF)
 private val CenterMuted = CenterWhite.copy(alpha = 0.46f)
