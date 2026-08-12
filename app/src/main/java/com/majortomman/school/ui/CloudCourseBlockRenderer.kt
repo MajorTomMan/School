@@ -136,7 +136,7 @@ private fun OpenSectionTitle(title: String, color: androidx.compose.ui.graphics.
 }
 
 @Composable
-private fun CourseSceneView(scene: CourseScene, formulaFallback: String?) {
+internal fun CourseSceneView(scene: CourseScene, formulaFallback: String?) {
     Box(modifier = Modifier.fillMaxWidth().height(when (scene.template) {
         CourseSceneTemplate.OPPOSITE_QUANTITIES, CourseSceneTemplate.RATIONAL_CLASSIFICATION, CourseSceneTemplate.INTEGER_TO_FRACTION, CourseSceneTemplate.NUMBER_LINE -> 420.dp
         else -> 320.dp
