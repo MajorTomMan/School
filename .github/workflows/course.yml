@@ -39,7 +39,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t files < <(find courses -type f -name '*.json' | sort)
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          files=()
+          while IFS= read -r file; do files+=("$file"); done < <(find courses -type f -name '*.json' | sort)
+          while IFS= read -r archive; do
+            relative="${archive#courses/}"
+            target="$tmp/${relative%.gz}"
+            mkdir -p "$(dirname "$target")"
+            gzip -dc "$archive" > "$target"
+            files+=("$target")
+          done < <(find courses -type f -name 'course.json.gz' | sort)
           if [ "${#files[@]}" -eq 0 ]; then
             echo "No authored course JSON files found." >&2
             exit 1
