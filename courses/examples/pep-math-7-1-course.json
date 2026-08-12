@@ -1,0 +1,105 @@
+{
+  "textbook": {
+    "id": "pep-math-7-1",
+    "title": "义务教育教科书·数学七年级上册",
+    "publisher": "人民教育出版社",
+    "edition": "2024",
+    "grade": "七年级",
+    "semester": "上册",
+    "subject": "数学",
+    "pdf": {
+      "path": "assets/textbook.pdf",
+      "pageCount": 202,
+      "pageIndexOffset": 7
+    }
+  },
+  "knowledgePoints": [
+    {
+      "id": "positive-negative",
+      "name": "正数和负数",
+      "description": "用正负号表示具有相反意义的量，并理解0作为分界。",
+      "prerequisiteIds": []
+    }
+  ],
+  "chapters": [
+    {
+      "id": "chapter-01",
+      "title": "有理数",
+      "sections": [
+        {
+          "id": "section-01-01",
+          "title": "正数和负数",
+          "lessons": [
+            {
+              "id": "positive-negative-intro",
+              "title": "为什么需要负数",
+              "aliases": ["正数和负数"],
+              "goals": [
+                "理解正数和负数可以表示相反意义的量",
+                "理解0不是正数也不是负数"
+              ],
+              "knowledgePointIds": ["positive-negative"],
+              "prerequisiteLessonIds": [],
+              "references": [
+                {
+                  "label": "教材相关内容",
+                  "pageStart": 1,
+                  "pageEnd": 4
+                }
+              ],
+              "steps": [
+                {
+                  "type": "question",
+                  "prompt": "如果气温比0 ℃低3 ℃，只写数字3能把方向表达清楚吗？",
+                  "hint": "想想“高3 ℃”和“低3 ℃”有什么不同。"
+                },
+                {
+                  "type": "explanation",
+                  "title": "数字还需要方向",
+                  "text": "生活中有很多成对出现的方向：收入和支出、上升和下降、高于和低于。只写大小不够，我们还需要用符号说明方向。"
+                },
+                {
+                  "type": "keyIdea",
+                  "title": "核心想法",
+                  "text": "规定一个方向为正，与它相反的方向就用负数表示。正负号表达的是方向，不是好坏。"
+                },
+                {
+                  "type": "formula",
+                  "expression": "+3，-3",
+                  "note": "两个数大小相同，但表示的方向相反。"
+                },
+                {
+                  "type": "checkpoint",
+                  "prompt": "如果存入100元记作+100元，那么取出40元怎样表示？",
+                  "expectedAnswer": "-40元",
+                  "explanation": "存入和取出是一对相反方向，因此使用相反的符号。"
+                },
+                {
+                  "type": "sourceLink",
+                  "referenceIndex": 0
+                }
+              ],
+              "practice": [
+                {
+                  "id": "positive-negative-practice-01",
+                  "prompt": "向东走5米记作+5米，向西走8米怎样表示？",
+                  "answer": "-8米",
+                  "analysis": [
+                    "东和西是相反方向。",
+                    "已经规定向东为正，因此向西使用负号。"
+                  ],
+                  "knowledgePointIds": ["positive-negative"],
+                  "difficulty": 1
+                }
+              ],
+              "summary": [
+                "正负数最重要的作用是表示相反方向。",
+                "0是正负方向的分界，本身既不是正数也不是负数。"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
