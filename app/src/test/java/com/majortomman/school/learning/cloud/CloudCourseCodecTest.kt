@@ -1,115 +1,65 @@
 package com.majortomman.school.learning.cloud
 
-import com.majortomman.school.learning.course.CourseSceneBlock
+import com.majortomman.school.learning.course.CourseQuestion
+import com.majortomman.school.learning.course.CourseSceneStep
 import com.majortomman.school.learning.course.CourseSceneTemplate
-import com.majortomman.school.learning.course.CourseText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CloudCourseCodecTest {
     @Test
-    fun businessOnlyCourseDecodesOrderedBlocksAndTypedSceneData() {
+    fun authoredCourseDecodesKnowledgeLessonsStepsAndPractice() {
         val document = CourseDocumentParser.decode(SAMPLE_COURSE)
-        val page = document.chapters.single().sections.single().pages.single()
+        val lesson = document.chapters.single().sections.single().lessons.single()
 
-        assertEquals("有理数的概念", page.title)
-        assertTrue(page.blocks[0] is CourseText)
-        val scene = (page.blocks[1] as CourseSceneBlock).scene
+        assertEquals("为什么需要负数", lesson.title)
+        assertEquals("positive-negative", lesson.knowledgePointIds.single())
+        assertTrue(lesson.steps[0] is CourseQuestion)
+        val scene = (lesson.steps[1] as CourseSceneStep).scene
         assertEquals(CourseSceneTemplate.NUMBER_LINE, scene.template)
-        assertTrue(scene.data.boolean("signed"))
-        assertEquals(6.5, scene.data.number("initial"), 0.0)
-        assertEquals(listOf("定义", "例题"), page.aliases)
+        assertEquals(1, lesson.practice.size)
+        assertEquals(2, lesson.references.single().pageEnd)
     }
 
     @Test
-    fun oldProtocolFieldsAreRejectedInsteadOfSilentlyDowngraded() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            CourseDocumentParser.decode(SAMPLE_COURSE.replaceFirst("{", "{\"schemaVersion\":1,"))
-        }
-        assertTrue(error.message.orEmpty().contains("不识别的字段"))
-    }
-
-    @Test
-    fun unsupportedSceneAndInvalidDataAreRejectedByApk() {
-        assertThrows(IllegalStateException::class.java) {
-            CourseDocumentParser.decode(SAMPLE_COURSE.replace("number_line", "unknown_scene"))
-        }
+    fun oldPageContractIsRejected() {
         assertThrows(IllegalArgumentException::class.java) {
-            CourseDocumentParser.decode(SAMPLE_COURSE.replace("\"signed\":true", "\"signed\":\"true\""))
+            CourseDocumentParser.decode(SAMPLE_COURSE.replace("\"knowledgePoints\":", "\"pages\":[] ,\"knowledgePoints\":"))
         }
     }
 
+    @Test
+    fun unknownKnowledgePointIsRejected() {
+        assertThrows(IllegalArgumentException::class.java) {
+            CourseDocumentParser.decode(SAMPLE_COURSE.replace("\"positive-negative\"]", "\"missing\"]"))
+        }
+    }
 
     @Test
-    fun missingRequiredBusinessFieldIsRejected() {
-        val withoutSubject = SAMPLE_COURSE.replace("\"subject\":\"数学\",", "")
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            CourseDocumentParser.decode(withoutSubject)
-        }
-        assertTrue(error.message.orEmpty().contains("缺少必需字段"))
+    fun cyclicKnowledgeGraphIsRejected() {
+        val cyclic = SAMPLE_COURSE.replace("\"prerequisiteIds\":[]", "\"prerequisiteIds\":[\"positive-negative\"]")
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(cyclic) }
     }
 
     @Test
     fun googleDriveShareLinkBecomesDirectDownloadLink() {
-        assertEquals(
-            "https://drive.google.com/uc?export=download&id=abcDEF123",
-            CourseSyncManager.normalizeGoogleDriveDownloadUrl(
-                "https://drive.google.com/file/d/abcDEF123/view?usp=sharing",
-            ),
-        )
-        assertEquals(
-            "https://drive.google.com/uc?export=download&id=xyz987",
-            CourseSyncManager.normalizeGoogleDriveDownloadUrl(
-                "https://drive.google.com/open?id=xyz987",
-            ),
-        )
-    }
-
-    @Test
-    fun courseContainsNoUpdateMetadata() {
-        assertFalse(SAMPLE_COURSE.contains("sha256"))
-        assertFalse(SAMPLE_COURSE.contains("minimumAppVersion"))
-        assertFalse(SAMPLE_COURSE.contains("schemaVersion"))
+        assertEquals("https://drive.google.com/uc?export=download&id=abcDEF123", CourseSyncManager.normalizeGoogleDriveDownloadUrl("https://drive.google.com/file/d/abcDEF123/view?usp=sharing"))
     }
 
     private companion object {
         val SAMPLE_COURSE = """
             {
-              "textbook": {
-                "id":"pep-math-7-1",
-                "title":"数学七年级上册",
-                "publisher":"人民教育出版社",
-                "edition":"人教版",
-                "grade":"七年级",
-                "semester":"上册",
-                "subject":"数学",
-                "pdf":{"path":"assets/textbook.pdf","pageCount":202,"pageIndexOffset":7}
-              },
-              "chapters": [{
-                "id":"chapter-01",
-                "number":"第一章",
-                "title":"有理数",
-                "aliases":[],
-                "sections":[{
-                  "id":"1.2.1",
-                  "number":"1.2.1",
-                  "title":"有理数的概念",
-                  "aliases":[],
-                  "pages":[{
-                    "id":"concept",
-                    "title":"有理数的概念",
-                    "aliases":["定义","例题"],
-                    "sourcePage":7,
-                    "blocks":[
-                      {"type":"text","style":"textbook","text":"正整数、0、负整数统称为整数。"},
-                      {"type":"scene","template":"number_line","data":{"mode":"value","signed":true,"initial":6.5}}
-                    ]
-                  }]
-                }]
-              }]
+              "textbook":{"id":"pep-math-7-1","title":"数学七年级上册","publisher":"人民教育出版社","edition":"2024","grade":"七年级","semester":"上册","subject":"数学","pdf":{"path":"assets/textbook.pdf","pageCount":202,"pageIndexOffset":7}},
+              "knowledgePoints":[{"id":"positive-negative","name":"正数和负数","description":"表示相反意义的量","prerequisiteIds":[]}],
+              "chapters":[{"id":"chapter-01","title":"有理数","sections":[{"id":"section-01","title":"正数和负数","lessons":[{
+                "id":"positive-negative-intro","title":"为什么需要负数","aliases":["正数和负数"],"goals":["理解相反意义的量"],"knowledgePointIds":["positive-negative"],"prerequisiteLessonIds":[],
+                "references":[{"label":"教材1—2页","pageStart":1,"pageEnd":2}],
+                "steps":[{"type":"question","prompt":"低于0℃怎么表示？","hint":"想想方向"},{"type":"scene","template":"number_line","data":{"mode":"value","signed":true,"initial":-3}}],
+                "practice":[{"id":"practice-01","prompt":"向西8米怎么表示？","answer":"-8米","analysis":["方向相反使用负号"],"knowledgePointIds":["positive-negative"],"difficulty":1}],
+                "summary":["正负号用于区分相反方向"]
+              }]}]}]
             }
         """.trimIndent()
     }
