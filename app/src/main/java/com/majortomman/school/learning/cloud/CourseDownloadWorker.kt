@@ -53,15 +53,19 @@ class CourseDownloadWorker(
             val result = CourseSyncManager.syncAfterConfirmation(
                 context = applicationContext,
                 textbookIds = textbookIds,
-            ) { progress ->
-                publishProgress(progress)
-            }
+            ) { progress -> publishProgress(progress) }
         ) {
             CourseSyncResult.Disabled -> {
                 val message = "课程下载地址尚未配置"
                 CourseDownloadCoordinator.reportFailure(operationId, message)
                 showResultNotification(success = false, message = message)
                 Result.failure(resultData(error = message))
+            }
+            CourseSyncResult.NotPublished -> {
+                val message = "新版课程包尚未发布，发布后即可按册下载"
+                CourseDownloadCoordinator.reportNotPublished(operationId)
+                showNotPublishedNotification(message)
+                Result.success(resultData())
             }
             is CourseSyncResult.Failed -> {
                 val message = userFacingFailure(result.message)
@@ -124,11 +128,7 @@ class CourseDownloadWorker(
 
     private fun progressNotification(percent: Int, text: String, indeterminate: Boolean): android.app.Notification {
         val displayedPercent = percent.coerceIn(0, 100)
-        val title = if (indeterminate) {
-            "正在下载课程内容"
-        } else {
-            "课程下载 $displayedPercent%"
-        }
+        val title = if (indeterminate) "正在下载课程内容" else "课程下载 $displayedPercent%"
         val detail = if (indeterminate) text else "$text · 已完成 $displayedPercent%"
         return NotificationCompat.Builder(applicationContext, DOWNLOAD_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download)
@@ -145,11 +145,20 @@ class CourseDownloadWorker(
 
     private fun showResultNotification(success: Boolean, message: String) {
         val notification = NotificationCompat.Builder(applicationContext, RESULT_CHANNEL_ID)
-            .setSmallIcon(
-                if (success) android.R.drawable.stat_sys_download_done
-                else android.R.drawable.stat_notify_error,
-            )
+            .setSmallIcon(if (success) android.R.drawable.stat_sys_download_done else android.R.drawable.stat_notify_error)
             .setContentTitle(if (success) "课程下载完成" else "课程下载失败")
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setContentIntent(openAppIntent())
+            .setAutoCancel(true)
+            .build()
+        notifySafely(RESULT_NOTIFICATION_ID, notification)
+    }
+
+    private fun showNotPublishedNotification(message: String) {
+        val notification = NotificationCompat.Builder(applicationContext, RESULT_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.stat_notify_more)
+            .setContentTitle("新版课程尚未发布")
             .setContentText(message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .setContentIntent(openAppIntent())
@@ -188,7 +197,7 @@ class CourseDownloadWorker(
                 "课程下载结果",
                 NotificationManager.IMPORTANCE_DEFAULT,
             ).apply {
-                description = "通知课程下载完成或失败"
+                description = "通知课程下载完成、尚未发布或失败"
             },
         )
     }

@@ -94,6 +94,10 @@ internal fun CourseStorageSettingsPage() {
                 updateOffer = null
                 snapshot = CourseStorageManager.inspect(context)
             }
+            is CourseDownloadUiState.NotPublished -> {
+                updateStatus = "新版课程包尚未发布。发布后即可按册下载。"
+                updateOffer = null
+            }
             is CourseDownloadUiState.Failed -> updateStatus = "下载失败：${state.message}"
             else -> Unit
         }
@@ -169,6 +173,7 @@ internal fun CourseStorageSettingsPage() {
                         snapshot = CourseStorageManager.inspect(context)
                         when (val result = checked.result) {
                             CourseUpdateCheckResult.Disabled -> updateStatus = "当前 APK 未配置课程源。"
+                            CourseUpdateCheckResult.NotPublished -> updateStatus = "新版课程包尚未发布。发布后即可按册下载。"
                             CourseUpdateCheckResult.NoUpdate -> updateStatus = "已下载教材均为最新版本；未下载教材仍可按册下载。"
                             is CourseUpdateCheckResult.Available -> {
                                 updateOffer = result.offer
@@ -386,6 +391,7 @@ private fun CourseDownloadUiState.downloadLabel(): String? = when (this) {
         stage
     }
     is CourseDownloadUiState.Success -> "下载完成"
+    is CourseDownloadUiState.NotPublished -> "尚未发布"
     is CourseDownloadUiState.Failed -> "下载失败"
 }
 

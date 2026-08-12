@@ -316,5 +316,6 @@ private fun CourseDownloadUiState.operationIdOrNull(): Long? = when (this) {
     is CourseDownloadUiState.Queued -> operationId
     is CourseDownloadUiState.Running -> operationId
     is CourseDownloadUiState.Success -> operationId
+    is CourseDownloadUiState.NotPublished -> operationId
     is CourseDownloadUiState.Failed -> operationId
 }

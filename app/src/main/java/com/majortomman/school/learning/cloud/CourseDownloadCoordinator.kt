@@ -118,12 +118,20 @@ object CourseDownloadCoordinator {
         mutableState.value = CourseDownloadUiState.Success(operationId, updatedTextbooks)
     }
 
+    internal fun reportNotPublished(operationId: Long) {
+        mutableState.value = CourseDownloadUiState.NotPublished(operationId)
+    }
+
     internal fun reportFailure(operationId: Long, message: String) {
         mutableState.value = CourseDownloadUiState.Failed(operationId, message)
     }
 
     fun clearTerminalState() {
-        if (mutableState.value is CourseDownloadUiState.Success || mutableState.value is CourseDownloadUiState.Failed) {
+        if (
+            mutableState.value is CourseDownloadUiState.Success ||
+            mutableState.value is CourseDownloadUiState.NotPublished ||
+            mutableState.value is CourseDownloadUiState.Failed
+        ) {
             mutableState.value = CourseDownloadUiState.Idle
         }
     }
@@ -140,6 +148,7 @@ object CourseDownloadCoordinator {
                 is CourseDownloadUiState.Queued,
                 CourseDownloadUiState.Idle,
                 is CourseDownloadUiState.Success,
+                is CourseDownloadUiState.NotPublished,
                 is CourseDownloadUiState.Failed,
                 -> Unit
             }
@@ -200,5 +209,6 @@ sealed interface CourseDownloadUiState {
         val stage: String,
     ) : CourseDownloadUiState
     data class Success(val operationId: Long, val updatedTextbooks: Int) : CourseDownloadUiState
+    data class NotPublished(val operationId: Long) : CourseDownloadUiState
     data class Failed(val operationId: Long, val message: String) : CourseDownloadUiState
 }
