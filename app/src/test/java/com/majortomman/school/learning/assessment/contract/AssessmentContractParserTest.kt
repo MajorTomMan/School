@@ -5,11 +5,13 @@ import com.majortomman.school.learning.assessment.domain.AnswerRule
 import com.majortomman.school.learning.content.LearningContent
 import com.majortomman.school.learning.course.CourseChapter
 import com.majortomman.school.learning.course.CourseDocument
-import com.majortomman.school.learning.course.CoursePage
+import com.majortomman.school.learning.course.CourseExplanation
+import com.majortomman.school.learning.course.CourseKnowledgePoint
+import com.majortomman.school.learning.course.CourseLesson
 import com.majortomman.school.learning.course.CoursePdf
+import com.majortomman.school.learning.course.CoursePractice
 import com.majortomman.school.learning.course.CourseSection
-import com.majortomman.school.learning.course.CourseText
-import com.majortomman.school.learning.course.CourseTextStyle
+import com.majortomman.school.learning.course.CourseSourceReference
 import com.majortomman.school.learning.course.CourseTextbook
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -41,12 +43,7 @@ class AssessmentContractParserTest {
     @Test
     fun rejectsUnknownQuestionField() {
         val root = JSONObject(validAssessmentsJson())
-        root.getJSONArray("questionSets")
-            .getJSONObject(0)
-            .getJSONArray("questions")
-            .getJSONObject(0)
-            .put("legacyAnswer", 2)
-
+        root.getJSONArray("questionSets").getJSONObject(0).getJSONArray("questions").getJSONObject(0).put("legacyAnswer", 2)
         val error = runCatching { AssessmentDocumentParser.decode(root) }.exceptionOrNull()
         assertTrue(error?.message.orEmpty().contains("未知字段"))
     }
@@ -54,14 +51,8 @@ class AssessmentContractParserTest {
     @Test
     fun rejectsUnknownSceneDataField() {
         val root = JSONObject(validAssessmentsJson())
-        val scene = root.getJSONArray("questionSets")
-            .getJSONObject(0)
-            .getJSONArray("questions")
-            .getJSONObject(0)
-            .getJSONArray("stem")
-            .getJSONObject(3)
+        val scene = root.getJSONArray("questionSets").getJSONObject(0).getJSONArray("questions").getJSONObject(0).getJSONArray("stem").getJSONObject(3)
         scene.getJSONObject("data").put("script", "alert(1)")
-
         val error = runCatching { AssessmentDocumentParser.decode(root) }.exceptionOrNull()
         assertTrue(error?.message.orEmpty().contains("未知字段"))
     }
@@ -69,20 +60,9 @@ class AssessmentContractParserTest {
     @Test
     fun rejectsMissingKnowledgePointReference() {
         val assessmentsRoot = JSONObject(validAssessmentsJson())
-        assessmentsRoot.getJSONArray("questionSets")
-            .getJSONObject(0)
-            .getJSONArray("questions")
-            .getJSONObject(0)
-            .getJSONArray("knowledgeBindings")
-            .getJSONObject(0)
-            .put("knowledgePointId", "missing-point")
-
+        assessmentsRoot.getJSONArray("questionSets").getJSONObject(0).getJSONArray("questions").getJSONObject(0).getJSONArray("knowledgeBindings").getJSONObject(0).put("knowledgePointId", "missing-point")
         val error = runCatching {
-            AssessmentPackageContract.validate(
-                validCourse(),
-                AssessmentDocumentParser.decode(assessmentsRoot),
-                KnowledgePointDocumentParser.decode(validKnowledgeJson()),
-            )
+            AssessmentPackageContract.validate(validCourse(), AssessmentDocumentParser.decode(assessmentsRoot), KnowledgePointDocumentParser.decode(validKnowledgeJson()))
         }.exceptionOrNull()
         assertTrue(error?.message.orEmpty().contains("不存在的知识点"))
     }
@@ -90,17 +70,9 @@ class AssessmentContractParserTest {
     @Test
     fun rejectsKnowledgePointCycle() {
         val root = JSONObject(validKnowledgeJson())
-        root.getJSONArray("knowledgePoints")
-            .getJSONObject(0)
-            .getJSONArray("prerequisiteIds")
-            .put("number-line")
-
+        root.getJSONArray("knowledgePoints").getJSONObject(0).getJSONArray("prerequisiteIds").put("number-line")
         val error = runCatching {
-            AssessmentPackageContract.validate(
-                validCourse(),
-                AssessmentDocumentParser.decode(validAssessmentsJson()),
-                KnowledgePointDocumentParser.decode(root),
-            )
+            AssessmentPackageContract.validate(validCourse(), AssessmentDocumentParser.decode(validAssessmentsJson()), KnowledgePointDocumentParser.decode(root))
         }.exceptionOrNull()
         assertTrue(error?.message.orEmpty().contains("形成循环"))
     }
@@ -109,13 +81,8 @@ class AssessmentContractParserTest {
     fun rejectsUnknownPlacementSection() {
         val root = JSONObject(validAssessmentsJson())
         root.getJSONArray("placements").getJSONObject(0).put("sectionId", "section-missing")
-
         val error = runCatching {
-            AssessmentPackageContract.validate(
-                validCourse(),
-                AssessmentDocumentParser.decode(root),
-                KnowledgePointDocumentParser.decode(validKnowledgeJson()),
-            )
+            AssessmentPackageContract.validate(validCourse(), AssessmentDocumentParser.decode(root), KnowledgePointDocumentParser.decode(validKnowledgeJson()))
         }.exceptionOrNull()
         assertTrue(error?.message.orEmpty().contains("不存在的小节"))
     }
@@ -123,20 +90,9 @@ class AssessmentContractParserTest {
     @Test
     fun rejectsUndeclaredAssetReference() {
         val root = JSONObject(validAssessmentsJson())
-        root.getJSONArray("questionSets")
-            .getJSONObject(0)
-            .getJSONArray("questions")
-            .getJSONObject(0)
-            .getJSONArray("stem")
-            .getJSONObject(1)
-            .put("assetId", "missing-image")
-
+        root.getJSONArray("questionSets").getJSONObject(0).getJSONArray("questions").getJSONObject(0).getJSONArray("stem").getJSONObject(1).put("assetId", "missing-image")
         val error = runCatching {
-            AssessmentPackageContract.validate(
-                validCourse(),
-                AssessmentDocumentParser.decode(root),
-                KnowledgePointDocumentParser.decode(validKnowledgeJson()),
-            )
+            AssessmentPackageContract.validate(validCourse(), AssessmentDocumentParser.decode(root), KnowledgePointDocumentParser.decode(validKnowledgeJson()))
         }.exceptionOrNull()
         assertTrue(error?.message.orEmpty().contains("未声明资产"))
     }
@@ -144,15 +100,8 @@ class AssessmentContractParserTest {
     @Test
     fun rejectsMismatchedInputAndAnswerRule() {
         val root = JSONObject(validAssessmentsJson())
-        val firstQuestion = root.getJSONArray("questionSets")
-            .getJSONObject(0)
-            .getJSONArray("questions")
-            .getJSONObject(0)
-        firstQuestion.put(
-            "answer",
-            JSONObject().put("type", "decimal").put("expected", 2.0).put("tolerance", 0.0),
-        )
-
+        val firstQuestion = root.getJSONArray("questionSets").getJSONObject(0).getJSONArray("questions").getJSONObject(0)
+        firstQuestion.put("answer", JSONObject().put("type", "decimal").put("expected", 2.0).put("tolerance", 0.0))
         val error = runCatching { AssessmentDocumentParser.decode(root) }.exceptionOrNull()
         assertTrue(error?.message.orEmpty().contains("整数输入必须使用 ExactInteger"))
     }
@@ -168,27 +117,30 @@ class AssessmentContractParserTest {
             subject = "数学",
             pdf = CoursePdf("assets/textbook.pdf", pageCount = 100, pageIndexOffset = 0),
         ),
+        knowledgePoints = listOf(
+            CourseKnowledgePoint(id = "signed-number", name = "正数和负数", description = "理解正负数表示相反意义的量。", prerequisiteIds = emptyList()),
+            CourseKnowledgePoint(id = "number-line", name = "数轴", description = "理解数轴三要素并读取点的位置。", prerequisiteIds = listOf("signed-number")),
+        ),
         chapters = listOf(
             CourseChapter(
                 id = "chapter-1",
-                number = "1",
                 title = "有理数",
-                aliases = emptyList(),
                 sections = listOf(
                     CourseSection(
                         id = "section-1",
-                        number = "1.2.2",
                         title = "数轴",
-                        aliases = emptyList(),
-                        pages = listOf(
-                            CoursePage(
-                                id = "page-1",
-                                section = "数轴",
-                                title = "数轴",
+                        lessons = listOf(
+                            CourseLesson(
+                                id = "number-line-intro",
+                                title = "认识数轴",
                                 aliases = emptyList(),
-                                sourcePage = 8,
-                                sourcePageEnd = 9,
-                                blocks = listOf(CourseText("认识数轴", CourseTextStyle.TEXTBOOK)),
+                                goals = listOf("理解数轴的原点、正方向和单位长度"),
+                                knowledgePointIds = listOf("number-line"),
+                                prerequisiteLessonIds = emptyList(),
+                                references = listOf(CourseSourceReference("教材第8—9页", 8, 9)),
+                                steps = listOf(CourseExplanation(null, "数轴把数和直线上的位置对应起来。")),
+                                practice = listOf(CoursePractice("number-line-practice", "数轴原点表示什么数？", "0", listOf("原点表示0。"), listOf("number-line"), 1)),
+                                summary = listOf("数轴包含原点、正方向和单位长度。"),
                             ),
                         ),
                     ),
@@ -304,12 +256,7 @@ class AssessmentContractParserTest {
         answer = "{\"type\":\"coordinate\",\"expected\":{\"x\":{\"numerator\":-1,\"denominator\":1},\"y\":{\"numerator\":2,\"denominator\":1}}}",
     )
 
-    private fun baseQuestion(
-        id: String,
-        number: String,
-        input: String,
-        answer: String,
-    ): String = """
+    private fun baseQuestion(id: String, number: String, input: String, answer: String): String = """
         {
           "id": "$id",
           "revision": 1,
