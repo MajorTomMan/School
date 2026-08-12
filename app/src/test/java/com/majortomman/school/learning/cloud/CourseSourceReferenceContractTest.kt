@@ -6,74 +6,28 @@ import org.junit.Test
 
 class CourseSourceReferenceContractTest {
     @Test
-    fun sourceReferenceDecodesWithPrintedPage() {
-        val document = CourseDocumentParser.decode(courseJson(referencePage = 13))
-        val reference = document.chapters.single().sections.single().pages.single().sourceReferences.single()
-
+    fun sourceReferenceDecodesWithPrintedPageRange() {
+        val document = CourseDocumentParser.decode(courseJson(pageEnd = 14))
+        val reference = document.chapters.single().sections.single().lessons.single().references.single()
         assertEquals("图1.2-7", reference.label)
-        assertEquals(13, reference.sourcePage)
+        assertEquals(13, reference.pageStart)
+        assertEquals(14, reference.pageEnd)
     }
 
     @Test
     fun sourceReferenceOutsidePdfIsRejected() {
-        assertThrows(IllegalArgumentException::class.java) {
-            CourseDocumentParser.decode(courseJson(referencePage = 203))
-        }
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(courseJson(pageEnd = 203)) }
     }
 
-    private fun courseJson(referencePage: Int): String = """
+    private fun courseJson(pageEnd: Int): String = """
         {
-          "textbook": {
-            "id": "pep-math-7-1",
-            "title": "义务教育教科书·数学七年级上册",
-            "publisher": "人民教育出版社",
-            "edition": "人教版",
-            "grade": "七年级",
-            "semester": "上册",
-            "subject": "数学",
-            "pdf": {
-              "path": "assets/textbook.pdf",
-              "pageCount": 202,
-              "pageIndexOffset": 7
-            }
-          },
-          "chapters": [
-            {
-              "id": "chapter-01",
-              "number": "第一章",
-              "title": "有理数",
-              "aliases": [],
-              "sections": [
-                {
-                  "id": "1.2.4",
-                  "number": "1.2.4",
-                  "title": "绝对值",
-                  "aliases": [],
-                  "pages": [
-                    {
-                      "id": "absolute-value-definition",
-                      "title": "绝对值的定义",
-                      "aliases": [],
-                      "sourcePage": 13,
-                      "sourceReferences": [
-                        {
-                          "label": "图1.2-7",
-                          "sourcePage": $referencePage
-                        }
-                      ],
-                      "blocks": [
-                        {
-                          "type": "text",
-                          "style": "textbook",
-                          "text": "数轴上表示数a的点与原点的距离叫作绝对值。"
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
+          "textbook":{"id":"pep-math-7-1","title":"数学七年级上册","publisher":"人民教育出版社","edition":"2024","grade":"七年级","semester":"上册","subject":"数学","pdf":{"path":"assets/textbook.pdf","pageCount":202,"pageIndexOffset":7}},
+          "knowledgePoints":[{"id":"absolute-value","name":"绝对值","description":"到原点的距离","prerequisiteIds":[]}],
+          "chapters":[{"id":"chapter-01","title":"有理数","sections":[{"id":"section-absolute","title":"绝对值","lessons":[{
+            "id":"absolute-value-intro","title":"绝对值是距离","aliases":["绝对值"],"goals":["理解绝对值表示距离"],"knowledgePointIds":["absolute-value"],"prerequisiteLessonIds":[],
+            "references":[{"label":"图1.2-7","pageStart":13,"pageEnd":$pageEnd}],
+            "steps":[{"type":"sourceLink","referenceIndex":0}],"practice":[],"summary":["绝对值是到原点的距离"]
+          }]}]}]
         }
     """.trimIndent()
 }

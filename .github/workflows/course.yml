@@ -1,0 +1,66 @@
+name: Course Contract CI
+
+on:
+  pull_request:
+    branches: [dev]
+    paths:
+      - "courses/**"
+      - "tools/course-content/**"
+      - "app/src/main/java/com/majortomman/school/learning/course/**"
+      - "app/src/main/java/com/majortomman/school/learning/cloud/**"
+      - ".github/workflows/course.yml"
+  push:
+    branches: [dev]
+    paths:
+      - "courses/**"
+      - "tools/course-content/**"
+      - "app/src/main/java/com/majortomman/school/learning/course/**"
+      - "app/src/main/java/com/majortomman/school/learning/cloud/**"
+      - ".github/workflows/course.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: course-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-course-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate authored courses
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(find courses -type f -name '*.json' | sort)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No authored course JSON files found." >&2
+            exit 1
+          fi
+          python tools/course-content/validate_authored_course.py "${files[@]}"
+
+      - name: Reject retired OCR/page pipeline
+        shell: bash
+        run: |
+          set -euo pipefail
+          retired=(
+            tools/course_quality
+            tools/course-content/manual
+            tools/course-content/generate_math_courses.py
+            tools/course-content/audit_math_courses.py
+            tools/course-content/normalize_course_contract.py
+            tools/course-content/pdf_asset_workflow.py
+          )
+          for path in "${retired[@]}"; do
+            if [ -e "$path" ]; then
+              echo "Retired course pipeline path must not return: $path" >&2
+              exit 1
+            fi
+          done
