@@ -35,7 +35,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Validate authored courses
+      - name: Restore and validate authored courses
         shell: bash
         run: |
           set -euo pipefail
@@ -43,18 +43,29 @@ jobs:
           trap 'rm -rf "$tmp"' EXIT
           files=()
           while IFS= read -r file; do files+=("$file"); done < <(find courses -type f -name '*.json' | sort)
-          while IFS= read -r archive; do
-            relative="${archive#courses/}"
-            target="$tmp/${relative%.gz}"
+
+          while IFS= read -r first; do
+            dir="$(dirname "$first")"
+            relative="${dir#courses/}"
+            encoded="$tmp/$relative/course.json.gz.b64"
+            archive="$tmp/$relative/course.json.gz"
+            target="$tmp/$relative/course.json"
             mkdir -p "$(dirname "$target")"
+            cat "$dir"/course.json.gz.b64.part* > "$encoded"
+            base64 --decode "$encoded" > "$archive"
+            gzip --test "$archive"
             gzip -dc "$archive" > "$target"
+            if [ "$relative" = "pep-math-7-1" ]; then
+              printf '%s  %s\n' '62015378a5ab5308110edd098d440de2b1e58d7193df86a535b8f28c0e09cc46' "$target" | sha256sum --check --strict
+            fi
             files+=("$target")
-          done < <(find courses -type f -name 'course.json.gz' | sort)
+          done < <(find courses -type f -name 'course.json.gz.b64.part01' | sort)
+
           if [ "${#files[@]}" -eq 0 ]; then
             echo "No authored course JSON files found." >&2
             exit 1
           fi
-          python tools/course-content/validate_authored_course.py "${files[@]}"
+          python3 tools/course-content/validate_authored_course.py "${files[@]}"
 
       - name: Reject retired OCR/page pipeline
         shell: bash
