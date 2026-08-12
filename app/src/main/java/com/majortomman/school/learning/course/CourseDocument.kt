@@ -1,11 +1,15 @@
 package com.majortomman.school.learning.course
 
 /**
- * Runtime course model. The course package is pure business data; package correctness is enforced
- * by the APK before a course becomes active.
+ * Authored learning course contract.
+ *
+ * The textbook is a reference source, not the course body. Course packages contain original
+ * teaching lessons, structured practice and optional interactive scenes. The APK validates the
+ * complete document before activation.
  */
 data class CourseDocument(
     val textbook: CourseTextbook,
+    val knowledgePoints: List<CourseKnowledgePoint>,
     val chapters: List<CourseChapter>,
 )
 
@@ -26,82 +30,83 @@ data class CoursePdf(
     val pageIndexOffset: Int,
 )
 
+data class CourseKnowledgePoint(
+    val id: String,
+    val name: String,
+    val description: String,
+    val prerequisiteIds: List<String>,
+)
+
 data class CourseChapter(
     val id: String,
-    val number: String,
     val title: String,
-    val aliases: List<String>,
     val sections: List<CourseSection>,
-    val review: CourseSection? = null,
 )
 
 data class CourseSection(
     val id: String,
-    val number: String,
     val title: String,
-    val aliases: List<String>,
-    val pages: List<CoursePage>,
+    val lessons: List<CourseLesson>,
 )
 
-data class CoursePage(
+data class CourseLesson(
     val id: String,
-    val section: String,
     val title: String,
     val aliases: List<String>,
-    val sourcePage: Int,
-    val sourcePageEnd: Int,
-    val blocks: List<CourseBlock>,
-    val sourceReferences: List<CourseSourceReference> = emptyList(),
+    val goals: List<String>,
+    val knowledgePointIds: List<String>,
+    val prerequisiteLessonIds: List<String>,
+    val references: List<CourseSourceReference>,
+    val steps: List<CourseStep>,
+    val practice: List<CoursePractice>,
+    val summary: List<String>,
 )
 
 data class CourseSourceReference(
     val label: String,
-    val sourcePage: Int,
+    val pageStart: Int,
+    val pageEnd: Int,
 )
 
-enum class CourseTextStyle {
-    TEXTBOOK,
-    EXPLANATION,
-    HISTORY,
-    PROMPT,
-    CAPTION,
-}
+sealed interface CourseStep
 
-sealed interface CourseBlock
+data class CourseExplanation(val title: String?, val text: String) : CourseStep
 
-data class CourseHeading(val text: String) : CourseBlock
+data class CourseQuestion(val prompt: String, val hint: String?) : CourseStep
 
-data class CourseText(
-    val text: String,
-    val style: CourseTextStyle,
-) : CourseBlock
+data class CourseKeyIdea(val title: String?, val text: String) : CourseStep
 
-data class CourseFormula(
-    val expression: String,
-    val conditions: List<String>,
-) : CourseBlock
-
-data class CourseList(val items: List<String>) : CourseBlock
+data class CourseFormula(val expression: String, val note: String?) : CourseStep
 
 data class CourseExample(
-    val label: String,
-    val statement: String,
+    val title: String,
+    val prompt: String,
     val steps: List<String>,
-    val result: String?,
-) : CourseBlock
+    val answer: String,
+) : CourseStep
 
-data class CourseExercise(
-    val number: String,
-    val stem: String,
-    val choices: List<String>,
-    val hints: List<String>,
-) : CourseBlock
+data class CourseSceneStep(val scene: CourseScene) : CourseStep
 
-data class CourseConclusion(val text: String) : CourseBlock
+data class CourseCheckpoint(
+    val prompt: String,
+    val expectedAnswer: String,
+    val explanation: String,
+) : CourseStep
 
-data class CourseSceneBlock(val scene: CourseScene) : CourseBlock
+data class CourseSourceLink(val referenceIndex: Int) : CourseStep
 
-/** Canonical scene templates built into the APK. Course packages use only these exact identifiers. */
+data class CourseSummaryStep(val text: String) : CourseStep
+
+data class CoursePractice(
+    val id: String,
+    val prompt: String,
+    val answer: String,
+    val analysis: List<String>,
+    val knowledgePointIds: List<String>,
+    val difficulty: Int,
+)
+
+/** Canonical interactive scenes built into the APK. */
 enum class CourseSceneTemplate(val id: String) {
     OPPOSITE_QUANTITIES("opposite_quantities"),
     RATIONAL_CLASSIFICATION("rational_classification"),
@@ -126,8 +131,7 @@ enum class CourseSceneTemplate(val id: String) {
     DATA_CHART("data_chart"),
     PROBABILITY("probability"),
     PROJECTION("projection"),
-    DECLARATIVE_DIAGRAM("diagram"),
-    ;
+    DECLARATIVE_DIAGRAM("diagram");
 
     companion object {
         fun fromId(id: String): CourseSceneTemplate? = entries.firstOrNull { it.id == id }
@@ -139,33 +143,14 @@ data class CourseScene(
     val data: CourseSceneData,
 )
 
-/** Typed immutable scene data. Values are decoded and validated by the APK. */
-class CourseSceneData internal constructor(
-    private val values: Map<String, Any?>,
-) {
+class CourseSceneData internal constructor(private val values: Map<String, Any?>) {
     fun has(key: String): Boolean = values.containsKey(key)
-
     fun string(key: String, default: String = ""): String = values[key] as? String ?: default
-
     fun boolean(key: String, default: Boolean = false): Boolean = values[key] as? Boolean ?: default
-
-    fun number(key: String, default: Double = 0.0): Double = when (val value = values[key]) {
-        is Number -> value.toDouble()
-        else -> default
-    }
-
-    fun integer(key: String, default: Int = 0): Int = when (val value = values[key]) {
-        is Number -> value.toInt()
-        else -> default
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    fun objects(key: String): List<Map<String, Any?>> = values[key] as? List<Map<String, Any?>> ?: emptyList()
-
-    @Suppress("UNCHECKED_CAST")
-    fun strings(key: String): List<String> = values[key] as? List<String> ?: emptyList()
-
+    fun number(key: String, default: Double = 0.0): Double = (values[key] as? Number)?.toDouble() ?: default
+    fun integer(key: String, default: Int = 0): Int = (values[key] as? Number)?.toInt() ?: default
+    @Suppress("UNCHECKED_CAST") fun objects(key: String): List<Map<String, Any?>> = values[key] as? List<Map<String, Any?>> ?: emptyList()
+    @Suppress("UNCHECKED_CAST") fun strings(key: String): List<String> = values[key] as? List<String> ?: emptyList()
     fun raw(key: String): Any? = values[key]
-
     fun keys(): Set<String> = values.keys
 }
