@@ -1,0 +1,228 @@
+name: Android CI/CD
+
+on:
+  pull_request:
+    branches: [dev]
+    paths:
+      - "app/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - "version.properties"
+      - "gradle/**"
+      - "signing/**"
+      - ".release-notes/current.md"
+      - ".github/workflows/android.yml"
+  push:
+    branches: [dev]
+    paths:
+      - "app/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - "version.properties"
+      - "gradle/**"
+      - "signing/**"
+      - ".release-notes/current.md"
+      - ".github/workflows/android.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate version and Chinese release notes
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import os, re, subprocess
+
+          version_file = Path('version.properties')
+          notes_file = Path('.release-notes/current.md')
+          semver = re.compile(r'^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$')
+
+          def parse(text, source):
+              values = {}
+              for raw in text.splitlines():
+                  line = raw.strip()
+                  if not line or line.startswith('#'):
+                      continue
+                  if '=' not in line:
+                      raise SystemExit(f'{source} 含有无效行：{raw}')
+                  key, value = line.split('=', 1)
+                  values[key.strip()] = value.strip()
+              name = values.get('VERSION_NAME', '')
+              match = semver.fullmatch(name)
+              code = values.get('VERSION_CODE', '')
+              if not match or not code.isdigit() or int(code) <= 0:
+                  raise SystemExit(f'{source} 版本格式无效')
+              return tuple(map(int, match.groups())), int(code), name
+
+          current_semver, current_code, current_name = parse(version_file.read_text(encoding='utf-8'), str(version_file))
+          notes = notes_file.read_text(encoding='utf-8').strip() if notes_file.is_file() else ''
+          if '## 修改点' not in notes or '## 修复点' not in notes or not re.search(r'[\u4e00-\u9fff]', notes) or not re.search(r'(?m)^- .+', notes):
+              raise SystemExit('中文发布说明必须包含“修改点”“修复点”和至少一条中文列表项')
+
+          base = os.environ.get('BASE_SHA', '').strip()
+          if base:
+              changed = subprocess.check_output(['git', 'diff', '--name-only', base, 'HEAD'], text=True).splitlines()
+              relevant = [p for p in changed if p.startswith(('app/', 'gradle/', 'signing/')) or p in {
+                  'build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'version.properties', '.github/workflows/android.yml'
+              }]
+              if relevant:
+                  if 'version.properties' not in changed:
+                      raise SystemExit('APK/构建修改必须同步提升 version.properties')
+                  if '.release-notes/current.md' not in changed:
+                      raise SystemExit('APK/构建修改必须同步更新中文发布说明')
+                  base_semver, base_code, base_name = parse(subprocess.check_output(['git', 'show', f'{base}:version.properties'], text=True), f'{base}:version.properties')
+                  if current_semver <= base_semver or current_code <= base_code:
+                      raise SystemExit(f'版本必须递增：{base_name} ({base_code}) -> {current_name} ({current_code})')
+                  print(f'版本检查通过：{base_name} ({base_code}) -> {current_name} ({current_code})')
+          PY
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.4.1"
+
+      - name: Resolve app version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="$(sed -n 's/^VERSION_NAME=//p' version.properties | tail -n1 | tr -d '[:space:]')"
+          baseline="$(sed -n 's/^VERSION_CODE=//p' version.properties | tail -n1 | tr -d '[:space:]')"
+          code=$((baseline * 100000 + GITHUB_RUN_NUMBER))
+          echo "version_name=$name" >> "$GITHUB_OUTPUT"
+          echo "version_code=$code" >> "$GITHUB_OUTPUT"
+
+      - name: Verify development signing key
+        shell: bash
+        run: |
+          set -euo pipefail
+          keystore="$RUNNER_TEMP/school-development.jks"
+          base64 --decode signing/school-development.jks.b64 > "$keystore"
+          expected="$(tr -d '[:space:]:' < signing/school-development.cert.sha256 | tr '[:upper:]' '[:lower:]')"
+          actual="$(keytool -list -v -keystore "$keystore" -storepass android -alias schooldev | sed -n 's/^[[:space:]]*SHA256:[[:space:]]*//p' | tr -d '[:space:]:' | tr '[:upper:]' '[:lower:]')"
+          test -n "$actual"
+          test "$actual" = "$expected"
+
+      - name: Test and assemble debug APK
+        env:
+          SCHOOL_VERSION_CODE: ${{ steps.version.outputs.version_code }}
+          SCHOOL_VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          SCHOOL_FIREBASE_PROJECT_ID: ${{ vars.SCHOOL_FIREBASE_PROJECT_ID }}
+          SCHOOL_FIREBASE_APPLICATION_ID: ${{ vars.SCHOOL_FIREBASE_APPLICATION_ID }}
+          SCHOOL_FIREBASE_API_KEY: ${{ vars.SCHOOL_FIREBASE_API_KEY }}
+          SCHOOL_FIREBASE_SENDER_ID: ${{ vars.SCHOOL_FIREBASE_SENDER_ID }}
+          SCHOOL_FIREBASE_UPDATE_TOPIC: ${{ vars.SCHOOL_FIREBASE_UPDATE_TOPIC }}
+        run: gradle :app:testDebugUnitTest :app:assembleDebug --stacktrace
+
+      - name: Prepare development update package
+        if: success()
+        shell: bash
+        env:
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          SCHOOL_UPDATE_PRIVATE_KEY_B64: ${{ secrets.SCHOOL_UPDATE_PRIVATE_KEY_B64 }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/school-debug.apk
+          sha256sum dist/school-debug.apk > dist/school-debug.apk.sha256
+          python - <<'PY'
+          from datetime import datetime, timezone
+          from pathlib import Path
+          import hashlib, json, os
+          notes = Path('.release-notes/current.md').read_text(encoding='utf-8')
+          sections = {'修改点': [], '修复点': []}
+          current = None
+          for raw in notes.splitlines():
+              line = raw.strip()
+              if line == '## 修改点': current = '修改点'
+              elif line == '## 修复点': current = '修复点'
+              elif line.startswith('## '): current = None
+              elif current and line.startswith('- '): sections[current].append(line[2:].strip())
+          apk = Path('dist/school-debug.apk')
+          cert = Path('signing/school-development.cert.sha256').read_text().strip().replace(':', '').lower()
+          manifest = {
+              'schemaVersion': 1, 'channel': 'development',
+              'versionCode': int(os.environ['VERSION_CODE']), 'versionName': os.environ['VERSION_NAME'],
+              'minimumSupportedVersionCode': 0, 'mandatory': False,
+              'publishedAt': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+              'changes': sections['修改点'], 'fixes': sections['修复点'],
+              'apk': {
+                  'fileName': 'school-debug.apk',
+                  'downloadUrl': 'https://github.com/MajorTomMan/school/releases/download/dev-latest/school-debug.apk',
+                  'size': apk.stat().st_size,
+                  'sha256': hashlib.sha256(apk.read_bytes()).hexdigest(),
+                  'certificateSha256': cert,
+              },
+          }
+          Path('dist/update-manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+          PY
+          private_key="$RUNNER_TEMP/school-update-private.pem"
+          if [ -n "${SCHOOL_UPDATE_PRIVATE_KEY_B64:-}" ]; then
+            printf '%s' "$SCHOOL_UPDATE_PRIVATE_KEY_B64" | base64 --decode > "$private_key"
+          else
+            base64 --decode signing/school-update-development-private.pem.b64 > "$private_key"
+          fi
+          chmod 600 "$private_key"
+          openssl dgst -sha256 -sign "$private_key" -out dist/update-manifest.sig dist/update-manifest.json
+          openssl dgst -sha256 -verify signing/school-update-development-public.pem -signature dist/update-manifest.sig dist/update-manifest.json
+
+      - name: Upload debug build
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: school-debug-apk
+          path: |
+            dist/school-debug.apk
+            dist/school-debug.apk.sha256
+            dist/update-manifest.json
+            dist/update-manifest.sig
+
+      - name: Publish rolling development release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+        run: |
+          set -euo pipefail
+          tag="dev-latest"
+          title="School ${VERSION_NAME} (${GITHUB_SHA::7})"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f "$tag" "$GITHUB_SHA"
+          git push origin "refs/tags/$tag" --force
+          assets=(dist/school-debug.apk dist/school-debug.apk.sha256 dist/update-manifest.json dist/update-manifest.sig)
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --title "$title" --notes-file .release-notes/current.md --prerelease
+            gh release upload "$tag" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$tag" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$title" --notes-file .release-notes/current.md --prerelease
+          fi
