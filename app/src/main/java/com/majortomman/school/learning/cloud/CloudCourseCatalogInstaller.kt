@@ -82,7 +82,7 @@ internal object CloudCourseCatalogInstaller {
     }
 
     private fun buildCatalogLessons(chapters: List<CourseChapter>): List<CatalogLesson> = chapters.flatMap { chapter ->
-        chapter.sections.flatMap { section -> section.lessons.map(CourseLesson::toCatalogLesson) }
+        chapter.sections.flatMap { section -> section.lessons.map { lesson -> lesson.toCatalogLesson() } }
     }
 
     private fun CourseLesson.toCatalogLesson(): CatalogLesson {
