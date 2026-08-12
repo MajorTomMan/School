@@ -72,7 +72,7 @@ import com.majortomman.school.data.ScheduledReview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private val MinimalBlack = Color(0xFF050608)
+private val MinimalBlack = Color.Transparent
 private val MinimalWhite = Color(0xFFF5F7FA)
 private val MinimalBlue = Color(0xFF2D7BFF)
 private val MinimalRed = Color(0xFFFF3B30)

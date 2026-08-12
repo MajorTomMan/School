@@ -22,7 +22,7 @@ import com.majortomman.school.data.material.MaterialLibraryState
 import com.majortomman.school.data.material.SubjectTemplates
 import com.majortomman.school.data.material.TextbookSlot
 
-private val CenterBlack = Color(0xFF050608)
+private val CenterBlack = Color.Transparent
 
 private enum class CenterPage {
     STAGES,

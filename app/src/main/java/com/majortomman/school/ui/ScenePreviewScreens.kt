@@ -63,7 +63,7 @@ import com.majortomman.school.data.material.InstalledMaterialPack
 import com.majortomman.school.data.MasteryStatus
 import kotlinx.coroutines.delay
 
-private val SceneBlack = Color(0xFF000000)
+private val SceneBlack = Color.Transparent
 private val SceneWhite = Color(0xFFF5F5F7)
 private val SceneBlue = Color(0xFF0A84FF)
 private val SceneRed = Color(0xFFFF453A)
