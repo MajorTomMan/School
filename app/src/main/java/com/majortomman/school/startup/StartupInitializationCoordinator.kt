@@ -109,6 +109,7 @@ object StartupInitializationCoordinator {
         val startedAt = SystemClock.elapsedRealtime()
         when (val result = CourseSyncManager.checkForUpdates(appContext, textbookIds)) {
             CourseUpdateCheckResult.Disabled -> Log.i(LOG_TAG, "cloud course synchronization is not configured")
+            CourseUpdateCheckResult.NotPublished -> Log.i(LOG_TAG, "new course packages are not published yet")
             CourseUpdateCheckResult.NoUpdate -> Log.i(
                 LOG_TAG,
                 "installed course content is current; checked in ${SystemClock.elapsedRealtime() - startedAt} ms",
