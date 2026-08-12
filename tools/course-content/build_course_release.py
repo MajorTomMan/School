@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build one immutable Cloudflare R2 course release using the current APK manifest contract."""
+"""Build one immutable Cloudflare R2 release from an authored course.json."""
 from __future__ import annotations
 
 import argparse
@@ -7,16 +7,12 @@ import json
 from pathlib import Path
 import shutil
 
-from course_release_bundle import (
-    collect_bundled_files, copy_optional_extensions, file_spec, public_release_url,
-    safe_identifier, write_deterministic_zip,
-)
-from normalize_course_contract import normalize_course
+from course_release_bundle import collect_bundled_files, file_spec, public_release_url, safe_identifier, write_deterministic_zip
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--source", type=Path, required=True, help="Strict or legacy course.json")
+    parser.add_argument("--source", type=Path, required=True, help="Validated authored course.json")
     parser.add_argument("--pdf", type=Path, required=True, help="Verified textbook PDF")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--release-id", required=True)
@@ -32,20 +28,25 @@ def main() -> int:
         raise SystemExit(f"course source not found: {source}")
     if not pdf.is_file() or pdf.stat().st_size <= 0 or pdf.read_bytes()[:5] != b"%PDF-":
         raise SystemExit("--pdf does not point to a PDF file")
-    normalized = normalize_course(json.loads(source.read_text(encoding="utf-8")))
-    textbook = normalized["textbook"]
+
+    course = json.loads(source.read_text(encoding="utf-8"))
+    if set(course) != {"textbook", "knowledgePoints", "chapters"}:
+        raise SystemExit("course source is not the authored Lesson contract")
+    textbook = course["textbook"]
     textbook_id = safe_identifier(str(textbook["id"]), "textbook id")
+
     output = args.output.resolve()
     if output.exists():
         shutil.rmtree(output)
     book_root = output / textbook_id
     book_root.mkdir(parents=True)
+
     course_output = book_root / "course.json"
-    course_output.write_text(json.dumps(normalized, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    copy_optional_extensions(source.parent, book_root)
+    course_output.write_text(json.dumps(course, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     bundled = collect_bundled_files(book_root)
     package_output = book_root / "course.zip"
     write_deterministic_zip(bundled, package_output)
+
     pdf_output = book_root / "textbook.pdf"
     shutil.copyfile(pdf, pdf_output)
     files = [
@@ -56,10 +57,14 @@ def main() -> int:
         str(textbook["pdf"]["path"]), pdf_output,
         public_release_url(args.public_base_url, release_id, textbook_id, "textbook.pdf"), False,
     ))
-    manifest = {"textbooks": [{"id": textbook_id, "package": file_spec(
-        f"{textbook_id}.zip", package_output,
-        public_release_url(args.public_base_url, release_id, textbook_id, "course.zip"),
-    ), "files": files}]}
+    manifest = {"textbooks": [{
+        "id": textbook_id,
+        "package": file_spec(
+            f"{textbook_id}.zip", package_output,
+            public_release_url(args.public_base_url, release_id, textbook_id, "course.zip"),
+        ),
+        "files": files,
+    }]}
     manifest_path = output / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"release id: {release_id}\nmanifest: {manifest_path}\nbundled files: {len(bundled)}")
