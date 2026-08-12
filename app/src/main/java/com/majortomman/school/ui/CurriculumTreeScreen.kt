@@ -42,7 +42,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-private val TreeBlack = Color(0xFF050608)
+private val TreeBlack = Color.Transparent
 private val TreeWhite = Color(0xFFF5F7FA)
 private val TreeBlue = Color(0xFF2D7BFF)
 private val TreeYellow = Color(0xFFFFCC00)
