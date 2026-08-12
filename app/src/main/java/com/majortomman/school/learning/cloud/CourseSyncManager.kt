@@ -56,8 +56,13 @@ object CourseSyncManager {
                 }
             }.getOrElse { error ->
                 error.rethrowCancellation()
-                Log.w(LOG_TAG, "course update check failed", error)
-                CourseUpdateCheckResult.Failed(error.message ?: error::class.java.simpleName)
+                if (error is CourseManifestNotPublishedException) {
+                    Log.i(LOG_TAG, "course manifest is not published yet")
+                    CourseUpdateCheckResult.NotPublished
+                } else {
+                    Log.w(LOG_TAG, "course update check failed", error)
+                    CourseUpdateCheckResult.Failed(error.message ?: error::class.java.simpleName)
+                }
             }
         }
     }
@@ -129,8 +134,13 @@ object CourseSyncManager {
                 CourseSyncResult.Success(updatedCount)
             }.getOrElse { error ->
                 error.rethrowCancellation()
-                Log.e(LOG_TAG, "course sync failed; keep the previous verified cloud cache", error)
-                CourseSyncResult.Failed(error.message ?: error::class.java.simpleName)
+                if (error is CourseManifestNotPublishedException) {
+                    Log.i(LOG_TAG, "course sync skipped because manifest is not published yet")
+                    CourseSyncResult.NotPublished
+                } else {
+                    Log.e(LOG_TAG, "course sync failed; keep the previous verified cloud cache", error)
+                    CourseSyncResult.Failed(error.message ?: error::class.java.simpleName)
+                }
             }
         }
     }
@@ -347,7 +357,9 @@ object CourseSyncManager {
             setRequestProperty("Cache-Control", "no-cache")
         }
         try {
-            require(connection.responseCode in 200..299) { "课程清单服务器返回 ${connection.responseCode}" }
+            val responseCode = connection.responseCode
+            if (isManifestNotPublishedResponse(responseCode)) throw CourseManifestNotPublishedException(responseCode)
+            require(responseCode in 200..299) { "课程清单服务器返回 $responseCode" }
             val output = ByteArrayOutputStream()
             connection.inputStream.use { input ->
                 val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
@@ -366,6 +378,9 @@ object CourseSyncManager {
             connection.disconnect()
         }
     }
+
+    internal fun isManifestNotPublishedResponse(responseCode: Int): Boolean =
+        responseCode == HttpURLConnection.HTTP_NOT_FOUND || responseCode == HttpURLConnection.HTTP_GONE
 
     internal fun normalizeGoogleDriveDownloadUrl(value: String): String {
         val trimmed = value.trim()
@@ -389,6 +404,9 @@ object CourseSyncManager {
         val local: LocalCourseState?,
         val plan: CourseUpdatePlan,
     )
+
+    private class CourseManifestNotPublishedException(responseCode: Int) :
+        IllegalStateException("课程清单尚未发布：HTTP $responseCode")
 
     private class ProgressTracker(
         initialTotalBytes: Long,
@@ -484,6 +502,7 @@ data class CourseUpdateOffer(
 
 sealed interface CourseUpdateCheckResult {
     data object Disabled : CourseUpdateCheckResult
+    data object NotPublished : CourseUpdateCheckResult
     data object NoUpdate : CourseUpdateCheckResult
     data class Available(val offer: CourseUpdateOffer) : CourseUpdateCheckResult
     data class Failed(val message: String) : CourseUpdateCheckResult
@@ -491,6 +510,7 @@ sealed interface CourseUpdateCheckResult {
 
 sealed interface CourseSyncResult {
     data object Disabled : CourseSyncResult
+    data object NotPublished : CourseSyncResult
     data class Success(val updatedTextbooks: Int) : CourseSyncResult
     data class Failed(val message: String) : CourseSyncResult
 }
