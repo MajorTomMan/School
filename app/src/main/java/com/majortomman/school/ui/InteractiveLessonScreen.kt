@@ -1,5 +1,12 @@
 package com.majortomman.school.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -10,22 +17,27 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.majortomman.school.data.Lesson
 import com.majortomman.school.data.material.InstalledMaterialPack
 import com.majortomman.school.learning.cloud.CloudCourseRepository
@@ -60,57 +72,164 @@ fun InteractiveLessonScreen(
         return
     }
 
-    val scrollState = rememberScrollState()
-    Column(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("返回", modifier = Modifier.clickable(onClick = onBack).padding(vertical = 8.dp), color = InteractiveMuted, fontSize = 14.sp)
-            Text(authoredLesson.title, color = InteractiveWhite, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+    val pages = remember(authoredLesson, revision) { composeLessonPresentation(authoredLesson) }
+    var pageIndex by rememberSaveable(authoredLesson.id, revision) { mutableIntStateOf(0) }
+    if (pageIndex !in pages.indices) pageIndex = 0
+
+    Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+        SchoolCompactTopBar(title = authoredLesson.title, onBack = onBack)
+        SchoolDivider(color = InteractiveLine)
+
+        AnimatedContent(
+            targetState = pageIndex,
+            modifier = Modifier.weight(1f),
+            transitionSpec = {
+                if (targetState > initialState) {
+                    (fadeIn(tween(180)) + slideInHorizontally(tween(260)) { it / 7 }) togetherWith
+                        (fadeOut(tween(120)) + slideOutHorizontally(tween(220)) { -it / 8 })
+                } else {
+                    (fadeIn(tween(180)) + slideInHorizontally(tween(260)) { -it / 7 }) togetherWith
+                        (fadeOut(tween(120)) + slideOutHorizontally(tween(220)) { it / 8 })
+                }
+            },
+            label = "lessonPages",
+        ) { visibleIndex ->
+            val page = pages[visibleIndex]
+            val scrollState = rememberScrollState()
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = SchoolUiMetrics.pageHorizontal, vertical = 24.dp),
+            ) {
+                LessonPresentationPageContent(
+                    page = page,
+                    lesson = authoredLesson,
+                    textbookAvailable = installedMaterial.pdfFile.isFile,
+                    onOpenTextbook = onOpenTextbook,
+                )
+                Spacer(Modifier.height(SchoolUiMetrics.pageBottom))
+            }
         }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
-        Column(
-            modifier = Modifier.weight(1f).verticalScroll(scrollState).padding(horizontal = 24.dp, vertical = 22.dp),
-        ) {
-            Text(authoredLesson.title, color = InteractiveWhite, fontSize = 34.sp, lineHeight = 42.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(10.dp))
-            authoredLesson.goals.forEach { goal -> Text("— $goal", color = InteractiveMuted, fontSize = 14.sp, lineHeight = 22.sp, modifier = Modifier.padding(top = 3.dp)) }
-            Spacer(Modifier.height(28.dp))
-            AuthoredLessonContent(authoredLesson, installedMaterial.pdfFile.isFile, onOpenTextbook)
-            Spacer(Modifier.height(36.dp))
+
+        SchoolDivider(color = InteractiveLine)
+        LessonPagerFooter(
+            pageIndex = pageIndex,
+            pageCount = pages.size,
+            hasNextLesson = nextLessonTitle != null,
+            onPrevious = { if (pageIndex > 0) pageIndex -= 1 },
+            onNext = {
+                if (pageIndex < pages.lastIndex) pageIndex += 1 else onComplete()
+            },
+        )
+    }
+}
+
+@Composable
+private fun LessonPresentationPageContent(
+    page: LessonPresentationPage,
+    lesson: com.majortomman.school.learning.course.CourseLesson,
+    textbookAvailable: Boolean,
+    onOpenTextbook: (Int) -> Unit,
+) {
+    when (page) {
+        is LessonPresentationPage.Overview -> {
+            SchoolSectionLabel("学习目标", color = InteractiveYellow)
+            Spacer(Modifier.height(14.dp))
+            Text("这一课先抓住这些目标", color = InteractiveWhite, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(16.dp))
+            page.goals.forEachIndexed { index, goal ->
+                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 7.dp), verticalAlignment = Alignment.Top) {
+                    Text("${index + 1}", color = InteractiveYellow, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = goal,
+                        modifier = Modifier.weight(1f).padding(start = 12.dp),
+                        color = InteractiveWhite.copy(alpha = 0.86f),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            }
         }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
-        Row(
-            modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 22.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("教材仅作参考", color = InteractiveMuted.copy(alpha = 0.7f), fontSize = 12.sp)
-            Text(
-                nextLessonTitle?.let { "完成并继续 →" } ?: "完成 →",
-                modifier = Modifier.clickable(onClick = onComplete).padding(vertical = 8.dp),
-                color = InteractiveBlue,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-            )
+        is LessonPresentationPage.Teaching -> {
+            AuthoredTeachingPageContent(page.steps, lesson, textbookAvailable, onOpenTextbook)
         }
+        is LessonPresentationPage.Summary -> {
+            SchoolSectionLabel("这一课记住", color = InteractiveYellow)
+            Spacer(Modifier.height(14.dp))
+            page.items.forEach { item ->
+                Text(
+                    text = "— $item",
+                    color = InteractiveWhite.copy(alpha = 0.88f),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(vertical = 6.dp),
+                )
+            }
+        }
+        is LessonPresentationPage.Practice -> AuthoredPracticePage(page.practice, page.number, page.total)
+    }
+}
+
+@Composable
+private fun LessonPagerFooter(
+    pageIndex: Int,
+    pageCount: Int,
+    hasNextLesson: Boolean,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .heightIn(min = 58.dp)
+            .padding(horizontal = 22.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+            if (pageIndex > 0) {
+                Text(
+                    text = "← 上一页",
+                    modifier = Modifier.clickable(onClick = onPrevious).padding(vertical = 8.dp),
+                    color = InteractiveMuted,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            } else {
+                Text("教材仅作参考", color = InteractiveMuted.copy(alpha = 0.7f), style = MaterialTheme.typography.labelMedium)
+            }
+        }
+        Text(
+            text = "${pageIndex + 1} / $pageCount",
+            modifier = Modifier.weight(0.55f),
+            color = InteractiveMuted,
+            style = MaterialTheme.typography.labelMedium,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+        )
+        Text(
+            text = if (pageIndex < pageCount - 1) "下一页 →" else if (hasNextLesson) "完成并继续 →" else "完成 →",
+            modifier = Modifier.weight(1f).clickable(onClick = onNext).padding(vertical = 8.dp),
+            color = InteractiveBlue,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.End,
+            maxLines = 1,
+        )
     }
 }
 
 @Composable
 private fun AuthoredCourseUnavailable(title: String, onBack: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 44.dp),
+        modifier = Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = SchoolUiMetrics.pageHorizontal, vertical = SchoolUiMetrics.pageTop),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text("返回", modifier = Modifier.clickable(onClick = onBack).padding(vertical = 8.dp), color = InteractiveMuted, fontSize = 14.sp)
+        SchoolCompactTopBar(title = title, onBack = onBack, modifier = Modifier.fillMaxWidth())
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(title, color = InteractiveWhite, fontSize = 36.sp, fontWeight = FontWeight.SemiBold)
-            Text("新版课程内容尚未安装", color = InteractiveBlue, fontSize = 15.sp)
+            Text("新版课程内容尚未安装", color = InteractiveBlue, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+            Text("请在设置的课程页重新下载当前教材。", color = InteractiveMuted, style = MaterialTheme.typography.bodyMedium)
         }
-        Text("旧版按教材页生成的课程包不会再被兼容，请下载新版课程。", color = InteractiveMuted, fontSize = 13.sp, lineHeight = 20.sp)
+        Text("旧版按教材页生成的课程包不会再被兼容。", color = InteractiveMuted, style = MaterialTheme.typography.bodySmall)
     }
 }
 
@@ -118,14 +237,14 @@ private fun AuthoredCourseUnavailable(title: String, onBack: () -> Unit) {
 internal fun SectionTitle(title: String, color: Color) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.height(3.dp).weight(0.12f).background(color))
-        Text(title, modifier = Modifier.weight(0.88f), color = InteractiveWhite, fontSize = 25.sp, fontWeight = FontWeight.SemiBold)
+        Text(title, modifier = Modifier.weight(0.88f), color = InteractiveWhite, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
     }
 }
 
 @Composable
 internal fun InteractiveAction(label: String, color: Color, modifier: Modifier = Modifier, enabled: Boolean = true, onClick: () -> Unit) {
-    Box(modifier = modifier.height(48.dp).clickable(enabled = enabled, onClick = onClick), contentAlignment = Alignment.Center) {
-        Text(label, color = if (enabled) color else InteractiveMuted.copy(alpha = 0.45f), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+    Box(modifier = modifier.heightIn(min = SchoolUiMetrics.minTouchHeight).clickable(enabled = enabled, onClick = onClick), contentAlignment = Alignment.Center) {
+        Text(label, color = if (enabled) color else InteractiveMuted.copy(alpha = 0.45f), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
         Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(if (enabled) 2.dp else 1.dp).background(if (enabled) color.copy(alpha = 0.78f) else InteractiveLine))
     }
 }

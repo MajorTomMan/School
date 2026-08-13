@@ -4,6 +4,7 @@ import com.majortomman.school.learning.course.CourseQuestion
 import com.majortomman.school.learning.course.CourseSceneStep
 import com.majortomman.school.learning.course.CourseSceneTemplate
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -21,6 +22,13 @@ class CloudCourseCodecTest {
         assertEquals(CourseSceneTemplate.NUMBER_LINE, scene.template)
         assertEquals(1, lesson.practice.size)
         assertEquals(2, lesson.references.single().pageEnd)
+    }
+
+    @Test
+    fun jsonNullOptionalTeachingTextStaysNull() {
+        val document = CourseDocumentParser.decode(SAMPLE_COURSE.replace("\"hint\":\"想想方向\"", "\"hint\":null"))
+        val question = document.chapters.single().sections.single().lessons.single().steps.first() as CourseQuestion
+        assertNull(question.hint)
     }
 
     @Test

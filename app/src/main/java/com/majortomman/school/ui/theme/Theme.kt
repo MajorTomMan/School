@@ -50,15 +50,22 @@ private val MinimalColors = darkColorScheme(
     onError = MinimalWhite,
 )
 
+/** Canonical typography for every screen. User text scaling is applied once through LocalDensity. */
 private val SchoolTypography = Typography(
-    headlineLarge = TextStyle(fontSize = 32.sp, lineHeight = 38.sp, letterSpacing = (-0.5).sp, fontWeight = FontWeight.SemiBold),
-    headlineMedium = TextStyle(fontSize = 26.sp, lineHeight = 32.sp, letterSpacing = (-0.3).sp, fontWeight = FontWeight.SemiBold),
-    headlineSmall = TextStyle(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold),
-    titleLarge = TextStyle(fontSize = 19.sp, lineHeight = 25.sp, fontWeight = FontWeight.SemiBold),
-    titleMedium = TextStyle(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.Medium),
-    bodyLarge = TextStyle(fontSize = 16.sp, lineHeight = 24.sp),
-    bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 21.sp),
-    labelMedium = TextStyle(fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.1.sp, fontWeight = FontWeight.Medium),
+    displayLarge = TextStyle(fontSize = 42.sp, lineHeight = 48.sp, letterSpacing = (-0.7).sp, fontWeight = FontWeight.Bold),
+    displayMedium = TextStyle(fontSize = 36.sp, lineHeight = 43.sp, letterSpacing = (-0.5).sp, fontWeight = FontWeight.Bold),
+    headlineLarge = TextStyle(fontSize = 34.sp, lineHeight = 41.sp, letterSpacing = (-0.5).sp, fontWeight = FontWeight.SemiBold),
+    headlineMedium = TextStyle(fontSize = 28.sp, lineHeight = 35.sp, letterSpacing = (-0.3).sp, fontWeight = FontWeight.SemiBold),
+    headlineSmall = TextStyle(fontSize = 23.sp, lineHeight = 30.sp, fontWeight = FontWeight.SemiBold),
+    titleLarge = TextStyle(fontSize = 20.sp, lineHeight = 27.sp, fontWeight = FontWeight.SemiBold),
+    titleMedium = TextStyle(fontSize = 17.sp, lineHeight = 23.sp, fontWeight = FontWeight.Medium),
+    titleSmall = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.Medium),
+    bodyLarge = TextStyle(fontSize = 17.sp, lineHeight = 28.sp),
+    bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 22.sp),
+    bodySmall = TextStyle(fontSize = 12.sp, lineHeight = 19.sp),
+    labelLarge = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
+    labelMedium = TextStyle(fontSize = 12.sp, lineHeight = 17.sp, letterSpacing = 0.1.sp, fontWeight = FontWeight.Medium),
+    labelSmall = TextStyle(fontSize = 11.sp, lineHeight = 16.sp, letterSpacing = 0.1.sp, fontWeight = FontWeight.Medium),
 )
 
 private val MinimalShapes = Shapes(
@@ -79,7 +86,7 @@ fun SchoolTheme(
     val density = LocalDensity.current
     val scaledDensity = Density(
         density = density.density,
-        fontScale = density.fontScale * textScale.coerceIn(0.90f, 1.50f),
+        fontScale = density.fontScale * textScale.coerceIn(DisplaySettings.MIN_TEXT_SCALE, DisplaySettings.MAX_TEXT_SCALE),
     )
     CompositionLocalProvider(LocalDensity provides scaledDensity) {
         MaterialTheme(

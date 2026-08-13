@@ -189,7 +189,10 @@ internal object CourseDocumentParser {
 
 private val IDENTIFIER = Regex("^[A-Za-z0-9._:-]+$")
 private fun JSONObject.text(key: String): String = getString(key).trim().also { require(it.isNotEmpty()) { "$key 不能为空" } }
-private fun JSONObject.optionalText(key: String): String? = optString(key).trim().takeIf(String::isNotEmpty)
+private fun JSONObject.optionalText(key: String): String? {
+    if (!has(key) || isNull(key)) return null
+    return getString(key).trim().takeIf(String::isNotEmpty)
+}
 private fun JSONObject.identifier(key: String): String = text(key).also { require(IDENTIFIER.matches(it)) { "$key 不是合法 ID：$it" } }
 private fun JSONObject.positiveInt(key: String): Int = getInt(key).also { require(it > 0) { "$key 必须是正整数" } }
 private fun JSONObject.objectValue(key: String): JSONObject = getJSONObject(key)

@@ -75,11 +75,12 @@ class VisualizationSourcePolicyTest {
     @Test
     fun courseNavigationUsesAdaptiveLineActions() {
         val source = uiFile("InteractiveLessonScreen.kt").readText(Charsets.UTF_8)
+        val shared = uiFile("SchoolUiSystem.kt").readText(Charsets.UTF_8)
         assertFalse("课程导航不得使用固定面板背景", ".background(InteractivePanel" in source)
         assertFalse("课程导航不得使用固定圆角背景", "RoundedCornerShape" in source)
         assertTrue("课程底部导航应避开系统导航栏", "navigationBarsPadding()" in source)
-        assertTrue("课程正文与底部导航应使用细线分隔", "fillMaxWidth().height(1.dp).background(InteractiveLine)" in source)
-        assertTrue("完成操作应保持开放式文字交互", "完成并继续 →" in source && ".clickable(onClick = onComplete)" in source)
+        assertTrue("课程正文与底部导航应使用统一细线分隔", "SchoolDivider(color = InteractiveLine)" in source && ".height(1.dp)" in shared)
+        assertTrue("完成操作应保持开放式文字翻页交互", "完成并继续 →" in source && "LessonPagerFooter(" in source && ".clickable(onClick = onNext)" in source)
     }
 
     @Test
