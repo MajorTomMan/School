@@ -19,9 +19,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
@@ -43,12 +43,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.majortomman.school.BuildConfig
 import com.majortomman.school.ai.OpenAiCompatibleClient
 import com.majortomman.school.data.AiSettings
@@ -124,18 +123,23 @@ fun MaterialSettingsScreen(
             .fillMaxSize()
             .background(SettingsBlack)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 30.dp),
+            .padding(horizontal = SchoolUiMetrics.pageHorizontal, vertical = SchoolUiMetrics.pageTop),
     ) {
-        Text("设置", color = SettingsWhite, fontSize = 42.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(24.dp))
-        SettingsPageSelector(
-            selected = SettingsPage.valueOf(pageName),
-            onSelect = { pageName = it.name },
+        SchoolPageTitle("设置")
+        Spacer(Modifier.height(20.dp))
+        val selectedPage = SettingsPage.valueOf(pageName)
+        SchoolScrollableTabs(
+            labels = SettingsPage.entries.map { it.label },
+            selectedIndex = selectedPage.ordinal,
+            onSelect = { index -> pageName = SettingsPage.entries[index].name },
+            selectedColor = SettingsWhite,
+            mutedColor = SettingsMuted,
+            indicatorColor = SettingsBlue,
         )
-        Spacer(Modifier.height(36.dp))
+        Spacer(Modifier.height(30.dp))
 
         AnimatedContent(
-            targetState = SettingsPage.valueOf(pageName),
+            targetState = selectedPage,
             transitionSpec = { fadeIn() togetherWith fadeOut() },
             label = "settingsPages",
         ) { page ->
@@ -161,11 +165,7 @@ fun MaterialSettingsScreen(
                         runCatching {
                             AppProxy.save(
                                 appContext,
-                                AppProxySettings(
-                                    proxyUrl = proxyUrl,
-                                    useForUpdates = useForUpdates,
-                                    useForAi = useForAi,
-                                ),
+                                AppProxySettings(proxyUrl = proxyUrl, useForUpdates = useForUpdates, useForAi = useForAi),
                             )
                         }.fold(
                             onSuccess = { proxyStatus = "代理设置已保存。" },
@@ -187,9 +187,7 @@ fun MaterialSettingsScreen(
                 )
 
                 SettingsPage.COURSE -> CourseStorageSettingsPage()
-
                 SettingsPage.DISPLAY -> DisplaySettingsPage(settings = displaySettings)
-
                 SettingsPage.AI -> AiSettingsPage(
                     endpoint = endpoint,
                     onEndpointChange = {
@@ -232,37 +230,7 @@ fun MaterialSettingsScreen(
                 )
             }
         }
-        Spacer(Modifier.height(42.dp))
-    }
-}
-
-@Composable
-private fun SettingsPageSelector(selected: SettingsPage, onSelect: (SettingsPage) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(22.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        SettingsPage.entries.forEach { page ->
-            Column(
-                modifier = Modifier.clickable { onSelect(page) }.padding(vertical = 8.dp),
-                horizontalAlignment = Alignment.Start,
-            ) {
-                Text(
-                    page.label,
-                    color = if (selected == page) SettingsWhite else SettingsMuted,
-                    fontSize = 18.sp,
-                    fontWeight = if (selected == page) FontWeight.Bold else FontWeight.Medium,
-                )
-                Spacer(Modifier.height(8.dp))
-                Box(
-                    Modifier
-                        .width(36.dp)
-                        .height(if (selected == page) 3.dp else 1.dp)
-                        .background(if (selected == page) SettingsBlue else Color.Transparent),
-                )
-            }
-        }
+        Spacer(Modifier.height(SchoolUiMetrics.pageBottom))
     }
 }
 
@@ -290,26 +258,16 @@ private fun ProxySettingsPage(
         Text(
             "支持 HTTP、HTTPS、SOCKS 和 SOCKS5。未写协议时按 HTTP 处理；未写端口时 HTTP 使用 8080，SOCKS 使用 1080。",
             color = SettingsMuted,
-            fontSize = 12.sp,
-            lineHeight = 19.sp,
+            style = MaterialTheme.typography.bodySmall,
         )
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(18.dp))
         SettingsToggleRow("版本与课程更新走代理", useForUpdates, onToggleUpdates)
         SettingsToggleRow("AI 请求走代理", useForAi, onToggleAi)
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(18.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            Text(
-                "保存代理",
-                modifier = Modifier.clickable(onClick = onSaveProxy),
-                color = SettingsBlue,
-                fontWeight = FontWeight.SemiBold,
-            )
+            SettingsAction("保存代理", SettingsBlue, onSaveProxy)
         }
-        AnimatedVisibility(
-            visible = proxyStatus != null,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically(),
-        ) {
+        AnimatedVisibility(visible = proxyStatus != null, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
             SettingsInlineNotice(
                 color = if (proxyStatus.orEmpty().startsWith("保存失败")) SettingsRed else SettingsBlue,
                 label = "代理状态",
@@ -333,55 +291,31 @@ private fun UpdateSettingsPage(
 ) {
     Column {
         SettingsSectionTitle("应用更新")
-        Text(
-            "${BuildConfig.VERSION_NAME}（${BuildConfig.VERSION_CODE}）",
-            color = SettingsWhite,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Medium,
-        )
+        Text("${BuildConfig.VERSION_NAME}（${BuildConfig.VERSION_CODE}）", color = SettingsWhite, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Medium)
         Spacer(Modifier.height(8.dp))
-        Text("开发通道 · GitHub dev-latest", color = SettingsMuted, lineHeight = 22.sp)
+        Text("开发通道 · GitHub dev-latest", color = SettingsMuted, style = MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.height(7.dp))
         Text(
             if (updateUsesProxy) "更新清单、签名与 APK 下载：通过代理" else "更新清单、签名与 APK 下载：直接连接",
             color = if (updateUsesProxy) SettingsBlue else SettingsMuted,
-            fontSize = 12.sp,
-            lineHeight = 19.sp,
+            style = MaterialTheme.typography.bodySmall,
         )
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(18.dp))
         SettingsToggleRow("自动检查更新", autoCheck, onToggleAutoCheck)
         SettingsToggleRow("仅在 Wi-Fi 下载", wifiOnly, onToggleWifiOnly)
         Spacer(Modifier.height(12.dp))
-        Text("上次检查：${formatUpdateCheckTime(lastCheckedAt)}", color = SettingsMuted, fontSize = 12.sp)
-        Spacer(Modifier.height(16.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(
-                "检查更新",
-                modifier = Modifier.clickable(enabled = updateState !is UpdateState.Checking, onClick = onCheckUpdate),
-                color = if (updateState is UpdateState.Checking) SettingsMuted else SettingsBlue,
-                fontWeight = FontWeight.SemiBold,
-            )
-            if (
-                updateState is UpdateState.Available ||
-                updateState is UpdateState.Downloading ||
-                updateState is UpdateState.Ready ||
-                updateState is UpdateState.Error ||
-                updateState is UpdateState.UpToDate
-            ) {
-                Text(
-                    "查看状态",
-                    modifier = Modifier.clickable(onClick = onShowUpdateStatus),
-                    color = SettingsWhite.copy(alpha = 0.72f),
-                )
+        Text("上次检查：${formatUpdateCheckTime(lastCheckedAt)}", color = SettingsMuted, style = MaterialTheme.typography.bodySmall)
+        Spacer(Modifier.height(14.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            SettingsAction("检查更新", if (updateState is UpdateState.Checking) SettingsMuted else SettingsBlue, onCheckUpdate, updateState !is UpdateState.Checking)
+            if (updateState is UpdateState.Available || updateState is UpdateState.Downloading || updateState is UpdateState.Ready || updateState is UpdateState.Error || updateState is UpdateState.UpToDate) {
+                SettingsAction("查看状态", SettingsWhite.copy(alpha = 0.72f), onShowUpdateStatus)
             }
         }
         SettingsInlineNotice(
             color = when (updateState) {
                 is UpdateState.Error -> SettingsRed
-                is UpdateState.Available,
-                is UpdateState.Downloading,
-                is UpdateState.Ready,
-                -> SettingsBlue
+                is UpdateState.Available, is UpdateState.Downloading, is UpdateState.Ready -> SettingsBlue
                 else -> SettingsYellow
             },
             label = "更新状态",
@@ -413,39 +347,20 @@ private fun AiSettingsPage(
         Text(
             if (aiUsesProxy) "当前 AI 请求通过代理连接。" else "当前 AI 请求直接连接，不使用代理。",
             color = if (aiUsesProxy) SettingsBlue else SettingsMuted,
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.bodySmall,
         )
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(18.dp))
         SettingsInput("接口地址", endpoint, onEndpointChange, KeyboardType.Uri, placeholder = "http://192.168.1.2:7777/v1")
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(20.dp))
         SettingsInput("模型", model, onModelChange, placeholder = "gemma-4")
-        Spacer(Modifier.height(22.dp))
-        SettingsInput(
-            "API Key",
-            apiKey,
-            onApiKeyChange,
-            visualTransformation = PasswordVisualTransformation(),
-            placeholder = "可留空",
-        )
-        Spacer(Modifier.height(24.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(
-                "测试连接",
-                modifier = Modifier.clickable(enabled = !isTesting && endpoint.isNotBlank(), onClick = onTest),
-                color = if (isTesting) SettingsMuted else SettingsWhite.copy(alpha = 0.68f),
-            )
-            Text(
-                "保存",
-                modifier = Modifier.clickable(enabled = endpoint.isNotBlank() && model.isNotBlank(), onClick = onSaveAi),
-                color = SettingsBlue,
-                fontWeight = FontWeight.SemiBold,
-            )
+        Spacer(Modifier.height(20.dp))
+        SettingsInput("API Key", apiKey, onApiKeyChange, visualTransformation = PasswordVisualTransformation(), placeholder = "可留空")
+        Spacer(Modifier.height(20.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            SettingsAction("测试连接", if (isTesting) SettingsMuted else SettingsWhite.copy(alpha = 0.68f), onTest, !isTesting && endpoint.isNotBlank())
+            SettingsAction("保存", SettingsBlue, onSaveAi, endpoint.isNotBlank() && model.isNotBlank())
         }
-        AnimatedVisibility(
-            visible = connectionStatus != null,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically(),
-        ) {
+        AnimatedVisibility(visible = connectionStatus != null, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
             SettingsInlineNotice(
                 color = if (connectionStatus.orEmpty().startsWith("连接失败")) SettingsRed else SettingsBlue,
                 label = "AI 状态",
@@ -453,26 +368,17 @@ private fun AiSettingsPage(
             )
         }
 
-        Spacer(Modifier.height(48.dp))
+        Spacer(Modifier.height(42.dp))
         SettingsSectionTitle("学习数据")
-        Text("答案、反馈、复习计划和掌握状态保存在本机。", color = SettingsWhite.copy(alpha = 0.72f))
-        Spacer(Modifier.height(18.dp))
-        AnimatedContent(
-            targetState = confirmClearProgress,
-            transitionSpec = { fadeIn() togetherWith fadeOut() },
-            label = "clearLearningData",
-        ) { confirming ->
+        Text("答案、反馈、复习计划和掌握状态保存在本机。", color = SettingsWhite.copy(alpha = 0.72f), style = MaterialTheme.typography.bodyMedium)
+        Spacer(Modifier.height(16.dp))
+        AnimatedContent(targetState = confirmClearProgress, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "clearLearningData") { confirming ->
             if (!confirming) {
-                Text("清空学习记录", modifier = Modifier.clickable(onClick = onBeginClear), color = SettingsRed)
+                SettingsAction("清空学习记录", SettingsRed, onBeginClear)
             } else {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("取消", modifier = Modifier.clickable(onClick = onCancelClear), color = SettingsMuted)
-                    Text(
-                        "确认清空",
-                        modifier = Modifier.clickable(onClick = onConfirmClear),
-                        color = SettingsRed,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                    SettingsAction("取消", SettingsMuted, onCancelClear)
+                    SettingsAction("确认清空", SettingsRed, onConfirmClear)
                 }
             }
         }
@@ -497,143 +403,105 @@ private fun DisplaySettingsPage(settings: DisplaySettings) {
             importing = false
         }
     }
-    val textOptions = listOf(
-        "小" to 0.90f,
-        "标准" to 1.00f,
-        "大" to 1.15f,
-        "特大" to 1.30f,
-        "超大" to 1.50f,
-    )
+    val textOptions = listOf("小" to 0.90f, "标准" to 1.00f, "大" to 1.15f, "特大" to 1.30f, "超大" to 1.50f)
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         SettingsSectionTitle("文字大小")
         Text(
-            "课程正文、题目、解析和数学可视化标签会同时调整。可视化仍保留最低可读尺寸。",
+            "课程正文、题目、解析和数学可视化标签会同时调整。界面使用自适应高度，放大后不会压缩成竖排。",
             color = SettingsMuted,
-            fontSize = 13.sp,
-            lineHeight = 21.sp,
+            style = MaterialTheme.typography.bodySmall,
         )
         textOptions.forEach { (label, scale) ->
             val selected = kotlin.math.abs(settings.textScale - scale) < 0.01f
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { DisplayPreferences.setTextScale(context, scale) }
-                    .padding(vertical = 11.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(label, color = if (selected) SettingsWhite else SettingsWhite.copy(alpha = 0.72f), fontSize = 17.sp)
-                Text(
-                    "${(scale * 100).toInt()}%",
-                    color = if (selected) SettingsBlue else SettingsMuted,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                )
-            }
-            Box(Modifier.fillMaxWidth().height(1.dp).background(SettingsLine))
+            SchoolSettingRow(
+                label = label,
+                value = "${(scale * 100).toInt()}%",
+                selected = selected,
+                onClick = { DisplayPreferences.setTextScale(context, scale) },
+                valueColor = if (selected) SettingsBlue else SettingsMuted,
+            )
         }
-        Text(
-            "预览：负半轴　−3　0　+3　正半轴　答案与解释",
-            color = SettingsWhite,
-            fontSize = 16.sp,
-            lineHeight = 24.sp,
-        )
+        Text("预览：负半轴　−3　0　+3　正半轴　答案与解释", color = SettingsWhite, style = MaterialTheme.typography.bodyLarge)
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(20.dp))
         SettingsSectionTitle("背景")
         Text(
             "默认保持纯黑风格。预定义颜色和自定义图片只改变底层背景，界面会自动保留暗色遮罩保证文字可读。",
             color = SettingsMuted,
-            fontSize = 13.sp,
-            lineHeight = 21.sp,
+            style = MaterialTheme.typography.bodySmall,
         )
         BackgroundPreset.entries.forEach { preset ->
             val selected = settings.backgroundMode == BackgroundMode.PRESET && settings.backgroundPreset == preset
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(min = SchoolUiMetrics.settingsRowMinHeight)
                     .clickable {
                         DisplayPreferences.setBackgroundPreset(context, preset)
                         importStatus = "已切换为${preset.label}。"
                     }
-                    .padding(vertical = 11.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                    .padding(vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier
-                            .size(24.dp)
-                            .background(Color(preset.argb), CircleShape),
+                Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(24.dp).background(Color(preset.argb), CircleShape))
+                    Text(
+                        preset.label,
+                        modifier = Modifier.weight(1f),
+                        color = SettingsWhite.copy(alpha = if (selected) 1f else 0.75f),
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 2,
                     )
-                    Text(preset.label, color = SettingsWhite.copy(alpha = if (selected) 1f else 0.75f), fontSize = 16.sp)
                 }
-                Text(if (selected) "使用中" else "", color = SettingsBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                if (selected) {
+                    Text("使用中", color = SettingsBlue, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+                }
             }
-            Box(Modifier.fillMaxWidth().height(1.dp).background(SettingsLine))
+            SchoolDivider(color = SettingsLine)
         }
 
-        Spacer(Modifier.height(8.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Spacer(Modifier.height(6.dp))
+        Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if (settings.customImagePath != null) {
-                Text(
-                    if (settings.backgroundMode == BackgroundMode.CUSTOM) "自定义背景使用中" else "使用已导入背景",
-                    modifier = Modifier.clickable(enabled = !importing) {
-                        if (DisplayPreferences.useExistingCustomBackground(context)) {
-                            importStatus = "已切换到已导入的自定义背景。"
-                        }
-                    },
+                SettingsAction(
+                    label = if (settings.backgroundMode == BackgroundMode.CUSTOM) "自定义背景使用中" else "使用已导入背景",
                     color = if (settings.backgroundMode == BackgroundMode.CUSTOM) SettingsYellow else SettingsWhite.copy(alpha = 0.72f),
-                    fontWeight = FontWeight.SemiBold,
+                    onClick = {
+                        if (DisplayPreferences.useExistingCustomBackground(context)) importStatus = "已切换到已导入的自定义背景。"
+                    },
+                    enabled = !importing,
                 )
-            } else {
-                Spacer(Modifier.width(1.dp))
             }
-            Text(
-                if (importing) "正在导入…" else "导入自定义图片",
-                modifier = Modifier.clickable(enabled = !importing) {
-                    imagePicker.launch(arrayOf("image/jpeg", "image/png", "image/webp"))
-                },
+            SettingsAction(
+                label = if (importing) "正在导入…" else "导入自定义图片",
                 color = if (importing) SettingsMuted else SettingsBlue,
-                fontWeight = FontWeight.SemiBold,
+                onClick = { imagePicker.launch(arrayOf("image/jpeg", "image/png", "image/webp")) },
+                enabled = !importing,
             )
         }
         Text(
             "支持 JPEG、PNG、WebP；至少短边 720px、长边 1280px，不超过 20 MB 和 3200 万像素。格式、尺寸或解码失败时不会替换当前背景。",
             color = SettingsMuted,
-            fontSize = 12.sp,
-            lineHeight = 19.sp,
+            style = MaterialTheme.typography.bodySmall,
         )
-        AnimatedVisibility(
-            visible = importStatus != null,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically(),
-        ) {
+        AnimatedVisibility(visible = importStatus != null, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
             val failed = importStatus.orEmpty().startsWith("导入失败")
-            SettingsInlineNotice(
-                color = if (failed) SettingsRed else SettingsBlue,
-                label = "背景状态",
-                body = importStatus.orEmpty(),
-            )
+            SettingsInlineNotice(color = if (failed) SettingsRed else SettingsBlue, label = "背景状态", body = importStatus.orEmpty())
         }
     }
 }
 
 @Composable
 private fun SettingsToggleRow(label: String, enabled: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, color = SettingsWhite.copy(alpha = 0.78f))
-        Text(
-            if (enabled) "开启" else "关闭",
-            color = if (enabled) SettingsBlue else SettingsMuted,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
-    Box(Modifier.fillMaxWidth().height(1.dp).background(SettingsLine))
+    SchoolSettingRow(
+        label = label,
+        value = if (enabled) "开启" else "关闭",
+        selected = enabled,
+        onClick = onClick,
+        valueColor = if (enabled) SettingsBlue else SettingsMuted,
+    )
 }
 
 @Composable
@@ -645,48 +513,59 @@ private fun SettingsInput(
     visualTransformation: androidx.compose.ui.text.input.VisualTransformation = androidx.compose.ui.text.input.VisualTransformation.None,
     placeholder: String = "输入…",
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, color = SettingsMuted, style = MaterialTheme.typography.labelMedium)
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-            textStyle = TextStyle(color = SettingsWhite, fontSize = 18.sp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = SchoolUiMetrics.textInputMinHeight).padding(vertical = 12.dp),
+            textStyle = MaterialTheme.typography.titleLarge.copy(color = SettingsWhite),
             cursorBrush = SolidColor(SettingsBlue),
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             visualTransformation = visualTransformation,
+            singleLine = true,
             decorationBox = { inner ->
                 Box(contentAlignment = Alignment.CenterStart) {
-                    if (value.isEmpty()) Text(placeholder, color = SettingsWhite.copy(alpha = 0.2f), fontSize = 18.sp)
+                    if (value.isEmpty()) {
+                        Text(
+                            placeholder,
+                            color = SettingsWhite.copy(alpha = 0.2f),
+                            style = MaterialTheme.typography.titleLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                     inner()
                 }
             },
         )
-        Box(Modifier.fillMaxWidth().height(1.dp).background(SettingsLine))
+        SchoolDivider(color = SettingsLine)
     }
 }
 
 @Composable
 private fun SettingsSectionTitle(text: String) {
+    SchoolSectionLabel(text = text, modifier = Modifier.padding(bottom = 16.dp), color = SettingsYellow)
+}
+
+@Composable
+private fun SettingsAction(label: String, color: Color, onClick: () -> Unit, enabled: Boolean = true) {
     Text(
-        text,
-        modifier = Modifier.padding(bottom = 18.dp),
-        color = SettingsYellow,
-        fontSize = 13.sp,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = 1.2.sp,
+        text = label,
+        modifier = Modifier.heightIn(min = SchoolUiMetrics.minTouchHeight).clickable(enabled = enabled, onClick = onClick).padding(vertical = 12.dp),
+        color = if (enabled) color else SettingsMuted,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
+        maxLines = 1,
     )
 }
 
 @Composable
 private fun SettingsInlineNotice(color: Color, label: String, body: String) {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(9.dp),
-    ) {
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 22.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
         Box(Modifier.fillMaxWidth().height(2.dp).background(color))
-        Text(label, color = color, fontWeight = FontWeight.Bold)
-        Text(body, color = SettingsWhite.copy(alpha = 0.72f), lineHeight = 23.sp)
+        Text(label, color = color, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+        Text(body, color = SettingsWhite.copy(alpha = 0.72f), style = MaterialTheme.typography.bodyMedium)
     }
 }
 
