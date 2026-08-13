@@ -6,52 +6,52 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VisualizationSourcePolicyTest {
+    private val directZoomVisualFiles = listOf(
+        "CloudCourseVisualizations.kt",
+        "TextbookMathVisualizations.kt",
+        "RationalExamplesVisual.kt",
+        "OppositeQuantityAxisPanel.kt",
+        "OppositeQuantityIllustratedPanels.kt",
+        "NumberLineLessonVisual.kt",
+    )
+
+    private val productionVisualFiles = directZoomVisualFiles + listOf("OppositeQuantitiesSceneVisual.kt", "CloudCourseBlockRenderer.kt")
+
     @Test
-    fun cloudCourseUsesDedicatedTextbookAlignedRenderers() {
-        val source = uiFile("CloudCourseBlockRenderer.kt").readText(Charsets.UTF_8)
-        assertTrue("相反意义量必须使用专用教材渲染器", "OppositeQuantitiesSceneVisual(scene.data)" in source)
-        assertTrue("有理数分类必须使用专用教材渲染器", "RationalConceptFlowVisual(scene.data)" in source)
-        assertTrue("整数化分数必须使用专用教材渲染器", "IntegerToFractionTextbookVisual()" in source)
-        assertTrue("数轴必须使用专用教材渲染器", "NumberLineLessonVisual(scene.data)" in source)
+    fun productionMathVisualsUseSharedZoomSurface() {
+        directZoomVisualFiles.forEach { name ->
+            val source = uiFile(name).readText(Charsets.UTF_8)
+            assertTrue("$name 应使用 ZoomableMathCanvas", "ZoomableMathCanvas(" in source)
+            assertFalse("$name 不得继续直接导入裸 Canvas", "import androidx.compose.foundation.Canvas" in source)
+        }
+
+        val oppositeScene = uiFile("OppositeQuantitiesSceneVisual.kt").readText(Charsets.UTF_8)
+        assertTrue("相反意义量场景仍应保留通用基准轴", "OppositeQuantityAxisPanel(" in oppositeScene)
+        assertTrue(
+            "温度、海拔和质量偏差应使用专用具象场景",
+            listOf("TemperatureQuantityPanel(", "ElevationQuantityPanel(", "MassDeviationQuantityPanel(").all(oppositeScene::contains),
+        )
+        assertFalse("相反意义量入口本身不应直接绘制带文字的 Canvas", "nativeCanvas" in oppositeScene || "drawSceneLabel" in oppositeScene)
     }
 
     @Test
-    fun oppositeQuantitySceneUsesIllustratedPanels() {
-        val source = uiFile("OppositeQuantitiesSceneVisual.kt").readText(Charsets.UTF_8)
-        assertTrue("相反意义量必须根据 mode 选择具象场景", "OppositeQuantityMode.from" in source)
-        assertTrue("温度必须进入温度计具象面板", "OppositeQuantityMode.TEMPERATURE -> TemperatureQuantityPanel" in source)
-        assertTrue("海拔必须进入山峰海平面具象面板", "OppositeQuantityMode.ALTITUDE -> AltitudeQuantityPanel" in source)
-        assertTrue("质量偏差必须进入天平具象面板", "OppositeQuantityMode.MASS_DEVIATION -> MassDeviationQuantityPanel" in source)
+    fun canvasTextUsesScaledTypographyInsteadOfRawPixels() {
+        val textHelpers = productionVisualFiles.map(::uiFile).joinToString("\n") { it.readText(Charsets.UTF_8) }
+        assertFalse("生产数学图不得把传入字号直接赋给 Android Paint 像素", "this.textSize = textSize\n" in textHelpers)
+        assertTrue("生产数学图必须接入全局可视化字号换算或使用 Compose Text", "visualTextSizePx(" in textHelpers || "Text(" in textHelpers)
     }
 
     @Test
-    fun oppositeQuantitySceneKeepsOriginalMeaningLabels() {
-        val source = uiFile("OppositeQuantitiesSceneVisual.kt").readText(Charsets.UTF_8)
-        assertTrue("具象场景必须继续读取 positiveLabel", "positiveLabel = data.string(\"positiveLabel\")" in source)
-        assertTrue("具象场景必须继续读取 negativeLabel", "negativeLabel = data.string(\"negativeLabel\")" in source)
-        assertTrue("具象场景必须继续读取 baselineLabel", "baselineLabel = data.string(\"baselineLabel\")" in source)
+    fun baselineAxisKeepsTextOutsideCanvas() {
+        val source = uiFile("OppositeQuantityAxisPanel.kt").readText(Charsets.UTF_8)
+        assertTrue("基准和当前记录应由 Compose Text 排版", "InlineQuantitySummary(" in source)
+        assertTrue("两个方向应使用独立 Compose Text 区域", "negativeMeaning" in source && "positiveMeaning" in source)
+        assertFalse("基准轴 Canvas 内不得绘制文字", "drawText(" in source || "nativeCanvas" in source)
+        assertFalse("基准轴不得重新使用圆角卡片分区", "RoundedCornerShape" in source)
     }
 
     @Test
-    fun rationalClassificationUsesHierarchyNotDecorativeCards() {
-        val source = uiFile("RationalConceptFlowVisual.kt").readText(Charsets.UTF_8)
-        assertTrue("有理数分类应使用层级分支结构", "RationalBranch(" in source)
-        assertTrue("有理数分类必须呈现整数分支", "title = \"整数\"" in source)
-        assertTrue("有理数分类必须呈现分数分支", "title = \"分数\"" in source)
-        assertFalse("有理数分类不应退化成圆角卡片", "RoundedCornerShape" in source)
-    }
-
-    @Test
-    fun numberLineUsesDedicatedInteractionInsteadOfGenericDiagram() {
-        val source = uiFile("NumberLineLessonVisual.kt").readText(Charsets.UTF_8)
-        assertTrue("数轴场景必须允许拖动点", "detectDragGestures" in source)
-        assertTrue("数轴场景必须绘制原点", "原点" in source)
-        assertTrue("数轴场景必须表达正方向", "正方向" in source)
-        assertTrue("数轴场景必须表达单位长度", "单位长度" in source)
-    }
-
-    @Test
-    fun illustratedPanelsUseComposeTextAndConcreteObjects() {
+    fun illustratedScenesKeepLabelsOutsideCanvas() {
         val source = uiFile("OppositeQuantityIllustratedPanels.kt").readText(Charsets.UTF_8)
         assertTrue("温度场景必须绘制温度计", "TemperatureQuantityPanel(" in source && "tubeHalfWidth" in source)
         assertTrue("海拔场景必须包含山脉与海平面", "foregroundMountain" in source && "seaY" in source)
@@ -100,10 +100,25 @@ class VisualizationSourcePolicyTest {
     }
 
     @Test
-    fun declarativeDiagramUsesOpenCanvas() {
-        val source = uiFile("TextbookMathVisual.kt").readText(Charsets.UTF_8)
-        assertTrue("声明式 diagram 必须仍由开放式 Canvas 渲染", "DeclarativeDiagramVisual(" in source)
-        assertFalse("声明式 diagram 不得使用圆角卡片", "RoundedCornerShape" in source)
+    fun assessmentFeedbackAndActionsStayCardless() {
+        val session = uiFile("AssessmentSessionScreen.kt").readText(Charsets.UTF_8)
+        val ai = uiFile("AssessmentAiJudgeSection.kt").readText(Charsets.UTF_8)
+
+        assertFalse("选择题选项不应使用填充圆角卡片", ".background(\n                                if (checked) InteractiveBlue.copy(alpha = 0.10f) else InteractivePanel" in session)
+        assertFalse("判题反馈不应使用填充圆角卡片", ".background(color.copy(alpha = 0.10f), RoundedCornerShape" in session)
+        assertFalse("提示内容不应使用填充圆角卡片", ".background(InteractiveBlue.copy(alpha = 0.08f), RoundedCornerShape" in session)
+        assertFalse("题目导航不应使用填充圆角按钮", "if (enabled) color.copy(alpha = 0.12f) else InteractivePanel" in session)
+        assertFalse("AI 答案区不应使用面板卡片", ".background(InteractivePanel, RoundedCornerShape" in ai)
+        assertFalse("AI 判题操作不应使用填充圆角按钮", "if (enabled || busy) color.copy(alpha = 0.14f) else InteractivePanel" in ai)
+        assertTrue("判题操作应使用底部强调线", "Alignment.BottomCenter" in session && "Alignment.BottomCenter" in ai)
+    }
+
+    @Test
+    fun pdfReaderStatusIsSingleLineAndIndependentFromTitle() {
+        val source = uiFile("PdfTextbookScreen.kt").readText(Charsets.UTF_8)
+        assertTrue("PDF 页码状态应使用独立标题组件", "PdfReaderHeader(" in source)
+        assertTrue("PDF 页码状态必须禁止逐字换行", "softWrap = false" in source)
+        assertTrue("PDF 页码状态必须限制为一行", "maxLines = 1" in source)
     }
 
     private fun uiFile(name: String): File = repositoryFile("app/src/main/java/com/majortomman/school/ui/$name")
