@@ -177,44 +177,58 @@ private fun LessonPagerFooter(
     onPrevious: () -> Unit,
     onNext: () -> Unit,
 ) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .heightIn(min = 58.dp)
-            .padding(horizontal = 22.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 22.dp, vertical = 9.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-            if (pageIndex > 0) {
-                Text(
-                    text = "← 上一页",
-                    modifier = Modifier.clickable(onClick = onPrevious).padding(vertical = 8.dp),
-                    color = InteractiveMuted,
-                    style = MaterialTheme.typography.labelLarge,
-                )
-            } else {
-                Text("教材仅作参考", color = InteractiveMuted.copy(alpha = 0.7f), style = MaterialTheme.typography.labelMedium)
-            }
-        }
         Text(
             text = "${pageIndex + 1} / $pageCount",
-            modifier = Modifier.weight(0.55f),
+            modifier = Modifier.fillMaxWidth(),
             color = InteractiveMuted,
             style = MaterialTheme.typography.labelMedium,
             textAlign = TextAlign.Center,
             maxLines = 1,
+            softWrap = false,
         )
-        Text(
-            text = if (pageIndex < pageCount - 1) "下一页 →" else if (hasNextLesson) "完成并继续 →" else "完成 →",
-            modifier = Modifier.weight(1f).clickable(onClick = onNext).padding(vertical = 8.dp),
-            color = InteractiveBlue,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.End,
-            maxLines = 1,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                if (pageIndex > 0) {
+                    Text(
+                        text = "← 上一页",
+                        modifier = Modifier.clickable(onClick = onPrevious).padding(vertical = 8.dp),
+                        color = InteractiveMuted,
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                } else {
+                    Text(
+                        text = "教材仅作参考",
+                        color = InteractiveMuted.copy(alpha = 0.7f),
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                }
+            }
+            Text(
+                text = if (pageIndex < pageCount - 1) "下一页 →" else if (hasNextLesson) "完成并继续 →" else "完成 →",
+                modifier = Modifier.weight(1f).clickable(onClick = onNext).padding(vertical = 8.dp),
+                color = InteractiveBlue,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                softWrap = false,
+            )
+        }
     }
 }
 
