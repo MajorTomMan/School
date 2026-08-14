@@ -140,6 +140,7 @@ fun SceneTodayScreen(
                 ) {
                     Text(
                         text = "${plan.reviewItems.size} 项复习",
+                        modifier = Modifier.weight(1f),
                         color = if (plan.reviewItems.isEmpty()) SceneWhite.copy(alpha = 0.35f) else SceneYellow,
                         fontSize = 13.sp,
                     )
@@ -148,6 +149,8 @@ fun SceneTodayScreen(
                         modifier = Modifier.clickable(onClick = onOpenPath),
                         color = SceneWhite.copy(alpha = 0.54f),
                         fontSize = 13.sp,
+                        maxLines = 1,
+                        softWrap = false,
                     )
                 }
             }
@@ -182,6 +185,7 @@ fun SceneCoursePathScreen(
                 ) {
                     Text(
                         text = "有理数",
+                        modifier = Modifier.weight(1f).padding(end = 16.dp),
                         color = SceneWhite,
                         fontSize = 44.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -190,6 +194,8 @@ fun SceneCoursePathScreen(
                         text = "$mastered / ${lessons.size}",
                         color = SceneWhite.copy(alpha = 0.38f),
                         fontSize = 14.sp,
+                        maxLines = 1,
+                        softWrap = false,
                     )
                 }
                 Spacer(Modifier.height(52.dp))
@@ -275,7 +281,7 @@ private fun MinimalPathNode(
             modifier = Modifier.weight(1f),
         )
         if (active) {
-            Text("继续", color = SceneBlue, fontSize = 13.sp)
+            Text("继续", color = SceneBlue, fontSize = 13.sp, maxLines = 1, softWrap = false)
         }
     }
 }

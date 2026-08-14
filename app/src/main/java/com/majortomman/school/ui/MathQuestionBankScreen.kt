@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -244,20 +245,16 @@ private fun ModeRow(
     disabled: Boolean,
     onClick: () -> Unit,
 ) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = !disabled, onClick = onClick)
             .padding(vertical = 21.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Column(modifier = Modifier.fillMaxWidth(0.72f)) {
-            Text(mode.label, color = BankWhite, fontSize = 24.sp, fontWeight = FontWeight.Medium)
-            Spacer(Modifier.height(6.dp))
-            Text(mode.description, color = BankMuted, fontSize = 13.sp, lineHeight = 19.sp)
-        }
-        Text(if (disabled) "准备中" else suffix, color = BankYellow, fontSize = 12.sp, textAlign = TextAlign.End)
+        Text(mode.label, color = BankWhite, fontSize = 24.sp, fontWeight = FontWeight.Medium)
+        Text(mode.description, color = BankMuted, fontSize = 13.sp, lineHeight = 19.sp)
+        Text(if (disabled) "准备中" else suffix, color = BankYellow, fontSize = 12.sp, maxLines = 2)
     }
 }
 
@@ -268,8 +265,8 @@ private fun MasteryLine(title: String, percent: Int, attempts: Int) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(title, color = BankWhite, fontSize = 16.sp)
-            Text("$percent% · $attempts 次", color = BankMuted, fontSize = 13.sp)
+            Text(title, modifier = Modifier.weight(1f).padding(end = 12.dp), color = BankWhite, fontSize = 16.sp)
+            Text("$percent% · $attempts 次", color = BankMuted, fontSize = 13.sp, maxLines = 1, softWrap = false)
         }
         Spacer(Modifier.height(9.dp))
         Box(Modifier.fillMaxWidth().height(2.dp).background(BankLine)) {
@@ -327,8 +324,8 @@ private fun MathQuestionPracticePage(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("返回题库", color = BankMuted, fontSize = 14.sp, modifier = Modifier.clickable(onClick = onBack))
-            Text(mode.label, color = BankYellow, fontSize = 12.sp)
+            Text("返回题库", color = BankMuted, fontSize = 14.sp, modifier = Modifier.weight(1f).clickable(onClick = onBack))
+            Text(mode.label, color = BankYellow, fontSize = 12.sp, maxLines = 1, softWrap = false)
         }
         Spacer(Modifier.height(28.dp))
         Text(
@@ -386,16 +383,18 @@ private fun MathQuestionPracticePage(
         if (currentResult == null) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 BankAction(
                     text = if (hintLevel < question.hints.size) "提示 ${hintLevel + 1}" else "提示已展开",
                     accent = BankYellow,
+                    modifier = Modifier.weight(1f),
                     enabled = hintLevel < question.hints.size,
                 ) { hintLevel += 1 }
                 BankAction(
                     text = if (submitting) "检查中" else "提交答案",
                     accent = BankBlue,
+                    modifier = Modifier.weight(1f),
                     enabled = !submitting && finalAnswer.isNotBlank(),
                 ) {
                     submitting = true
@@ -414,12 +413,13 @@ private fun MathQuestionPracticePage(
             Spacer(Modifier.height(25.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                BankAction("返回题库", BankWhite, onClick = onBack)
+                BankAction("返回题库", BankWhite, modifier = Modifier.weight(1f), onClick = onBack)
                 BankAction(
                     if (loadingNext) "生成中" else "下一题",
                     BankBlue,
+                    modifier = Modifier.weight(1f),
                     enabled = !loadingNext,
                     onClick = onNext,
                 )
@@ -476,7 +476,7 @@ private fun TextAnswer(
         BasicTextField(
             value = answer,
             onValueChange = { if (enabled) onChange(it.take(2_000)) },
-            modifier = Modifier.fillMaxWidth().height(if (question.type == MathQuestionType.STEP_BY_STEP) 150.dp else 56.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = if (question.type == MathQuestionType.STEP_BY_STEP) 150.dp else 56.dp),
             textStyle = TextStyle(color = BankWhite, fontSize = 19.sp, lineHeight = 27.sp),
             cursorBrush = SolidColor(BankBlue),
             enabled = enabled,
@@ -595,17 +595,18 @@ private fun ResultBlock(result: MathSubmissionResult) {
 private fun BankAction(
     text: String,
     accent: Color,
+    modifier: Modifier = Modifier,
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .border(1.dp, if (enabled) accent else BankLine, RoundedCornerShape(5.dp))
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = if (enabled) accent else BankMuted, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        Text(text, color = if (enabled) accent else BankMuted, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
     }
 }
 

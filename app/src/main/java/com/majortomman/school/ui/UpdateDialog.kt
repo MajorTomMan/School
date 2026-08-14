@@ -105,8 +105,8 @@ fun SchoolUpdateDialog(
                 is UpdateState.Downloading -> {
                     Spacer(Modifier.height(24.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("下载进度", color = UpdateMuted, fontSize = 13.sp)
-                        Text("${state.progress}%", color = UpdateBlue, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text("下载进度", modifier = Modifier.weight(1f), color = UpdateMuted, fontSize = 13.sp)
+                        Text("${state.progress}%", color = UpdateBlue, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
                     }
                     Spacer(Modifier.height(10.dp))
                     Box(Modifier.fillMaxWidth().height(3.dp).background(UpdateLine)) {
@@ -151,16 +151,20 @@ fun SchoolUpdateDialog(
             Box(Modifier.fillMaxWidth().height(1.dp).background(UpdateLine))
             Spacer(Modifier.height(18.dp))
             when (state) {
-                is UpdateState.Available -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                is UpdateState.Available -> Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     if (!mandatory) {
-                        Text("忽略此版本", Modifier.clickable { onIgnore(state.manifest) }, color = UpdateMuted, fontSize = 13.sp)
-                        Text("稍后提醒", Modifier.clickable { onLater(state.manifest) }, color = UpdateWhite.copy(alpha = 0.72f), fontSize = 13.sp)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("忽略此版本", Modifier.clickable { onIgnore(state.manifest) }, color = UpdateMuted, fontSize = 13.sp, maxLines = 1, softWrap = false)
+                            Text("稍后提醒", Modifier.clickable { onLater(state.manifest) }, color = UpdateWhite.copy(alpha = 0.72f), fontSize = 13.sp, maxLines = 1, softWrap = false)
+                        }
                     }
                     Text(
                         "下载并升级",
-                        Modifier.clickable { onDownload(state.manifest) },
+                        Modifier.clickable { onDownload(state.manifest) }.padding(vertical = 4.dp),
                         color = UpdateBlue,
                         fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        softWrap = false,
                     )
                 }
                 is UpdateState.Downloading -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -197,8 +201,8 @@ fun SchoolUpdateDialog(
 @Composable
 private fun UpdateMetaRow(label: String, value: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = UpdateMuted, fontSize = 12.sp)
-        Text(value, color = UpdateWhite.copy(alpha = 0.82f), fontSize = 13.sp)
+        Text(label, modifier = Modifier.weight(1f).padding(end = 12.dp), color = UpdateMuted, fontSize = 12.sp)
+        Text(value, color = UpdateWhite.copy(alpha = 0.82f), fontSize = 13.sp, maxLines = 1, softWrap = false)
     }
 }
 

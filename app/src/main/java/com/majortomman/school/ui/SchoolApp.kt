@@ -362,8 +362,9 @@ private fun MinimalBottomBar(
             val isSelected = tab == selected
             Column(
                 modifier = Modifier
+                    .weight(1f)
                     .clickable { onSelect(tab) }
-                    .padding(horizontal = 3.dp, vertical = 4.dp),
+                    .padding(horizontal = 1.dp, vertical = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(7.dp),
             ) {
@@ -372,6 +373,8 @@ private fun MinimalBottomBar(
                     color = if (isSelected) NavigationWhite else NavigationWhite.copy(alpha = 0.32f),
                     fontSize = 11.sp,
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    maxLines = 1,
+                    softWrap = false,
                 )
                 Box(
                     modifier = Modifier

@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.majortomman.school.data.curriculum.MasteryTrendEventType
@@ -56,31 +57,37 @@ internal fun MasteryTrendChart(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(
-                    text = title,
-                    color = ChartWhite,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = "$subtitle · Y 掌握度 / X 日期",
-                    color = ChartMuted,
-                    fontSize = 11.sp,
-                )
-            }
+            Text(
+                text = title,
+                modifier = Modifier.weight(1f),
+                color = ChartWhite,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
             if (latest != null) {
                 Text(
                     text = "${(latest.coerceIn(0.0, 1.0) * 100).roundToInt()}%",
                     color = ChartYellow,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    softWrap = false,
                 )
             }
         }
+        Text(
+            text = "$subtitle · Y 掌握度 / X 日期",
+            modifier = Modifier.fillMaxWidth(),
+            color = ChartMuted,
+            fontSize = 11.sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
 
         if (ordered.isEmpty()) {
             Box(
@@ -102,13 +109,13 @@ internal fun MasteryTrendChart(
 
         Row(modifier = Modifier.fillMaxWidth()) {
             Column(
-                modifier = Modifier.width(38.dp).height(154.dp),
+                modifier = Modifier.width(44.dp).height(154.dp),
                 verticalArrangement = Arrangement.SpaceBetween,
                 horizontalAlignment = Alignment.End,
             ) {
-                Text("100%", color = ChartMuted, fontSize = 9.sp)
-                Text("50%", color = ChartMuted, fontSize = 9.sp)
-                Text("0%", color = ChartMuted, fontSize = 9.sp)
+                Text("100%", color = ChartMuted, fontSize = 9.sp, maxLines = 1, softWrap = false)
+                Text("50%", color = ChartMuted, fontSize = 9.sp, maxLines = 1, softWrap = false)
+                Text("0%", color = ChartMuted, fontSize = 9.sp, maxLines = 1, softWrap = false)
             }
             Spacer(Modifier.width(8.dp))
             Canvas(modifier = Modifier.weight(1f).height(154.dp)) {
@@ -163,14 +170,14 @@ internal fun MasteryTrendChart(
         }
 
         Row(modifier = Modifier.fillMaxWidth()) {
-            Spacer(Modifier.width(46.dp))
+            Spacer(Modifier.width(52.dp))
             Row(
                 modifier = Modifier.weight(1f),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Text(xLabel(ordered.first().x), color = ChartMuted, fontSize = 9.sp)
+                Text(xLabel(ordered.first().x), color = ChartMuted, fontSize = 9.sp, maxLines = 1, softWrap = false)
                 if (ordered.size > 1) {
-                    Text(xLabel(ordered.last().x), color = ChartMuted, fontSize = 9.sp)
+                    Text(xLabel(ordered.last().x), color = ChartMuted, fontSize = 9.sp, maxLines = 1, softWrap = false)
                 }
             }
         }

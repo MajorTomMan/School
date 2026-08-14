@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -665,7 +666,7 @@ fun MinimalRoomReviewScreen(
         item {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 MinimalSectionTitle("最近作答")
-                Text("${progress.accuracyPercent}%", color = MinimalYellow, fontWeight = FontWeight.Bold)
+                Text("${progress.accuracyPercent}%", color = MinimalYellow, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
             }
         }
         if (recentAttempts.isEmpty()) {
@@ -701,7 +702,7 @@ private fun MinimalReviewRow(
                 Box(Modifier.size(7.dp).clip(CircleShape).background(color))
                 Spacer(Modifier.size(14.dp))
                 Text(title, modifier = Modifier.weight(1f), color = MinimalWhite, fontSize = 18.sp)
-                Text(trailing, color = MinimalMuted)
+                Text(trailing, color = MinimalMuted, maxLines = 1, softWrap = false)
             }
             Spacer(Modifier.height(16.dp))
             MinimalDivider()
@@ -726,7 +727,7 @@ private fun MinimalAttemptRow(index: Int, item: AttemptRecord) {
                 Text(item.lessonTitle, color = MinimalWhite, fontSize = 18.sp, fontWeight = FontWeight.Medium)
                 Text(item.createdLabel, color = MinimalMuted, style = MaterialTheme.typography.bodySmall)
             }
-            Text(if (item.correct) "正确" else "复习", color = color)
+            Text(if (item.correct) "正确" else "复习", color = color, maxLines = 1, softWrap = false)
         }
         AnimatedVisibility(expanded, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
             Column(modifier = Modifier.padding(start = 34.dp, top = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -755,7 +756,7 @@ private fun MinimalInput(
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth().height(minHeight),
+            modifier = Modifier.fillMaxWidth().heightIn(min = minHeight),
             textStyle = TextStyle(color = MinimalWhite, fontSize = 18.sp, lineHeight = 26.sp),
             cursorBrush = SolidColor(MinimalBlue),
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
