@@ -162,7 +162,7 @@ internal fun CourseStorageSettingsPage() {
                     downloadBusy -> "下载任务运行中"
                     else -> "检查全部教材更新"
                 },
-                modifier = Modifier.clickable(
+                modifier = Modifier.weight(1f).padding(end = 12.dp).clickable(
                     enabled = !checking && !downloadBusy && BuildConfig.COURSE_MANIFEST_URL.isNotBlank(),
                 ) {
                     checking = true
@@ -187,7 +187,7 @@ internal fun CourseStorageSettingsPage() {
                 color = if (checking || downloadBusy) CourseSettingsMuted else CourseSettingsBlue,
                 fontWeight = FontWeight.SemiBold,
             )
-            downloadState.downloadLabel()?.let { Text(it, color = CourseSettingsMuted, fontSize = 12.sp) }
+            downloadState.downloadLabel()?.let { Text(it, color = CourseSettingsMuted, fontSize = 12.sp, maxLines = 1, softWrap = false) }
         }
         Spacer(Modifier.height(16.dp))
         Text(
@@ -315,7 +315,7 @@ private fun CourseBookResourceItem(
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(modifier = Modifier.weight(1f).padding(end = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(book.label, color = CourseSettingsWhite, fontWeight = FontWeight.Medium)
                 Text(book.id, color = CourseSettingsMuted, fontSize = 11.sp)
             }
@@ -323,6 +323,8 @@ private fun CourseBookResourceItem(
                 stateText,
                 color = if (update != null) CourseSettingsBlue else CourseSettingsMuted,
                 fontSize = 12.sp,
+                maxLines = 1,
+                softWrap = false,
             )
         }
         if (confirmingDelete) {

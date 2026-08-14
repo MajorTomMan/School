@@ -45,7 +45,7 @@ internal fun StageListPage(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(stage.label, color = SelectionWhite, fontSize = 31.sp, fontWeight = FontWeight.Medium)
+                Text(stage.label, modifier = Modifier.weight(1f).padding(end = 16.dp), color = SelectionWhite, fontSize = 31.sp, fontWeight = FontWeight.Medium)
                 StatusText(installedCount)
             }
             if (index != EducationStage.entries.lastIndex) ThinDivider()
@@ -77,7 +77,7 @@ internal fun SubjectListPage(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(subject.title, color = SelectionWhite, fontSize = 28.sp, fontWeight = FontWeight.Medium)
+                Text(subject.title, modifier = Modifier.weight(1f).padding(end = 16.dp), color = SelectionWhite, fontSize = 28.sp, fontWeight = FontWeight.Medium)
                 StatusText(installedCount)
             }
             if (index != subjects.lastIndex) ThinDivider()

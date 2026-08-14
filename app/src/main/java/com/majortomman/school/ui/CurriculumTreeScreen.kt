@@ -229,7 +229,6 @@ private fun CurriculumTreeRowItem(
                     CurriculumNodeType.COURSE -> 18.sp
                     else -> if (isLesson) 17.sp else 16.sp
                 },
-                lineHeight = 24.sp,
                 fontWeight = when {
                     active -> FontWeight.SemiBold
                     node.type in setOf(CurriculumNodeType.LEVEL, CurriculumNodeType.TERM) -> FontWeight.Medium
@@ -255,7 +254,7 @@ private fun CurriculumTreeRowItem(
             }
         }
         if (active) {
-            Text("继续", color = TreeBlue, fontSize = 12.sp, modifier = Modifier.padding(start = 8.dp, top = 4.dp))
+            Text("继续", color = TreeBlue, fontSize = 12.sp, modifier = Modifier.padding(start = 8.dp, top = 4.dp), maxLines = 1, softWrap = false)
         }
     }
 }

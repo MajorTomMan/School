@@ -119,12 +119,14 @@ private fun VerificationSubjectChoice(
 private fun VerificationBoundary(deterministic: Boolean, limitation: String) {
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("判断边界", color = InteractivePurple, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Text("判断边界", modifier = Modifier.weight(1f).padding(end = 12.dp), color = InteractivePurple, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             Text(
                 if (deterministic) "确定性计算" else "规则分析",
                 color = if (deterministic) InteractiveGreen else InteractiveYellow,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                softWrap = false,
             )
         }
         Spacer(Modifier.height(8.dp))

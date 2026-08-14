@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -62,6 +63,8 @@ internal fun StatusText(installedCount: Int) {
         if (installedCount > 0) "$installedCount 本教材" else "暂无缓存",
         color = if (installedCount > 0) CenterBlue else CenterMuted,
         fontSize = 13.sp,
+        maxLines = 1,
+        softWrap = false,
     )
 }
 
@@ -85,7 +88,7 @@ internal fun SlotButton(
 ) {
     Column(
         modifier = modifier
-            .height(82.dp)
+            .heightIn(min = 82.dp)
             .clickable(onClick = onClick)
             .padding(horizontal = 2.dp, vertical = 11.dp),
         verticalArrangement = Arrangement.SpaceBetween,
@@ -105,7 +108,7 @@ internal fun CenterOutlinedButton(
 ) {
     Box(
         modifier = modifier
-            .height(48.dp)
+            .heightIn(min = 48.dp)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
