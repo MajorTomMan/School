@@ -1,0 +1,86 @@
+name: Release Notes Freshness
+
+on:
+  pull_request:
+    branches: [dev]
+    paths:
+      - "app/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - "version.properties"
+      - "gradle/**"
+      - "signing/**"
+      - ".release-notes/current.md"
+      - ".github/workflows/android.yml"
+      - ".github/workflows/release-notes-freshness.yml"
+  push:
+    branches: [dev]
+    paths:
+      - "app/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - "version.properties"
+      - "gradle/**"
+      - "signing/**"
+      - ".release-notes/current.md"
+      - ".github/workflows/android.yml"
+      - ".github/workflows/release-notes-freshness.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-release-notes-freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reject inherited release-note bullets
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import os, re, subprocess
+
+          notes_path = Path('.release-notes/current.md')
+          current = notes_path.read_text(encoding='utf-8').strip()
+          base_sha = os.environ['BASE_SHA'].strip()
+          if not base_sha or set(base_sha) == {'0'}:
+              raise SystemExit('无法确定上一版提交，拒绝跳过发布说明新鲜度检查')
+
+          changed = subprocess.check_output(['git', 'diff', '--name-only', base_sha, 'HEAD'], text=True).splitlines()
+          relevant = [path for path in changed if path.startswith(('app/', 'gradle/', 'signing/')) or path in {
+              'build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'version.properties',
+              '.github/workflows/android.yml', '.github/workflows/release-notes-freshness.yml'
+          }]
+          if relevant and '.release-notes/current.md' not in changed:
+              raise SystemExit('本次 APK/构建修改必须重新编写 .release-notes/current.md，不能沿用上一版发布说明')
+
+          def bullets(text: str) -> list[str]:
+              return [match.group(1).strip() for match in re.finditer(r'(?m)^-\s+(.+)$', text)]
+
+          current_bullets = bullets(current)
+          if '## 修改点' not in current or '## 修复点' not in current or not current_bullets:
+              raise SystemExit('发布说明必须包含“修改点”“修复点”和至少一条列表项')
+
+          try:
+              previous = subprocess.check_output(['git', 'show', f'{base_sha}:.release-notes/current.md'], text=True).strip()
+          except subprocess.CalledProcessError:
+              previous = ''
+          if previous and current == previous:
+              raise SystemExit('发布说明与上一版完全相同；每次发布必须清空后重新写本次修改')
+
+          inherited = sorted(set(current_bullets) & set(bullets(previous)))
+          if inherited:
+              details = '\n'.join(f'- {item}' for item in inherited)
+              raise SystemExit(f'发布说明仍保留上一版条目；请清空后只写本次修改：\n{details}')
+
+          print(f'发布说明新鲜度检查通过：本次 {len(current_bullets)} 条，未继承上一版条目')
+          PY

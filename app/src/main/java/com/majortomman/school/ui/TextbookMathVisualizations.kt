@@ -137,12 +137,13 @@ internal fun TextbookMathVisual(
                 CourseSceneTemplate.ROOT_NUMBER_LINE -> drawRootNumberLine()
                 CourseSceneTemplate.CARTESIAN_PLANE -> drawCartesianPlane(null)
                 CourseSceneTemplate.FUNCTION_GRAPH -> drawCartesianPlane(data.string("function", "linear"))
-                CourseSceneTemplate.GEOMETRY -> drawGeometry(data.string("shape", "triangle"))
+                CourseSceneTemplate.GEOMETRY -> drawGeometry(data.string("shape").ifBlank { data.string("title") })
                 CourseSceneTemplate.TRANSFORMATION -> drawTransformation(data.string("mode", "translation"))
                 CourseSceneTemplate.RIGHT_TRIANGLE -> drawRightTriangle(data)
                 CourseSceneTemplate.DATA_CHART -> drawDataChart(data.string("mode", "bar"))
                 CourseSceneTemplate.PROBABILITY -> drawProbabilityTree()
                 CourseSceneTemplate.PROJECTION -> drawProjection()
+                CourseSceneTemplate.DECLARATIVE_DIAGRAM -> drawDiagram(data)
                 else -> Unit
             }
         }
@@ -245,6 +246,8 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCartesianPlane(
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGeometry(shape: String) {
     when {
+        shape.contains("角") -> drawAngleGeometry()
+        shape.contains("物体") || shape.contains("几何对象") -> drawObjectAbstraction()
         shape.contains("circle", true) -> {
             val c = Offset(size.width / 2, size.height / 2)
             val r = minOf(size.width, size.height) * .32f
@@ -269,6 +272,158 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGeometry(shape:
             drawCenteredText("C", c.x + 12f, c.y + 28f, InteractiveWhite, 22f)
         }
     }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawObjectAbstraction() {
+    val leftX = size.width * .2f
+    val rightX = size.width * .78f
+    val firstY = size.height * .34f
+    val secondY = size.height * .72f
+    val boxWidth = size.width * .22f
+    val boxHeight = size.height * .22f
+
+    drawRect(
+        InteractiveBlue,
+        topLeft = Offset(leftX - boxWidth / 2, firstY - boxHeight / 2),
+        size = androidx.compose.ui.geometry.Size(boxWidth, boxHeight),
+        style = Stroke(4f),
+    )
+    drawCenteredText("纸盒", leftX, firstY + boxHeight * .8f, InteractiveMuted, 20f)
+    drawArrow(leftX + boxWidth * .7f, firstY, rightX - boxWidth * .7f, firstY, InteractiveYellow)
+    drawRect(
+        InteractiveYellow,
+        topLeft = Offset(rightX - boxWidth / 2, firstY - boxHeight / 2),
+        size = androidx.compose.ui.geometry.Size(boxWidth, boxHeight),
+        style = Stroke(4f),
+    )
+    drawCenteredText("长方体", rightX, firstY + boxHeight * .8f, InteractiveWhite, 22f)
+
+    val canWidth = size.width * .18f
+    val canHeight = size.height * .22f
+    drawRect(
+        InteractiveBlue,
+        topLeft = Offset(leftX - canWidth / 2, secondY - canHeight / 2),
+        size = androidx.compose.ui.geometry.Size(canWidth, canHeight),
+        style = Stroke(4f),
+    )
+    drawOval(
+        InteractiveBlue,
+        topLeft = Offset(leftX - canWidth / 2, secondY - canHeight / 2 - 8f),
+        size = androidx.compose.ui.geometry.Size(canWidth, 16f),
+        style = Stroke(3f),
+    )
+    drawCenteredText("圆罐", leftX, secondY + canHeight * .8f, InteractiveMuted, 20f)
+    drawArrow(leftX + boxWidth * .7f, secondY, rightX - boxWidth * .7f, secondY, InteractiveYellow)
+    drawRect(
+        InteractiveYellow,
+        topLeft = Offset(rightX - canWidth / 2, secondY - canHeight / 2),
+        size = androidx.compose.ui.geometry.Size(canWidth, canHeight),
+        style = Stroke(4f),
+    )
+    drawOval(
+        InteractiveYellow,
+        topLeft = Offset(rightX - canWidth / 2, secondY - canHeight / 2 - 8f),
+        size = androidx.compose.ui.geometry.Size(canWidth, 16f),
+        style = Stroke(3f),
+    )
+    drawCenteredText("圆柱", rightX, secondY + canHeight * .8f, InteractiveWhite, 22f)
+    drawCenteredText("忽略颜色、材料等细节，只保留形状特征", size.width / 2, size.height * .08f, InteractiveMuted, 20f)
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawAngleGeometry() {
+    val o = Offset(size.width * .38f, size.height * .68f)
+    val a = Offset(size.width * .78f, size.height * .68f)
+    val b = Offset(size.width * .63f, size.height * .2f)
+    drawLine(InteractiveBlue, o, a, 5f, StrokeCap.Round)
+    drawLine(InteractiveYellow, o, b, 5f, StrokeCap.Round)
+    drawArrowHead(a, 1f, 0f, InteractiveBlue)
+    val dx = b.x - o.x
+    val dy = b.y - o.y
+    val length = kotlin.math.sqrt(dx * dx + dy * dy).coerceAtLeast(1f)
+    drawArrowHead(b, dx / length, dy / length, InteractiveYellow)
+    drawCircle(InteractiveWhite, 8f, o)
+    drawCenteredText("O", o.x - 20f, o.y + 30f, InteractiveWhite, 22f)
+    drawCenteredText("A", a.x + 14f, a.y + 28f, InteractiveBlue, 22f)
+    drawCenteredText("B", b.x + 18f, b.y - 8f, InteractiveYellow, 22f)
+    drawCenteredText("∠AOB", size.width * .58f, size.height * .48f, InteractiveWhite, 28f)
+    drawCenteredText("公共端点 O + 两条射线", size.width / 2, size.height * .9f, InteractiveMuted, 20f)
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDiagram(data: CourseSceneData) {
+    val title = data.string("title")
+    when {
+        title.contains("端点") || title.contains("直线") || title.contains("射线") -> drawLineRaySegmentDiagram()
+        title.contains("场地") || title.contains("田径") -> drawAthleticsFieldDiagram()
+        else -> {
+            drawLine(InteractiveBlue, Offset(size.width * .16f, size.height * .5f), Offset(size.width * .84f, size.height * .5f), 4f)
+            drawCenteredText(title.ifBlank { "示意图" }, size.width / 2, size.height * .34f, InteractiveWhite, 24f)
+        }
+    }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawLineRaySegmentDiagram() {
+    val left = size.width * .18f
+    val right = size.width * .82f
+    val lineY = size.height * .22f
+    val rayY = size.height * .5f
+    val segmentY = size.height * .78f
+
+    drawLine(InteractiveBlue, Offset(left, lineY), Offset(right, lineY), 4f, StrokeCap.Round)
+    drawArrowHead(Offset(left, lineY), -1f, 0f, InteractiveBlue)
+    drawArrowHead(Offset(right, lineY), 1f, 0f, InteractiveBlue)
+    drawCenteredText("直线：没有端点，向两方无限延伸", size.width / 2, lineY - 34f, InteractiveWhite, 20f)
+
+    drawCircle(InteractiveYellow, 7f, Offset(left, rayY))
+    drawLine(InteractiveYellow, Offset(left, rayY), Offset(right, rayY), 4f, StrokeCap.Round)
+    drawArrowHead(Offset(right, rayY), 1f, 0f, InteractiveYellow)
+    drawCenteredText("射线：1个端点，向一方无限延伸", size.width / 2, rayY - 34f, InteractiveWhite, 20f)
+
+    drawCircle(InteractiveWhite, 7f, Offset(left, segmentY))
+    drawCircle(InteractiveWhite, 7f, Offset(right, segmentY))
+    drawLine(InteractiveWhite, Offset(left, segmentY), Offset(right, segmentY), 4f, StrokeCap.Round)
+    drawCenteredText("线段：2个端点，长度可以测量", size.width / 2, segmentY - 34f, InteractiveWhite, 20f)
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawAthleticsFieldDiagram() {
+    val outerLeft = size.width * .12f
+    val outerTop = size.height * .16f
+    val outerWidth = size.width * .76f
+    val outerHeight = size.height * .68f
+    drawRect(
+        InteractiveBlue,
+        topLeft = Offset(outerLeft, outerTop),
+        size = androidx.compose.ui.geometry.Size(outerWidth, outerHeight),
+        style = Stroke(4f),
+    )
+    val inset = 24f
+    drawRect(
+        InteractiveBlue.copy(alpha = .55f),
+        topLeft = Offset(outerLeft + inset, outerTop + inset),
+        size = androidx.compose.ui.geometry.Size(outerWidth - inset * 2, outerHeight - inset * 2),
+        style = Stroke(3f),
+    )
+    val startX = outerLeft + outerWidth * .22f
+    val finishX = outerLeft + outerWidth * .78f
+    drawLine(InteractiveYellow, Offset(startX, outerTop), Offset(startX, outerTop + outerHeight), 4f)
+    drawLine(InteractiveWhite, Offset(finishX, outerTop), Offset(finishX, outerTop + outerHeight), 4f)
+    drawLine(
+        InteractiveMuted,
+        Offset(outerLeft + inset, outerTop + outerHeight / 2),
+        Offset(outerLeft + outerWidth - inset, outerTop + outerHeight / 2),
+        2f,
+    )
+    drawCenteredText("起点", startX, outerTop - 18f, InteractiveYellow, 20f)
+    drawCenteredText("终点", finishX, outerTop - 18f, InteractiveWhite, 20f)
+    drawCenteredText("跑道边界保持平行，起终点位置用线段确定", size.width / 2, size.height * .94f, InteractiveMuted, 19f)
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawArrowHead(end: Offset, dx: Float, dy: Float, color: Color) {
+    val length = 16f
+    val wing = 9f
+    val px = -dy
+    val py = dx
+    drawLine(color, end, Offset(end.x - dx * length + px * wing, end.y - dy * length + py * wing), 3f, StrokeCap.Round)
+    drawLine(color, end, Offset(end.x - dx * length - px * wing, end.y - dy * length - py * wing), 3f, StrokeCap.Round)
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTransformation(mode: String) {
