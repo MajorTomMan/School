@@ -1,5 +1,6 @@
 package com.majortomman.school.learning.assessment.persistence
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -53,6 +54,8 @@ data class AssessmentAttemptEntity(
     val answerKind: String,
     val answerPrimary: String,
     val answerSecondary: String?,
+    @ColumnInfo(defaultValue = "''")
+    val workProcess: String,
     val judgeOutcome: String,
     val normalizedAnswer: String?,
     val feedbackCode: String?,

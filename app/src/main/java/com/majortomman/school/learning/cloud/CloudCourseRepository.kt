@@ -205,12 +205,13 @@ internal object CourseDocumentParser {
                 is JSONArray -> {
                     val numbers = List(raw.length()) { index ->
                         val item = raw.get(index)
-                        require(item is Number) { "$location.parameters.$key 只能是数值列表" }
+                        require(item is Number && item !is Boolean) { "$location.parameters.$key 只能是数值列表" }
                         item.toDouble()
                     }
                     VisualizationParameterValue.NumberListValue(numbers)
                 }
-                else -> error("$location.parameters.$key 只接受 number、boolean 或 number[]")
+                is String -> VisualizationParameterValue.MathExpressionValue.parse(raw)
+                else -> error("$location.parameters.$key 只接受 number、boolean、number[] 或受限数学表达式")
             }
         }
         return VisualizationParameters.of(values)

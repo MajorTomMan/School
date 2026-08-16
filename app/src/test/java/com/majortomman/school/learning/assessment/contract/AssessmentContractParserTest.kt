@@ -58,12 +58,12 @@ class AssessmentContractParserTest {
     }
 
     @Test
-    fun rejectsStringVisualizationParameter() {
+    fun rejectsMathExpressionForNumericVisualizationParameter() {
         val root = JSONObject(validAssessmentsJson())
         val visualization = root.getJSONArray("questionSets").getJSONObject(0).getJSONArray("questions").getJSONObject(0).getJSONArray("stem").getJSONObject(3)
         visualization.getJSONObject("parameters").put("min", "-5")
         val error = runCatching { AssessmentDocumentParser.decode(root) }.exceptionOrNull()
-        assertTrue(error?.message.orEmpty().contains("只接受 number、boolean 或 number[]"))
+        assertTrue(error?.message.orEmpty().contains("参数 min 类型应为 NUMBER"))
     }
 
     @Test

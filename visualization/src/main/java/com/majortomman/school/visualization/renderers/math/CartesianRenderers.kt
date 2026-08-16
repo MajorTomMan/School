@@ -31,7 +31,7 @@ import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 
-internal enum class CartesianVariant { POINT, LINEAR, QUADRATIC, INVERSE }
+internal enum class CartesianVariant { POINT, LINEAR, QUADRATIC, INVERSE, FUNCTION }
 
 internal class CartesianRenderer(
     override val key: VisualizationKey,
@@ -54,6 +54,7 @@ internal class CartesianRenderer(
                 VisualizationParameterSpec("c", VisualizationParameterType.NUMBER),
             )
             CartesianVariant.INVERSE -> listOf(VisualizationParameterSpec("k", VisualizationParameterType.NUMBER))
+            CartesianVariant.FUNCTION -> listOf(VisualizationParameterSpec("expression", VisualizationParameterType.MATH_EXPRESSION))
         } + listOf(
             VisualizationParameterSpec("xMin", VisualizationParameterType.NUMBER, false),
             VisualizationParameterSpec("xMax", VisualizationParameterType.NUMBER, false),
@@ -111,15 +112,17 @@ internal class CartesianRenderer(
                         val y = parameters.number("y").toFloat()
                         drawCircle(context.palette.secondary, 7f, Offset(xFor(x), yFor(y)))
                     } else {
+                        val expression = parameters.mathExpression("expression")
                         val path = Path()
                         var started = false
-                        val sampleCount = 240
+                        val sampleCount = 320
                         for (index in 0..sampleCount) {
                             val x = xMin + (xMax - xMin) * index / sampleCount.toFloat()
                             val y = when (variant) {
                                 CartesianVariant.LINEAR -> (parameters.number("slope") * x + parameters.number("intercept")).toFloat()
                                 CartesianVariant.QUADRATIC -> (parameters.number("a") * x * x + parameters.number("b") * x + parameters.number("c")).toFloat()
                                 CartesianVariant.INVERSE -> if (abs(x) < 0.001f) Float.NaN else (parameters.number("k") / x).toFloat()
+                                CartesianVariant.FUNCTION -> expression?.evaluate(mapOf("x" to x.toDouble()))?.toFloat() ?: Float.NaN
                                 CartesianVariant.POINT -> Float.NaN
                             }
                             if (!y.isFinite() || y !in yMin..yMax) {

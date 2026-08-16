@@ -113,9 +113,9 @@ class CloudCourseCodecTest {
     }
 
     @Test
-    fun visualizationParametersRejectStringsAndObjects() {
+    fun visualizationNumericFieldsRejectMathExpressionsAndObjects() {
         val stringParameter = SAMPLE_COURSE.replace("\"value\":-3", "\"value\":\"-3\"")
-        assertThrows(IllegalStateException::class.java) { CourseDocumentParser.decode(stringParameter) }
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(stringParameter) }
 
         val objectParameter = SAMPLE_COURSE.replace("\"value\":-3", "\"value\":{\"nested\":-3}")
         assertThrows(IllegalStateException::class.java) { CourseDocumentParser.decode(objectParameter) }

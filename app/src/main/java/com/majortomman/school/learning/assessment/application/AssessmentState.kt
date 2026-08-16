@@ -1,5 +1,6 @@
 package com.majortomman.school.learning.assessment.application
 
+import com.majortomman.school.learning.assessment.domain.AttemptRecord
 import com.majortomman.school.learning.assessment.domain.JudgeResult
 import com.majortomman.school.learning.assessment.domain.QuestionCompletionStatus
 import com.majortomman.school.learning.assessment.domain.QuestionDefinition
@@ -29,11 +30,16 @@ data class AssessmentQuestionPageState(
     val questionIndex: Int,
     val questionCount: Int,
     val question: QuestionDefinition,
+    val draftWorkProcess: String,
     val draftAnswer: UserAnswer?,
     val progress: AssessmentQuestionProgressState,
     val allProgress: List<AssessmentQuestionProgressState>,
     val busy: Boolean = false,
 ) {
+    init {
+        require(draftWorkProcess.length <= AttemptRecord.MAX_WORK_PROCESS_LENGTH) { "做题过程过长" }
+    }
+
     val canGoPrevious: Boolean
         get() = !busy && questionIndex > 0
 
@@ -71,6 +77,7 @@ sealed interface AssessmentState {
 
 sealed interface AssessmentIntent {
     data object Initialize : AssessmentIntent
+    data class WorkProcessChanged(val process: String) : AssessmentIntent
     data class AnswerChanged(val answer: UserAnswer?) : AssessmentIntent
     data object SubmitAnswer : AssessmentIntent
     data object SkipQuestion : AssessmentIntent

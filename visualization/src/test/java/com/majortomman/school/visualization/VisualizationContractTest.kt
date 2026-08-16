@@ -155,8 +155,19 @@ class VisualizationContractTest {
     }
 
     @Test
-    fun parameterContractContainsNoGenericObjectOrStringParameterType() {
-        assertEquals(setOf(VisualizationParameterType.NUMBER, VisualizationParameterType.BOOLEAN, VisualizationParameterType.NUMBER_LIST), VisualizationParameterType.entries.toSet())
+    fun parameterContractContainsOnlyExplicitSafeTypes() {
+        assertEquals(
+            setOf(
+                VisualizationParameterType.NUMBER,
+                VisualizationParameterType.BOOLEAN,
+                VisualizationParameterType.NUMBER_LIST,
+                VisualizationParameterType.MATH_EXPRESSION,
+            ),
+            VisualizationParameterType.entries.toSet(),
+        )
+        val expression = VisualizationParameterValue.MathExpressionValue.parse("x^2+1")
+        assertEquals(setOf("x"), expression.variables)
+        assertThrows(IllegalArgumentException::class.java) { VisualizationParameterValue.MathExpressionValue.parse("foo(x)") }
     }
 
     @Test
