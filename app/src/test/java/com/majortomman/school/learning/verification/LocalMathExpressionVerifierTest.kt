@@ -33,7 +33,7 @@ class LocalMathExpressionVerifierTest {
         assertEquals(LocalMathExpressionKind.FUNCTION, result.kind)
         assertEquals("2*x+1", result.normalizedExpression)
         assertEquals("y = 2*x+1", result.displayAnswer)
-        val graph = assertNotNull(result.graph)
+        val graph = requireNotNull(result.graph)
         assertEquals("mathematics.function.graph", graph.renderer.value)
         assertTrue(graph.parameters.number("xMax") > graph.parameters.number("xMin"))
         assertTrue(graph.parameters.number("yMax") > graph.parameters.number("yMin"))
