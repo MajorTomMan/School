@@ -15,20 +15,27 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.majortomman.school.data.AiSettings
+import com.majortomman.school.data.PreferencesRepository
 import com.majortomman.school.learning.verification.VerificationHubCatalog
 import com.majortomman.school.learning.verification.VerificationSubject
 
 @Composable
-internal fun VerificationHubScreen(aiSettings: AiSettings) {
+internal fun VerificationHubScreen() {
+    val context = LocalContext.current
+    val settingsFlow = remember(context) { PreferencesRepository(context.applicationContext).aiSettings }
+    val aiSettings by settingsFlow.collectAsState(initial = AiSettings())
     var specializedVisible by rememberSaveable { mutableStateOf(false) }
     var selectedName by rememberSaveable { mutableStateOf(VerificationSubject.MATHEMATICS.name) }
     val selected = VerificationSubject.valueOf(selectedName)
@@ -50,9 +57,7 @@ internal fun VerificationHubScreen(aiSettings: AiSettings) {
             lineHeight = 23.sp,
         )
         Spacer(Modifier.height(24.dp))
-
         GenericVerificationWorkspace(aiSettings)
-
         Spacer(Modifier.height(34.dp))
         Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
         Spacer(Modifier.height(18.dp))
