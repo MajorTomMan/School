@@ -55,7 +55,7 @@ data class LearningLevel(
     val parentId: String?,
     val title: String,
     val orderIndex: Int,
-    val legacyGrade: Int? = null,
+    val grade: Int? = null,
 )
 
 data class Curriculum(
@@ -96,7 +96,7 @@ data class CurriculumNode(
     val type: CurriculumNodeType,
     val title: String,
     val orderIndex: Int,
-    val legacyLessonId: String? = null,
+    val lessonId: String? = null,
     val metadata: Map<String, String> = emptyMap(),
 )
 
@@ -167,7 +167,7 @@ data class LearningResource(
     val uri: String?,
     val publisher: String?,
     val edition: String?,
-    val legacyTextbookKey: String?,
+    val textbookKey: String?,
     val metadata: Map<String, String> = emptyMap(),
 )
 
@@ -294,11 +294,10 @@ data class CurriculumSnapshot(
         .sortedBy(ResourceBinding::orderIndex)
         .mapNotNull { binding -> resourceById[binding.resourceId]?.let { it to binding } }
 
-    fun nodeForLegacyLesson(legacyLessonId: String): CurriculumNode? =
-        nodes.firstOrNull { it.legacyLessonId == legacyLessonId }
+    fun nodeForLesson(lessonId: String): CurriculumNode? = nodes.firstOrNull { it.lessonId == lessonId }
 
-    fun curriculumIdForLegacyTextbook(legacyTextbookKey: String): String? = resources
-        .firstOrNull { it.legacyTextbookKey == legacyTextbookKey }
+    fun curriculumIdForTextbook(textbookKey: String): String? = resources
+        .firstOrNull { it.textbookKey == textbookKey }
         ?.let { resource -> resourceBindings.firstOrNull { it.resourceId == resource.id }?.nodeId }
         ?.let(nodeById::get)
         ?.curriculumId
