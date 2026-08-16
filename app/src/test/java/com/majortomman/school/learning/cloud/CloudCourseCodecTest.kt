@@ -50,6 +50,39 @@ class CloudCourseCodecTest {
     }
 
     @Test
+    fun teachingStepsRejectUnknownFieldsAtRuntime() {
+        val invalid = SAMPLE_COURSE.replace("\"hint\":\"想想方向\"", "\"hint\":\"想想方向\",\"remoteUrl\":\"https://example.invalid\"")
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(invalid) }
+    }
+
+    @Test
+    fun formulaRequiresPureLatexWithoutDelimitersOrUnicodeMath() {
+        val delimited = SAMPLE_COURSE.replace(QUESTION_STEP, "{\"type\":\"formula\",\"expression\":\"${'$'}x+1${'$'}\",\"note\":null}")
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(delimited) }
+
+        val unicode = SAMPLE_COURSE.replace(QUESTION_STEP, "{\"type\":\"formula\",\"expression\":\"x²\",\"note\":null}")
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(unicode) }
+    }
+
+    @Test
+    fun workedExampleRequiresAtLeastOneStep() {
+        val invalid = SAMPLE_COURSE.replace(QUESTION_STEP, "{\"type\":\"example\",\"title\":\"例1\",\"prompt\":\"计算\",\"steps\":[],\"answer\":\"1\"}")
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(invalid) }
+    }
+
+    @Test
+    fun practiceRequiresNonEmptyAnalysis() {
+        val invalid = SAMPLE_COURSE.replace("\"analysis\":[\"方向相反使用负号\"]", "\"analysis\":[]")
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(invalid) }
+    }
+
+    @Test
+    fun lessonPrerequisiteCycleIsRejected() {
+        val cyclic = SAMPLE_COURSE.replace("\"prerequisiteLessonIds\":[]", "\"prerequisiteLessonIds\":[\"positive-negative-intro\"]")
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(cyclic) }
+    }
+
+    @Test
     fun visualizationRejectsUnknownRenderer() {
         val invalid = SAMPLE_COURSE.replace("mathematics.number-line.basic", "mathematics.number-line.missing")
         assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(invalid) }
@@ -95,6 +128,7 @@ class CloudCourseCodecTest {
     }
 
     private companion object {
+        const val QUESTION_STEP = "{\"type\":\"question\",\"prompt\":\"低于0℃怎么表示？\",\"hint\":\"想想方向\"}"
         val SAMPLE_COURSE = """
             {
               "textbook":{"id":"pep-math-7-1","title":"数学七年级上册","publisher":"人民教育出版社","edition":"2024","grade":"七年级","semester":"上册","subject":"数学","pdf":{"path":"assets/textbook.pdf","pageCount":202,"pageIndexOffset":7}},
@@ -102,7 +136,7 @@ class CloudCourseCodecTest {
               "chapters":[{"id":"chapter-01","title":"有理数","sections":[{"id":"section-01","title":"正数和负数","lessons":[{
                 "id":"positive-negative-intro","title":"为什么需要负数","aliases":["正数和负数"],"goals":["理解相反意义的量"],"knowledgePointIds":["positive-negative"],"prerequisiteLessonIds":[],
                 "references":[{"label":"教材1—2页","pageStart":1,"pageEnd":2}],
-                "steps":[{"type":"question","prompt":"低于0℃怎么表示？","hint":"想想方向"},{"type":"visualization","renderer":"mathematics.number-line.basic","parameters":{"value":-3,"min":-8,"max":8,"step":1},"texts":{"title":"在数轴上观察位置","note":"0 是正负方向的共同基准"}}],
+                "steps":[$QUESTION_STEP,{"type":"visualization","renderer":"mathematics.number-line.basic","parameters":{"value":-3,"min":-8,"max":8,"step":1},"texts":{"title":"在数轴上观察位置","note":"0 是正负方向的共同基准"}}],
                 "practice":[{"id":"practice-01","prompt":"向西8米怎么表示？","answer":"-8米","analysis":["方向相反使用负号"],"knowledgePointIds":["positive-negative"],"difficulty":1}],
                 "summary":["正负号用于区分相反方向"]
               }]}]}]
