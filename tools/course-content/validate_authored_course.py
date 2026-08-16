@@ -8,7 +8,9 @@ from pathlib import Path
 from typing import Any
 
 ID = re.compile(r"^[A-Za-z0-9._:-]+$")
-STEP_TYPES = {"explanation", "question", "keyIdea", "formula", "example", "scene", "checkpoint", "sourceLink", "summary"}
+STEP_TYPES = {"explanation", "question", "keyIdea", "formula", "example", "scene", "checkpoint", "summary"}
+CJK = re.compile(r"[\u3400-\u9fff]")
+NON_LATEX_MATH = set("²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉−×÷≤≥≠Σαβγθπ°′″")
 SCENES = {
     "opposite_quantities", "rational_classification", "integer_to_fraction", "number_line", "opposite_numbers",
     "absolute_value", "number_comparison", "addition_process", "subtraction_transform", "multiplication_sign",
@@ -147,9 +149,14 @@ def validate(path: Path) -> dict[str, int]:
                     require(isinstance(step, dict), f"{stw}: object required")
                     step_type = text(step, "type", stw)
                     require(step_type in STEP_TYPES, f"{stw}: unsupported type {step_type}")
-                    if step_type == "sourceLink":
-                        ref_index = step.get("referenceIndex")
-                        require(isinstance(ref_index, int) and 0 <= ref_index < len(references), f"{stw}: referenceIndex out of range")
+                    if step_type == "formula":
+                        exact(step, {"type", "expression", "note"}, stw)
+                        expression = text(step, "expression", stw)
+                        require("$" not in expression and "\\(" not in expression and "\\)" not in expression and "\\[" not in expression and "\\]" not in expression, f"{stw}.expression: store pure LaTeX math without delimiters")
+                        require(CJK.search(expression) is None, f"{stw}.expression: Chinese prose belongs outside formulas")
+                        require(not any(char in NON_LATEX_MATH for char in expression), f"{stw}.expression: use LaTeX commands instead of Unicode math glyphs")
+                        note = step.get("note")
+                        require(note is None or (isinstance(note, str) and note.strip()), f"{stw}.note: null or non-empty string required")
                     if step_type == "scene":
                         require(text(step, "template", stw) in SCENES, f"{stw}: unsupported scene")
                         require(isinstance(step.get("data"), dict), f"{stw}.data must be object")

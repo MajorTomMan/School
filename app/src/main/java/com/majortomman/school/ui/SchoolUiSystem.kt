@@ -156,13 +156,16 @@ internal fun SchoolCompactTopBar(
     title: String,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+    actionEnabled: Boolean = true,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = SchoolUiMetrics.minTouchHeight)
             .padding(horizontal = 22.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(18.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -171,6 +174,7 @@ internal fun SchoolCompactTopBar(
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.52f),
             style = MaterialTheme.typography.bodyMedium,
             maxLines = 1,
+            softWrap = false,
         )
         Text(
             text = title,
@@ -181,7 +185,18 @@ internal fun SchoolCompactTopBar(
             maxLines = 1,
             softWrap = false,
             overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.End,
+            textAlign = if (actionLabel == null) TextAlign.End else TextAlign.Center,
         )
+        if (actionLabel != null && onAction != null) {
+            Text(
+                text = actionLabel,
+                modifier = Modifier.clickable(enabled = actionEnabled, onClick = onAction).padding(vertical = 8.dp),
+                color = if (actionEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.28f),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                softWrap = false,
+            )
+        }
     }
 }

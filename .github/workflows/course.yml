@@ -56,7 +56,7 @@ jobs:
             gzip --test "$archive"
             gzip -dc "$archive" > "$target"
             if [ "$relative" = "pep-math-7-1" ]; then
-              printf '%s  %s\n' '62015378a5ab5308110edd098d440de2b1e58d7193df86a535b8f28c0e09cc46' "$target" | sha256sum --check --strict
+              printf '%s  %s\n' 'e0250eb6d638d322f589fc1f3d13224bf226af19f65a25e189e98e518f68100f' "$target" | sha256sum --check --strict
             fi
             files+=("$target")
           done < <(find courses -type f -name 'course.json.gz.b64.part01' | sort)

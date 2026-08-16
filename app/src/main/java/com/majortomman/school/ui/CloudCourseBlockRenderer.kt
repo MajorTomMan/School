@@ -38,15 +38,10 @@ import com.majortomman.school.learning.course.CourseStep
 import com.majortomman.school.learning.course.CourseSummaryStep
 
 @Composable
-internal fun AuthoredTeachingPageContent(
-    steps: List<CourseStep>,
-    lesson: CourseLesson,
-    textbookAvailable: Boolean,
-    onOpenTextbook: (Int) -> Unit,
-) {
+internal fun AuthoredTeachingPageContent(steps: List<CourseStep>, lesson: CourseLesson) {
     steps.forEachIndexed { index, step ->
         if (index > 0) Spacer(Modifier.height(SchoolUiMetrics.sectionGap))
-        AuthoredStep(step, lesson, textbookAvailable, onOpenTextbook)
+        AuthoredStep(step, lesson)
     }
 }
 
@@ -86,7 +81,7 @@ internal fun AuthoredPracticePage(practice: CoursePractice, number: Int, total: 
 }
 
 @Composable
-private fun AuthoredStep(step: CourseStep, lesson: CourseLesson, textbookAvailable: Boolean, onOpenTextbook: (Int) -> Unit) {
+private fun AuthoredStep(step: CourseStep, lesson: CourseLesson) {
     when (step) {
         is CourseExplanation -> {
             step.title?.let {
@@ -111,13 +106,11 @@ private fun AuthoredStep(step: CourseStep, lesson: CourseLesson, textbookAvailab
         }
         is CourseFormula -> {
             Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveYellow.copy(alpha = 0.3f)))
-            Text(
-                text = step.expression,
+            SchoolFormula(
+                latex = step.expression,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp),
                 color = InteractiveYellow,
                 style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.Center,
             )
             step.note?.let {
                 Text(it, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp), color = InteractiveMuted, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
@@ -145,16 +138,7 @@ private fun AuthoredStep(step: CourseStep, lesson: CourseLesson, textbookAvailab
             Text("参考：${step.expectedAnswer}", color = InteractiveGreen, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 12.dp))
             Text(step.explanation, color = InteractiveMuted, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
         }
-        is CourseSourceLink -> {
-            val reference = lesson.references[step.referenceIndex]
-            Text(
-                text = "↗ ${reference.label} · 查看教材第 ${reference.pageStart}${if (reference.pageEnd > reference.pageStart) "—${reference.pageEnd}" else ""} 页",
-                modifier = Modifier.fillMaxWidth().clickable(enabled = textbookAvailable) { onOpenTextbook(reference.pageStart) }.padding(vertical = 10.dp),
-                color = if (textbookAvailable) InteractiveYellow else InteractiveMuted,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-            )
-        }
+        is CourseSourceLink -> Unit
         is CourseSummaryStep -> Text(step.text, color = InteractiveWhite.copy(alpha = 0.84f), style = MaterialTheme.typography.bodyLarge)
     }
 }

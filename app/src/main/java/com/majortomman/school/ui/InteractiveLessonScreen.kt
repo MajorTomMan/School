@@ -75,9 +75,16 @@ fun InteractiveLessonScreen(
     val pages = remember(authoredLesson, revision) { composeLessonPresentation(authoredLesson) }
     var pageIndex by rememberSaveable(authoredLesson.id, revision) { mutableIntStateOf(0) }
     if (pageIndex !in pages.indices) pageIndex = 0
+    val textbookReference = authoredLesson.references.firstOrNull()
 
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
-        SchoolCompactTopBar(title = authoredLesson.title, onBack = onBack)
+        SchoolCompactTopBar(
+            title = authoredLesson.title,
+            onBack = onBack,
+            actionLabel = if (textbookReference != null) "PDF" else null,
+            onAction = { textbookReference?.let { onOpenTextbook(it.pageStart) } },
+            actionEnabled = textbookReference != null && installedMaterial.pdfFile.isFile,
+        )
         SchoolDivider(color = InteractiveLine)
 
         AnimatedContent(
@@ -102,12 +109,7 @@ fun InteractiveLessonScreen(
                     .verticalScroll(scrollState)
                     .padding(horizontal = SchoolUiMetrics.pageHorizontal, vertical = 24.dp),
             ) {
-                LessonPresentationPageContent(
-                    page = page,
-                    lesson = authoredLesson,
-                    textbookAvailable = installedMaterial.pdfFile.isFile,
-                    onOpenTextbook = onOpenTextbook,
-                )
+                LessonPresentationPageContent(page = page, lesson = authoredLesson)
                 Spacer(Modifier.height(SchoolUiMetrics.pageBottom))
             }
         }
@@ -129,8 +131,6 @@ fun InteractiveLessonScreen(
 private fun LessonPresentationPageContent(
     page: LessonPresentationPage,
     lesson: com.majortomman.school.learning.course.CourseLesson,
-    textbookAvailable: Boolean,
-    onOpenTextbook: (Int) -> Unit,
 ) {
     when (page) {
         is LessonPresentationPage.Overview -> {
@@ -150,9 +150,7 @@ private fun LessonPresentationPageContent(
                 }
             }
         }
-        is LessonPresentationPage.Teaching -> {
-            AuthoredTeachingPageContent(page.steps, lesson, textbookAvailable, onOpenTextbook)
-        }
+        is LessonPresentationPage.Teaching -> AuthoredTeachingPageContent(page.steps, lesson)
         is LessonPresentationPage.Summary -> {
             SchoolSectionLabel("这一课记住", color = InteractiveYellow)
             Spacer(Modifier.height(14.dp))
