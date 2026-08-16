@@ -1,6 +1,6 @@
 package com.majortomman.school.learning.content
 
-import com.majortomman.school.learning.course.CourseScene
+import com.majortomman.school.visualization.VisualizationInvocation
 
 @JvmInline
 value class ContentAssetId(val value: String) {
@@ -24,7 +24,8 @@ enum class LearningTextStyle {
 
 /**
  * Shared immutable content used by assessment stems, choices and explanations.
- * Rendering remains APK-owned; course packages only select these declarative nodes.
+ * Rendering remains APK-owned; course packages only select declarative content or invoke
+ * APK-owned visualization infrastructure with renderer + typed parameters + display texts.
  */
 sealed interface LearningContent {
     data class Heading(
@@ -90,8 +91,8 @@ sealed interface LearningContent {
         }
     }
 
-    data class Scene(
-        val scene: CourseScene,
+    data class Visualization(
+        val visualization: VisualizationInvocation,
     ) : LearningContent
 }
 
@@ -101,7 +102,7 @@ fun LearningContent.referencedAssetIds(): Set<ContentAssetId> = when (this) {
     is LearningContent.Formula,
     is LearningContent.Heading,
     is LearningContent.ItemList,
-    is LearningContent.Scene,
     is LearningContent.Text,
+    is LearningContent.Visualization,
     -> emptySet()
 }
