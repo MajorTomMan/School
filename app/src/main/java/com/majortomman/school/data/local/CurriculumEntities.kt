@@ -46,7 +46,7 @@ data class LearningLevelSystemEntity(
 
 @Entity(
     tableName = "learning_levels",
-    indices = [Index(value = ["systemId"]), Index(value = ["parentId"]), Index(value = ["legacyGrade"])],
+    indices = [Index(value = ["systemId"]), Index(value = ["parentId"]), Index(value = ["grade"])],
 )
 data class LearningLevelEntity(
     @androidx.room.PrimaryKey val id: String,
@@ -54,7 +54,7 @@ data class LearningLevelEntity(
     val parentId: String?,
     val title: String,
     val orderIndex: Int,
-    val legacyGrade: Int?,
+    val grade: Int?,
 )
 
 @Entity(
@@ -78,7 +78,7 @@ data class CurriculumEntity(
     indices = [
         Index(value = ["curriculumId"]),
         Index(value = ["parentId"]),
-        Index(value = ["legacyLessonId"]),
+        Index(value = ["lessonId"]),
         Index(value = ["curriculumId", "parentId", "orderIndex"]),
     ],
 )
@@ -89,7 +89,7 @@ data class CurriculumNodeEntity(
     val type: String,
     val title: String,
     val orderIndex: Int,
-    val legacyLessonId: String?,
+    val lessonId: String?,
     val metadataJson: String,
 )
 
@@ -134,7 +134,7 @@ data class NodeKnowledgeRefEntity(
 
 @Entity(
     tableName = "learning_resources",
-    indices = [Index(value = ["subjectId"]), Index(value = ["type"]), Index(value = ["legacyTextbookKey"]), Index(value = ["origin"])],
+    indices = [Index(value = ["subjectId"]), Index(value = ["type"]), Index(value = ["textbookKey"]), Index(value = ["origin"])],
 )
 data class LearningResourceEntity(
     @androidx.room.PrimaryKey val id: String,
@@ -144,7 +144,7 @@ data class LearningResourceEntity(
     val uri: String?,
     val publisher: String?,
     val edition: String?,
-    val legacyTextbookKey: String?,
+    val textbookKey: String?,
     val metadataJson: String,
     val origin: String,
 )
@@ -215,8 +215,8 @@ internal fun SubjectEntity.toDomain(): SubjectDefinition = SubjectDefinition(
 internal fun LearningLevelSystem.toEntity() = LearningLevelSystemEntity(id, title, description)
 internal fun LearningLevelSystemEntity.toDomain() = LearningLevelSystem(id, title, description)
 
-internal fun LearningLevel.toEntity() = LearningLevelEntity(id, systemId, parentId, title, orderIndex, legacyGrade)
-internal fun LearningLevelEntity.toDomain() = LearningLevel(id, systemId, parentId, title, orderIndex, legacyGrade)
+internal fun LearningLevel.toEntity() = LearningLevelEntity(id, systemId, parentId, title, orderIndex, grade)
+internal fun LearningLevelEntity.toDomain() = LearningLevel(id, systemId, parentId, title, orderIndex, grade)
 
 internal fun Curriculum.toEntity() = CurriculumEntity(
     id, subjectId, title, levelSystemId, standard, region, version, source.name, orderIndex,
@@ -228,12 +228,12 @@ internal fun CurriculumEntity.toDomain() = Curriculum(
 )
 
 internal fun CurriculumNode.toEntity() = CurriculumNodeEntity(
-    id, curriculumId, parentId, type.name, title, orderIndex, legacyLessonId, metadata.toJsonString(),
+    id, curriculumId, parentId, type.name, title, orderIndex, lessonId, metadata.toJsonString(),
 )
 
 internal fun CurriculumNodeEntity.toDomain() = CurriculumNode(
     id, curriculumId, parentId, enumValueOrDefault(type, CurriculumNodeType.TOPIC), title,
-    orderIndex, legacyLessonId, metadataJson.toStringMap(),
+    orderIndex, lessonId, metadataJson.toStringMap(),
 )
 
 internal fun KnowledgePoint.toEntity() = KnowledgePointEntity(
@@ -259,12 +259,12 @@ internal fun NodeKnowledgeRefEntity.toDomain() = NodeKnowledgeRef(
 )
 
 internal fun LearningResource.toEntity(origin: String) = LearningResourceEntity(
-    id, subjectId, type.name, title, uri, publisher, edition, legacyTextbookKey, metadata.toJsonString(), origin,
+    id, subjectId, type.name, title, uri, publisher, edition, textbookKey, metadata.toJsonString(), origin,
 )
 
 internal fun LearningResourceEntity.toDomain() = LearningResource(
     id, subjectId, enumValueOrDefault(type, ResourceType.DOCUMENT), title, uri, publisher, edition,
-    legacyTextbookKey, metadataJson.toStringMap(),
+    textbookKey, metadataJson.toStringMap(),
 )
 
 internal fun ResourceBinding.toEntity() = ResourceBindingEntity(
