@@ -53,6 +53,7 @@ data class AssessmentAttemptEntity(
     val answerKind: String,
     val answerPrimary: String,
     val answerSecondary: String?,
+    val workProcess: String,
     val judgeOutcome: String,
     val normalizedAnswer: String?,
     val feedbackCode: String?,
