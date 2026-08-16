@@ -70,6 +70,7 @@ internal class VisualizationRegistry(renderers: List<VisualizationRenderer>) {
     }
 
     fun keys(): Set<VisualizationKey> = byKey.keys
+    fun schemas(): Map<VisualizationKey, VisualizationSchema> = byKey.mapValues { it.value.schema }
 
     fun validate(invocation: VisualizationInvocation): List<String> {
         val renderer = byKey[invocation.renderer] ?: return listOf("未注册的可视化 renderer：${invocation.renderer.value}")
@@ -96,6 +97,7 @@ object SchoolVisualizationCatalog {
     private val registry = VisualizationRegistry(MathVisualizationRenderers.all)
 
     fun registeredKeys(): Set<VisualizationKey> = registry.keys()
+    internal fun contractSchemas(): Map<VisualizationKey, VisualizationSchema> = registry.schemas()
 
     fun validate(invocation: VisualizationInvocation): List<String> = registry.validate(invocation)
 
