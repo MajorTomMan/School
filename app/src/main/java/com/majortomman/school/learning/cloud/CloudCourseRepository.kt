@@ -284,7 +284,7 @@ private val NON_LATEX_MATH = "²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈�
 private fun JSONObject.text(key: String): String = getString(key).trim().also { require(it.isNotEmpty()) { "$key 不能为空" } }
 private fun JSONObject.optionalText(key: String): String? {
     if (!has(key) || isNull(key)) return null
-    return getString(key).trim().takeIf(String::isNotEmpty)
+    return getString(key).trim().also { require(it.isNotEmpty()) { "$key 不能是空字符串" } }
 }
 private fun JSONObject.identifier(key: String): String = text(key).also { require(IDENTIFIER.matches(it)) { "$key 不是合法 ID：$it" } }
 private fun JSONObject.positiveInt(key: String): Int = getInt(key).also { require(it > 0) { "$key 必须是正整数" } }
