@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import importlib.util
 import re
+import runpy
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -12,12 +12,8 @@ KEY_PATTERN = re.compile(r'VisualizationKey\("([a-z0-9][a-z0-9._-]*)"\)')
 
 
 def load_python_keys() -> set[str]:
-    spec = importlib.util.spec_from_file_location("course_visualization_contract", PYTHON_CONTRACT)
-    if spec is None or spec.loader is None:
-        raise SystemExit(f"cannot import {PYTHON_CONTRACT}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return set(module.RENDERER_SCHEMAS)
+    namespace = runpy.run_path(str(PYTHON_CONTRACT))
+    return set(namespace["RENDERER_SCHEMAS"])
 
 
 def load_kotlin_keys() -> set[str]:
