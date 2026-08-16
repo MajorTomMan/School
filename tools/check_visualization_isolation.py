@@ -40,6 +40,7 @@ FORBIDDEN_TOKENS = (
     "DataStore",
     "RoomDatabase",
     "SQLiteDatabase",
+    "nativeCanvas",
 )
 
 IMPORT_PATTERN = re.compile(r"(?m)^\s*import\s+([^\s]+)")
@@ -61,7 +62,7 @@ def main() -> int:
                 violations.append(f"{relative}: forbidden import {imported}")
         for token in FORBIDDEN_TOKENS:
             if token in text:
-                violations.append(f"{relative}: forbidden external-data token {token!r}")
+                violations.append(f"{relative}: forbidden visualization token {token!r}")
 
     if violations:
         raise SystemExit("visualization isolation check failed:\n" + "\n".join(f"- {item}" for item in violations))
