@@ -1,6 +1,6 @@
 # Course content tools
 
-课程内容工具只负责**当前 authored course contract** 的校验、打包和发布，不再承担 OCR 页面生成、旧 scene 适配或可视化实现转换。
+课程内容工具只负责**当前 authored course contract** 的校验、打包和发布，不再承担 OCR 页面生成、旧 scene 适配、旧 assessment 手工拼装或可视化实现转换。
 
 ## 当前权威流程
 
@@ -78,6 +78,7 @@ parts              8
 - `normalize_course_contract.py`
 - `pdf_asset_workflow.py`
 - `postprocess_math_courses.py`
+- `prepare_assessment_packages.py`
 - 任何临时 `scene` → `visualization` 兼容/迁移器
 
 如果课程需要新增一种可视化能力，应先在 `:visualization` 中新增并注册 renderer、补齐 Kotlin/Python schema 和测试，再由课程包直接引用新 key；不要在课程工具里恢复旧格式转换层。
