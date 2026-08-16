@@ -41,10 +41,7 @@ object MathVerificationEngine : SubjectEngine {
         if (source.isBlank()) return invalid(source, "请输入数学表达式或方程。")
         val basic = normalizeBasicSymbols(source)
         if (containsHigherMath(basic)) {
-            return unsupported(
-                basic,
-                "当前本地数学引擎限定为初高中数学，不支持极限、导数、微分、积分等高等数学内容。",
-            )
+            return unsupported(basic, "当前本地数学引擎限定为初高中数学，不支持极限、导数、微分、积分等高等数学内容。")
         }
         return try {
             when {
@@ -66,9 +63,7 @@ object MathVerificationEngine : SubjectEngine {
 
     private fun verifyExpression(expressionText: String): VerificationResult {
         if (hasGeneralFunctionCall(expressionText)) return verifySafeExpression(expressionText)
-        val expression = runCatching { ScienceExpressionParser.parse(expressionText) }.getOrElse {
-            return verifySafeExpression(expressionText)
-        }
+        val expression = runCatching { ScienceExpressionParser.parse(expressionText) }.getOrElse { return verifySafeExpression(expressionText) }
         val variables = variablesOf(expression)
         if (variables.isEmpty()) return verifyConstantExpression(expressionText, expression)
         if (variables.size > 1) throw UnsupportedMathOperation("当前符号化简先支持单变量表达式；检测到变量：${variables.sorted().joinToString()}。")
@@ -126,7 +121,7 @@ object MathVerificationEngine : SubjectEngine {
             VerificationStep(
                 rule = VerificationRuleKey("PARSE_EXPRESSION"),
                 title = "识别表达式",
-                before = VerificationArtifact.MathExpression(expressionText),
+                before = original,
                 after = original,
                 explanation = "将输入解析成安全的数学表达式结构，不执行任何脚本或外部代码。",
             ),
@@ -148,12 +143,7 @@ object MathVerificationEngine : SubjectEngine {
                 explanation = "表达式已经处于当前内核可保留的精确形式。",
             )
         }
-        return success(
-            type = TYPE_NUMERIC_EXPRESSION,
-            normalizedInput = expressionText,
-            answer = answer,
-            steps = steps,
-        )
+        return success(TYPE_NUMERIC_EXPRESSION, expressionText, answer, steps)
     }
 
     private fun verifyPolynomialExpression(expressionText: String, variable: String, polynomial: Polynomial): VerificationResult {
@@ -178,12 +168,10 @@ object MathVerificationEngine : SubjectEngine {
                 explanation = "应用分配律展开乘积，再把相同次数的同类项合并。",
             )
         }
-        val visualizations = if (variable == "x") listOf(buildFunctionGraphRequest(expanded)) else emptyList()
-        val warnings = if (variable != "x") {
-            listOf(VerificationWarning("GRAPH_VARIABLE_NOT_X", "当前函数图像坐标系只使用自变量 x，因此本次只显示代数化简结果。"))
-        } else {
-            emptyList()
-        }
+
+        val graphExpression = toExecutableExpression(expanded)
+        val visualizations = if (variable == "x") listOf(buildFunctionGraphRequest(graphExpression)) else emptyList()
+        val warnings = if (variable != "x") listOf(VerificationWarning("GRAPH_VARIABLE_NOT_X", "当前函数图像坐标系只使用自变量 x，因此本次只显示代数化简结果。")) else emptyList()
         return success(
             type = TYPE_POLYNOMIAL_EXPRESSION,
             normalizedInput = expressionText,
@@ -195,7 +183,8 @@ object MathVerificationEngine : SubjectEngine {
     }
 
     private fun verifyFunction(expressionText: String, declared: Boolean): VerificationResult {
-        val parsed = VisualizationParameterValue.MathExpressionValue.parse(expressionText)
+        val executable = toExecutableExpression(expressionText)
+        val parsed = VisualizationParameterValue.MathExpressionValue.parse(executable)
         if (parsed.variables.any { it != "x" }) {
             throw UnsupportedMathOperation("函数图像目前只支持自变量 x；检测到变量：${parsed.variables.sorted().joinToString()}。")
         }
@@ -215,7 +204,7 @@ object MathVerificationEngine : SubjectEngine {
                 title = "准备函数图像",
                 before = function,
                 after = function,
-                explanation = "把经过安全解析的函数表达式作为语义参数交给统一可视化基础设施绘图。",
+                explanation = "展示形式与执行形式分离：页面保留自然数学写法，绘图只接收经过标准化和安全解析的表达式。",
             ),
         )
         return success(
@@ -223,7 +212,7 @@ object MathVerificationEngine : SubjectEngine {
             normalizedInput = answerText,
             answer = function,
             steps = steps,
-            visualizations = listOf(buildFunctionGraphRequest(expressionText, parsed)),
+            visualizations = listOf(buildFunctionGraphRequest(executable, parsed, answerText)),
         )
     }
 
@@ -249,16 +238,10 @@ object MathVerificationEngine : SubjectEngine {
         val algebra = if (polynomial.degree == 1) {
             AlgebraSolver.solveLinear(polynomial.coefficient(1), polynomial.coefficient(0), BigRational.ZERO)
         } else {
-            AlgebraSolver.solveQuadratic(
-                polynomial.coefficient(2),
-                polynomial.coefficient(1),
-                polynomial.coefficient(0),
-                ScienceNumberDomain.COMPLEX,
-            )
+            AlgebraSolver.solveQuadratic(polynomial.coefficient(2), polynomial.coefficient(1), polynomial.coefficient(0), ScienceNumberDomain.COMPLEX)
         }
         val type = if (polynomial.degree == 1) TYPE_LINEAR_EQUATION else TYPE_QUADRATIC_EQUATION
-        val answerText = renderEquationSolution(algebra.solution, variable)
-        val answer = VerificationArtifact.MathSolution(answerText)
+        val answer = VerificationArtifact.MathSolution(renderEquationSolution(algebra.solution, variable))
         val steps = mutableListOf(
             VerificationStep(
                 rule = VerificationRuleKey("STANDARDIZE_EQUATION"),
@@ -283,12 +266,7 @@ object MathVerificationEngine : SubjectEngine {
                 explanation = "汇总所有满足原方程的根。",
             )
         }
-        return success(
-            type = type,
-            normalizedInput = normalizedEquation,
-            answer = answer,
-            steps = steps,
-        )
+        return success(type, normalizedEquation, answer, steps)
     }
 
     private fun verifyConstantEquation(source: String, left: ScienceExpression, right: ScienceExpression): VerificationResult {
@@ -396,8 +374,7 @@ object MathVerificationEngine : SubjectEngine {
         is ScienceExpression.Product -> expression.factors.fold(Polynomial.ONE) { result, factor -> result * toPolynomial(factor, variable) }
         is ScienceExpression.Quotient -> {
             val denominator = ScienceExpressionSimplifier.simplify(expression.denominator, ScienceNumberDomain.REAL)
-            val rational = (denominator as? ScienceExpression.RationalLiteral)?.value
-                ?: throw UnsupportedMathOperation("当前方程求解暂不支持含变量或无理式的分母。")
+            val rational = (denominator as? ScienceExpression.RationalLiteral)?.value ?: throw UnsupportedMathOperation("当前方程求解暂不支持含变量或无理式的分母。")
             require(!rational.isZero) { "分母不能为 0。" }
             toPolynomial(expression.numerator, variable).scale(rational.reciprocal())
         }
@@ -405,11 +382,7 @@ object MathVerificationEngine : SubjectEngine {
             if (expression.exponent < 0) throw UnsupportedMathOperation("当前多项式方程暂不处理负指数。")
             polynomialPower(toPolynomial(expression.base, variable), expression.exponent)
         }
-        ScienceExpression.Pi,
-        ScienceExpression.E,
-        ScienceExpression.ImaginaryUnit,
-        is ScienceExpression.Radical,
-        -> throw UnsupportedMathOperation("当前多项式系数先限定为有理数。")
+        ScienceExpression.Pi, ScienceExpression.E, ScienceExpression.ImaginaryUnit, is ScienceExpression.Radical -> throw UnsupportedMathOperation("当前多项式系数先限定为有理数。")
     }
 
     private fun polynomialPower(base: Polynomial, exponent: Int): Polynomial {
@@ -429,23 +402,28 @@ object MathVerificationEngine : SubjectEngine {
     }
 
     private fun buildFunctionGraphRequest(expressionText: String): VerificationVisualizationRequest {
-        val parsed = VisualizationParameterValue.MathExpressionValue.parse(expressionText)
-        return buildFunctionGraphRequest(expressionText, parsed)
+        val executable = toExecutableExpression(expressionText)
+        val parsed = VisualizationParameterValue.MathExpressionValue.parse(executable)
+        return buildFunctionGraphRequest(executable, parsed, "y = $expressionText")
     }
 
-    private fun buildFunctionGraphRequest(expressionText: String, parsed: VisualizationParameterValue.MathExpressionValue): VerificationVisualizationRequest {
+    private fun buildFunctionGraphRequest(
+        executableExpression: String,
+        parsed: VisualizationParameterValue.MathExpressionValue,
+        displayTitle: String,
+    ): VerificationVisualizationRequest {
         val bounds = deriveGraphBounds(parsed)
         return VerificationVisualizationRequest(
             renderer = "mathematics.function.graph",
             parameters = mapOf(
-                "expression" to VerificationVisualizationValue.MathExpressionValue(expressionText),
+                "expression" to VerificationVisualizationValue.MathExpressionValue(executableExpression),
                 "xMin" to VerificationVisualizationValue.NumberValue(bounds.xMin),
                 "xMax" to VerificationVisualizationValue.NumberValue(bounds.xMax),
                 "yMin" to VerificationVisualizationValue.NumberValue(bounds.yMin),
                 "yMax" to VerificationVisualizationValue.NumberValue(bounds.yMax),
             ),
             texts = mapOf(
-                "title" to "y = $expressionText",
+                "title" to displayTitle,
                 "note" to "本地解析 · 双指缩放 / 双击复位",
             ),
         )
@@ -472,9 +450,7 @@ object MathVerificationEngine : SubjectEngine {
             yMin -= padding
             yMax += padding
         }
-        yMin = max(-50.0, yMin)
-        yMax = min(50.0, yMax)
-        return GraphBounds(xMin, xMax, yMin, yMax)
+        return GraphBounds(xMin, xMax, max(-50.0, yMin), min(50.0, yMax))
     }
 
     private fun normalizeBasicSymbols(raw: String): String = raw.trim().lowercase()
@@ -500,8 +476,9 @@ object MathVerificationEngine : SubjectEngine {
         return text
     }
 
-    private fun hasGeneralFunctionCall(text: String): Boolean =
-        Regex("(?:abs|sin|cos|tan|ln|log|exp)\\(").containsMatchIn(text)
+    private fun toExecutableExpression(displayExpression: String): String = normalizeExpressionBody(normalizeBasicSymbols(displayExpression))
+
+    private fun hasGeneralFunctionCall(text: String): Boolean = Regex("(?:abs|sin|cos|tan|ln|log|exp)\\(").containsMatchIn(text)
 
     private fun containsHigherMath(text: String): Boolean {
         val keywords = listOf("limit", "lim(", "derivative", "diff(", "integral", "int(", "d/dx", "∫", "极限", "导数", "微分", "积分")
