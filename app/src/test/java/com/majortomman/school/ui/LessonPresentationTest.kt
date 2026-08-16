@@ -7,6 +7,9 @@ import com.majortomman.school.learning.course.CourseKeyIdea
 import com.majortomman.school.learning.course.CourseLesson
 import com.majortomman.school.learning.course.CoursePractice
 import com.majortomman.school.learning.course.CourseQuestion
+import com.majortomman.school.learning.course.CourseVisualizationStep
+import com.majortomman.school.visualization.VisualizationInvocation
+import com.majortomman.school.visualization.VisualizationKey
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -47,6 +50,19 @@ class LessonPresentationTest {
         assertEquals(2, teaching[1].steps.size)
         assertEquals("先想一想", teaching[0].label)
         assertEquals("例题", teaching[1].label)
+    }
+
+    @Test
+    fun visualizationStartsAStableSemanticStage() {
+        val visualization = CourseVisualizationStep(VisualizationInvocation(VisualizationKey("mathematics.number-line.basic")))
+        val teaching = composeLessonPresentation(
+            lesson(steps = listOf(CourseExplanation(null, "先建立概念"), visualization, CourseExplanation(null, "再解释图上的关系"))),
+        ).filterIsInstance<LessonPresentationPage.Teaching>()
+
+        assertEquals(2, teaching.size)
+        assertEquals(1, teaching[0].steps.size)
+        assertTrue(teaching[1].steps.first() is CourseVisualizationStep)
+        assertEquals("看一看", teaching[1].label)
     }
 
     @Test
