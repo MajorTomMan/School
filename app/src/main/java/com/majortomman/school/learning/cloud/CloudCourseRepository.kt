@@ -18,7 +18,6 @@ import com.majortomman.school.learning.course.CourseSceneData
 import com.majortomman.school.learning.course.CourseSceneStep
 import com.majortomman.school.learning.course.CourseSceneTemplate
 import com.majortomman.school.learning.course.CourseSection
-import com.majortomman.school.learning.course.CourseSourceLink
 import com.majortomman.school.learning.course.CourseSourceReference
 import com.majortomman.school.learning.course.CourseStep
 import com.majortomman.school.learning.course.CourseSummaryStep
@@ -129,7 +128,7 @@ internal object CourseDocumentParser {
         val lessonKnowledge = json.stringArray("knowledgePointIds")
         require(lessonKnowledge.isNotEmpty() && lessonKnowledge.all { it in knowledgeIds }) { "课时 $id 的知识点绑定无效" }
         val references = json.arrayValue("references").objects().map { decodeReference(it, pdf, id) }
-        val steps = json.arrayValue("steps").objects().mapIndexed { index, item -> decodeStep(item, "$id.steps[$index]", references.size) }
+        val steps = json.arrayValue("steps").objects().mapIndexed { index, item -> decodeStep(item, "$id.steps[$index]") }
         require(steps.isNotEmpty()) { "课时 $id 不包含教学步骤" }
         val practice = json.arrayValue("practice").objects().map { decodePractice(it, id, knowledgeIds) }
         return CourseLesson(id, json.text("title"), json.stringArray("aliases"), json.stringArray("goals").also { require(it.isNotEmpty()) { "课时 $id 必须声明教学目标" } }, lessonKnowledge, json.stringArray("prerequisiteLessonIds"), references, steps, practice, json.stringArray("summary").also { require(it.isNotEmpty()) { "课时 $id 必须有总结" } })
@@ -143,7 +142,7 @@ internal object CourseDocumentParser {
         return CourseSourceReference(json.text("label"), start, end)
     }
 
-    private fun decodeStep(json: JSONObject, location: String, referenceCount: Int): CourseStep = when (val type = json.text("type")) {
+    private fun decodeStep(json: JSONObject, location: String): CourseStep = when (val type = json.text("type")) {
         "explanation" -> CourseExplanation(json.optionalText("title"), json.text("text"))
         "question" -> CourseQuestion(json.text("prompt"), json.optionalText("hint"))
         "keyIdea" -> CourseKeyIdea(json.optionalText("title"), json.text("text"))
@@ -155,7 +154,6 @@ internal object CourseDocumentParser {
             CourseSceneStep(CourseScene(template, CourseSceneData(json.objectValue("data").toMap())))
         }
         "checkpoint" -> CourseCheckpoint(json.text("prompt"), json.text("expectedAnswer"), json.text("explanation"))
-        "sourceLink" -> CourseSourceLink(json.getInt("referenceIndex").also { require(it in 0 until referenceCount) { "$location 引用索引越界" } })
         "summary" -> CourseSummaryStep(json.text("text"))
         else -> error("$location 使用了不支持的教学步骤：$type")
     }

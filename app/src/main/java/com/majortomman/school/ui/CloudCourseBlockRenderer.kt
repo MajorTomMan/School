@@ -33,7 +33,6 @@ import com.majortomman.school.learning.course.CourseQuestion
 import com.majortomman.school.learning.course.CourseScene
 import com.majortomman.school.learning.course.CourseSceneStep
 import com.majortomman.school.learning.course.CourseSceneTemplate
-import com.majortomman.school.learning.course.CourseSourceLink
 import com.majortomman.school.learning.course.CourseStep
 import com.majortomman.school.learning.course.CourseSummaryStep
 
@@ -138,7 +137,6 @@ private fun AuthoredStep(step: CourseStep, lesson: CourseLesson) {
             Text("参考：${step.expectedAnswer}", color = InteractiveGreen, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 12.dp))
             Text(step.explanation, color = InteractiveMuted, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
         }
-        is CourseSourceLink -> Unit
         is CourseSummaryStep -> Text(step.text, color = InteractiveWhite.copy(alpha = 0.84f), style = MaterialTheme.typography.bodyLarge)
     }
 }

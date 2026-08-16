@@ -19,14 +19,20 @@ class CourseSourceReferenceContractTest {
         assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(courseJson(pageEnd = 203)) }
     }
 
-    private fun courseJson(pageEnd: Int): String = """
+    @Test
+    fun retiredBodySourceLinkIsRejected() {
+        val sourceLink = """{"type":"sourceLink","referenceIndex":0}"""
+        assertThrows(IllegalStateException::class.java) { CourseDocumentParser.decode(courseJson(pageEnd = 14, step = sourceLink)) }
+    }
+
+    private fun courseJson(pageEnd: Int, step: String = """{"type":"explanation","title":null,"text":"绝对值表示数轴上的点到原点的距离。"}"""): String = """
         {
           "textbook":{"id":"pep-math-7-1","title":"数学七年级上册","publisher":"人民教育出版社","edition":"2024","grade":"七年级","semester":"上册","subject":"数学","pdf":{"path":"assets/textbook.pdf","pageCount":202,"pageIndexOffset":7}},
           "knowledgePoints":[{"id":"absolute-value","name":"绝对值","description":"到原点的距离","prerequisiteIds":[]}],
           "chapters":[{"id":"chapter-01","title":"有理数","sections":[{"id":"section-absolute","title":"绝对值","lessons":[{
             "id":"absolute-value-intro","title":"绝对值是距离","aliases":["绝对值"],"goals":["理解绝对值表示距离"],"knowledgePointIds":["absolute-value"],"prerequisiteLessonIds":[],
             "references":[{"label":"图1.2-7","pageStart":13,"pageEnd":$pageEnd}],
-            "steps":[{"type":"sourceLink","referenceIndex":0}],"practice":[],"summary":["绝对值是到原点的距离"]
+            "steps":[$step],"practice":[],"summary":["绝对值是到原点的距离"]
           }]}]}]
         }
     """.trimIndent()
