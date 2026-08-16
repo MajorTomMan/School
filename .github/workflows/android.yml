@@ -5,6 +5,8 @@ on:
     branches: [dev]
     paths:
       - "app/**"
+      - "visualization/**"
+      - "tools/check_visualization_isolation.py"
       - "build.gradle.kts"
       - "settings.gradle.kts"
       - "gradle.properties"
@@ -17,6 +19,8 @@ on:
     branches: [dev]
     paths:
       - "app/**"
+      - "visualization/**"
+      - "tools/check_visualization_isolation.py"
       - "build.gradle.kts"
       - "settings.gradle.kts"
       - "gradle.properties"
@@ -86,8 +90,8 @@ jobs:
               raise SystemExit('无法确定上一版提交，拒绝跳过版本和发布说明检查')
 
           changed = subprocess.check_output(['git', 'diff', '--name-only', base, 'HEAD'], text=True).splitlines()
-          relevant = [p for p in changed if p.startswith(('app/', 'gradle/', 'signing/')) or p in {
-              'build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'version.properties', '.github/workflows/android.yml'
+          relevant = [p for p in changed if p.startswith(('app/', 'visualization/', 'gradle/', 'signing/')) or p in {
+              'tools/check_visualization_isolation.py', 'build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'version.properties', '.github/workflows/android.yml'
           }]
           if relevant:
               if 'version.properties' not in changed:
@@ -111,6 +115,9 @@ jobs:
               raise SystemExit(f'发布说明仍保留上一版条目；请清空后只写本次修改：\n{details}')
           print(f'发布说明检查通过：本次 {len(current_bullets)} 条，未继承上一版条目')
           PY
+
+      - name: Enforce visualization isolation
+        run: python3 tools/check_visualization_isolation.py
 
       - uses: actions/setup-java@v4
         with:
@@ -157,7 +164,7 @@ jobs:
           SCHOOL_FIREBASE_API_KEY: ${{ vars.SCHOOL_FIREBASE_API_KEY }}
           SCHOOL_FIREBASE_SENDER_ID: ${{ vars.SCHOOL_FIREBASE_SENDER_ID }}
           SCHOOL_FIREBASE_UPDATE_TOPIC: ${{ vars.SCHOOL_FIREBASE_UPDATE_TOPIC }}
-        run: gradle :app:testDebugUnitTest :app:assembleDebug --stacktrace
+        run: gradle :visualization:testDebugUnitTest :app:testDebugUnitTest :app:assembleDebug --stacktrace
 
       - name: Prepare development update package
         if: success()
