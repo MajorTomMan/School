@@ -37,7 +37,7 @@ math-grade7-volume1.school.zip
 - `schemaVersion`：当前固定为 `1`。
 - `packId`：资源包稳定标识，只能使用小写字母、数字、点、下划线和短横线。
 - `version`：教材包自身版本，不等于 App 版本。
-- `catalog`：课程目录 JSON；v1 导入时会确认文件存在，后续版本会读取知识点、场景与练习。
+- `catalog`：当前教材目录 JSON 路径。
 - `pdf.path`：教材 PDF 在 ZIP 内的相对路径。
 - `pdf.sha256`：导入时必须通过校验，防止文件损坏或混用版本。
 - `pdf.pageIndexOffset`：印刷页码到 PDF 页索引的偏移量。
@@ -50,29 +50,33 @@ PDF 索引 = 印刷页码 - 1 + pageIndexOffset
 
 例如教材印刷第 10 页实际位于 PDF 第 13 个页面（索引 12），则偏移量为 `3`。
 
-## catalog.json 最小格式
+## catalog.json
 
-v1 暂时只验证该文件存在，建议保留以下结构，方便后续处理器升级：
+当前目录契约只接受 `book + lessons`，不再兼容旧的章节嵌套目录格式。
 
 ```json
 {
   "schemaVersion": 1,
-  "bookId": "math-grade7-volume1",
-  "chapters": [
+  "book": {
+    "id": "math-grade7-volume1",
+    "title": "七年级数学上册",
+    "subject": "数学",
+    "grade": 7,
+    "volume": 1
+  },
+  "lessons": [
     {
-      "id": "rational-numbers",
-      "title": "第一章 有理数",
-      "lessons": [
-        {
-          "id": "number-line",
-          "title": "数轴",
-          "pages": [15, 20]
-        }
-      ]
+      "id": "number-line",
+      "title": "数轴",
+      "pageStart": 15,
+      "pageEnd": 20,
+      "orderIndex": 0
     }
   ]
 }
 ```
+
+每节课必须提供稳定 `id`、标题和有效印刷页码范围。可按当前课程树需要增加 `role`、`path` 与 `orderIndex`，但 App 不会把旧格式自动迁移成新格式。
 
 ## 安全限制
 
