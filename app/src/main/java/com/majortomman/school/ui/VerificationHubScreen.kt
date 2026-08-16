@@ -33,11 +33,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.majortomman.school.learning.verification.LocalMathExpressionKind
-import com.majortomman.school.learning.verification.LocalMathExpressionResult
-import com.majortomman.school.learning.verification.LocalMathExpressionVerifier
 import com.majortomman.school.learning.verification.VerificationSubject
+import com.majortomman.school.learning.verification.core.VerificationResult
+import com.majortomman.school.learning.verification.core.VerificationRequest
+import com.majortomman.school.learning.verification.core.VerificationStatus
+import com.majortomman.school.learning.verification.core.VerificationStep
+import com.majortomman.school.learning.verification.core.VerificationVisualizationRequest
+import com.majortomman.school.learning.verification.core.VerificationVisualizationValue
+import com.majortomman.school.learning.verification.math.MathVerificationEngine
 import com.majortomman.school.visualization.SchoolVisualization
+import com.majortomman.school.visualization.VisualizationInvocation
+import com.majortomman.school.visualization.VisualizationKey
+import com.majortomman.school.visualization.VisualizationParameterValue
+import com.majortomman.school.visualization.VisualizationParameters
+import com.majortomman.school.visualization.VisualizationTexts
 
 @Composable
 internal fun VerificationHubScreen() {
@@ -61,7 +70,7 @@ internal fun VerificationHubScreen() {
         } else {
             val subject = VerificationSubject.valueOf(subjectName)
             when (subject) {
-                VerificationSubject.MATHEMATICS -> MathExpressionVerificationPage(onBack = { openedSubjectName = null })
+                VerificationSubject.MATHEMATICS -> MathVerificationPage(onBack = { openedSubjectName = null })
                 else -> VerificationSubjectPlaceholderPage(subject, onBack = { openedSubjectName = null })
             }
         }
@@ -79,7 +88,7 @@ private fun VerificationSubjectIndex(onOpen: (VerificationSubject) -> Unit) {
     ) {
         Text("验证", color = InteractiveWhite, fontSize = 38.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
-        Text("选择学科，进入对应的本地验证页面。每个学科拥有独立的解析与可视化能力。", color = InteractiveMuted, fontSize = 15.sp, lineHeight = 23.sp)
+        Text("选择学科，进入对应的本地验证页面。学科共享步骤和结果框架，但各自保留独立的知识与推理规则。", color = InteractiveMuted, fontSize = 15.sp, lineHeight = 23.sp)
         Spacer(Modifier.height(28.dp))
 
         VerificationSubject.entries.chunked(2).forEach { subjects ->
@@ -111,10 +120,9 @@ private fun VerificationSubjectEntry(subject: VerificationSubject, modifier: Mod
 }
 
 @Composable
-private fun MathExpressionVerificationPage(onBack: () -> Unit) {
+private fun MathVerificationPage(onBack: () -> Unit) {
     var input by rememberSaveable { mutableStateOf("") }
-    var result by remember { mutableStateOf<LocalMathExpressionResult?>(null) }
-    var error by rememberSaveable { mutableStateOf<String?>(null) }
+    var result by remember { mutableStateOf<VerificationResult?>(null) }
 
     Column(
         modifier = Modifier
@@ -127,45 +135,43 @@ private fun MathExpressionVerificationPage(onBack: () -> Unit) {
         Spacer(Modifier.height(10.dp))
         Text("数学", color = InteractiveWhite, fontSize = 38.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(6.dp))
-        Text("任意数学表达式", color = InteractiveBlue, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+        Text("初高中数学 · 本地符号推理", color = InteractiveBlue, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
-        Text("完全本地解析。常量表达式直接计算结果；只含 x 的表达式自动识别为函数，并使用统一坐标系绘制图像。", color = InteractiveMuted, fontSize = 14.sp, lineHeight = 22.sp)
+        Text("输入表达式、函数或一元方程。本地引擎会识别题型、给出答案和可复核的逐步解析；能可视化的结果会直接调用统一可视化基础设施。", color = InteractiveMuted, fontSize = 14.sp, lineHeight = 22.sp)
         Spacer(Modifier.height(28.dp))
 
         VerificationTextInput(
-            label = "表达式",
+            label = "数学输入",
             value = input,
             onValueChange = {
                 input = it
                 result = null
-                error = null
             },
-            hint = "例如：2*(3+4) 或 y=x^2-4",
-            maxLength = 256,
+            hint = "例如：2x+3=9 或 x^2-5x+6=0",
+            maxLength = 512,
         )
         Spacer(Modifier.height(14.dp))
-        Text("支持 +  -  *  /  ^、括号、π、√、abs、sqrt、sin、cos、tan、ln、log、exp，以及 y=f(x) 写法。", color = InteractiveMuted.copy(alpha = 0.82f), fontSize = 11.sp, lineHeight = 18.sp)
+        Text("当前覆盖数值表达式、代数式展开/合并、一元一次方程、一元二次方程和函数图像；明确不处理极限、导数、积分等高等数学。", color = InteractiveMuted.copy(alpha = 0.82f), fontSize = 11.sp, lineHeight = 18.sp)
         Spacer(Modifier.height(16.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-            MathExample("2*(3+4)", Modifier.weight(1f)) { input = "2*(3+4)"; result = null; error = null }
-            MathExample("x^2-4", Modifier.weight(1f)) { input = "x^2-4"; result = null; error = null }
-            MathExample("sin(x)", Modifier.weight(1f)) { input = "sin(x)"; result = null; error = null }
+
+        listOf("2*(3+4)", "(x+2)(x+3)", "2x+3=9", "x^2-5x+6=0", "sin(x)").chunked(3).forEach { examples ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                examples.forEach { example ->
+                    MathExample(example, Modifier.weight(1f)) {
+                        input = example
+                        result = null
+                    }
+                }
+                repeat(3 - examples.size) { Spacer(Modifier.weight(1f)) }
+            }
+            Spacer(Modifier.height(6.dp))
         }
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(14.dp))
 
         val enabled = input.isNotBlank()
         Box(
             modifier = Modifier.fillMaxWidth().height(50.dp).clickable(enabled = enabled) {
-                runCatching { LocalMathExpressionVerifier.verify(input) }.fold(
-                    onSuccess = {
-                        result = it
-                        error = null
-                    },
-                    onFailure = {
-                        result = null
-                        error = it.message ?: "无法解析这个表达式。"
-                    },
-                )
+                result = MathVerificationEngine.verify(VerificationRequest(input))
             },
             contentAlignment = Alignment.Center,
         ) {
@@ -174,18 +180,10 @@ private fun MathExpressionVerificationPage(onBack: () -> Unit) {
         }
         Spacer(Modifier.height(28.dp))
 
-        when {
-            error != null -> VerificationStatusBlock(
-                title = "暂时无法验证",
-                message = error.orEmpty(),
-                color = InteractiveYellow,
-            )
-            result != null -> MathExpressionResultView(requireNotNull(result))
-            else -> {
-                Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
-                Spacer(Modifier.height(12.dp))
-                Text("结果会显示在这里", color = InteractiveMuted, fontSize = 13.sp)
-            }
+        result?.let { MathVerificationResultView(it) } ?: run {
+            Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
+            Spacer(Modifier.height(12.dp))
+            Text("答案、逐步解析和可视化会显示在这里", color = InteractiveMuted, fontSize = 13.sp)
         }
         Spacer(Modifier.height(52.dp))
     }
@@ -194,43 +192,98 @@ private fun MathExpressionVerificationPage(onBack: () -> Unit) {
 @Composable
 private fun MathExample(text: String, modifier: Modifier, onClick: () -> Unit) {
     Column(modifier = modifier.clickable(onClick = onClick).padding(vertical = 8.dp)) {
-        Text(text, color = InteractiveWhite.copy(alpha = 0.78f), fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(), maxLines = 1)
+        Text(text, color = InteractiveWhite.copy(alpha = 0.78f), fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(), maxLines = 1)
         Spacer(Modifier.height(7.dp))
         Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
     }
 }
 
 @Composable
-private fun MathExpressionResultView(result: LocalMathExpressionResult) {
-    when (result.kind) {
-        LocalMathExpressionKind.VALUE -> VerificationStatusBlock(
-            title = "计算完成",
-            message = "表达式已由本地数学引擎解析并计算，不涉及网络或 AI。",
-            color = InteractiveGreen,
-            normalized = result.displayAnswer,
-            rows = listOf(
-                "表达式" to result.normalizedExpression,
-                "类型" to "数值表达式",
-            ),
-        )
-        LocalMathExpressionKind.FUNCTION -> {
-            val graph = requireNotNull(result.graph)
+private fun MathVerificationResultView(result: VerificationResult) {
+    when (result.status) {
+        VerificationStatus.SUCCESS -> {
             VerificationStatusBlock(
-                title = "函数已识别",
-                message = "检测到唯一自变量 x，已自动生成函数图像。",
+                title = "本地求解完成",
+                message = "所有解析、计算和步骤生成均在本地完成。",
                 color = InteractiveGreen,
-                normalized = result.displayAnswer,
+                normalized = result.answer?.display,
                 rows = listOf(
-                    "类型" to "单变量函数",
-                    "横轴" to "${axisNumber(graph.parameters.number("xMin"))} ～ ${axisNumber(graph.parameters.number("xMax"))}",
-                    "纵轴" to "${axisNumber(graph.parameters.number("yMin"))} ～ ${axisNumber(graph.parameters.number("yMax"))}",
+                    "题型" to result.problemType.label,
+                    "标准化输入" to result.normalizedInput,
+                    "步骤" to "${result.steps.size} 步",
                 ),
             )
-            Spacer(Modifier.height(26.dp))
-            Text("函数图像", color = InteractiveWhite, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(12.dp))
-            Box(Modifier.fillMaxWidth().height(330.dp)) {
-                SchoolVisualization(graph, Modifier.fillMaxSize())
+            if (result.steps.isNotEmpty()) {
+                Spacer(Modifier.height(30.dp))
+                Text("逐步解析", color = InteractiveWhite, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(14.dp))
+                result.steps.forEachIndexed { index, step ->
+                    MathVerificationStep(index + 1, step)
+                    if (index != result.steps.lastIndex) Spacer(Modifier.height(18.dp))
+                }
+            }
+            if (result.warnings.isNotEmpty()) {
+                Spacer(Modifier.height(26.dp))
+                result.warnings.forEach { warning ->
+                    Text(warning.message, color = InteractiveYellow, fontSize = 13.sp, lineHeight = 20.sp)
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
+            result.visualizations.forEach { visualization ->
+                Spacer(Modifier.height(30.dp))
+                Text("可视化", color = InteractiveWhite, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(12.dp))
+                Box(Modifier.fillMaxWidth().height(330.dp)) {
+                    SchoolVisualization(visualization.toVisualizationInvocation(), Modifier.fillMaxSize())
+                }
+            }
+        }
+        VerificationStatus.UNSUPPORTED -> VerificationStatusBlock(
+            title = "超出当前本地范围",
+            message = result.warnings.joinToString("\n") { it.message }.ifBlank { "这个数学输入暂时不在当前初高中本地引擎的支持范围内。" },
+            color = InteractiveYellow,
+            rows = listOf("识别结果" to result.problemType.label),
+        )
+        VerificationStatus.INVALID -> VerificationStatusBlock(
+            title = "无法识别这个输入",
+            message = result.warnings.joinToString("\n") { it.message }.ifBlank { "请检查数学表达式的写法。" },
+            color = InteractiveYellow,
+            rows = listOf("识别结果" to result.problemType.label),
+        )
+    }
+}
+
+@Composable
+private fun MathVerificationStep(number: Int, step: VerificationStep) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("%02d".format(number), color = InteractiveBlue, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text(step.title, modifier = Modifier.weight(1f), color = InteractiveWhite, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        }
+        Spacer(Modifier.height(8.dp))
+        step.before?.let { before ->
+            Text(before.display, color = InteractiveMuted, fontSize = 13.sp, lineHeight = 20.sp)
+            if (step.after != null && step.after.display != before.display) {
+                Spacer(Modifier.height(5.dp))
+                Text("↓", color = InteractiveBlue, fontSize = 13.sp)
+            }
+        }
+        step.after?.let { after ->
+            if (step.before == null || after.display != step.before.display) {
+                Spacer(Modifier.height(5.dp))
+                Text(after.display, color = InteractiveWhite, fontSize = 17.sp, lineHeight = 24.sp)
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(step.explanation, color = InteractiveWhite.copy(alpha = 0.72f), fontSize = 13.sp, lineHeight = 20.sp)
+        if (step.conditions.isNotEmpty()) {
+            Spacer(Modifier.height(6.dp))
+            Text("条件：${step.conditions.joinToString("；")}", color = InteractiveYellow, fontSize = 11.sp, lineHeight = 18.sp)
+        }
+        if (step.children.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            step.children.forEachIndexed { index, child ->
+                MathVerificationStep(index + 1, child)
             }
         }
     }
@@ -254,12 +307,24 @@ private fun VerificationSubjectPlaceholderPage(subject: VerificationSubject, onB
             Spacer(Modifier.height(14.dp))
             Text("本地验证能力待接入", color = InteractiveMuted, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(6.dp))
-            Text("入口和翻页层级已经建立，后续会按学科分别接入独立的本地解析器。", color = InteractiveMuted.copy(alpha = 0.72f), fontSize = 13.sp, lineHeight = 20.sp)
+            Text("入口与公共 Verification Core 已建立；后续会把该学科现有的确定性内核适配到同一结果、步骤和可视化协议。", color = InteractiveMuted.copy(alpha = 0.72f), fontSize = 13.sp, lineHeight = 20.sp)
         }
     }
 }
 
-private fun axisNumber(value: Double): String {
-    val integer = value.toInt()
-    return if (value == integer.toDouble()) integer.toString() else "%.2f".format(value)
+private fun VerificationVisualizationRequest.toVisualizationInvocation(): VisualizationInvocation {
+    val mapped = linkedMapOf<String, VisualizationParameterValue>()
+    for ((name, value) in parameters) {
+        mapped[name] = when (value) {
+            is VerificationVisualizationValue.NumberValue -> VisualizationParameterValue.NumberValue(value.value)
+            is VerificationVisualizationValue.BooleanValue -> VisualizationParameterValue.BooleanValue(value.value)
+            is VerificationVisualizationValue.NumberListValue -> VisualizationParameterValue.NumberListValue(value.values)
+            is VerificationVisualizationValue.MathExpressionValue -> VisualizationParameterValue.MathExpressionValue.parse(value.expression)
+        }
+    }
+    return VisualizationInvocation(
+        renderer = VisualizationKey(renderer),
+        parameters = VisualizationParameters.of(mapped),
+        texts = VisualizationTexts.of(texts),
+    )
 }
