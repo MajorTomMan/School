@@ -119,6 +119,8 @@ private fun validateMathSemantics(invocation: VisualizationInvocation): List<Str
         val yMax = parameters.number("yMax", 4.0)
         if (xMax <= xMin) add("参数 xMax 必须大于 xMin")
         if (yMax <= yMin) add("参数 yMax 必须大于 yMin")
+        if (xMax > xMin && xMax - xMin > 100.0) add("横轴范围不能超过 100 个单位")
+        if (yMax > yMin && yMax - yMin > 100.0) add("纵轴范围不能超过 100 个单位")
         if (key == "mathematics.cartesian.point" && xMax > xMin && yMax > yMin) {
             if (parameters.number("x") !in xMin..xMax) add("参数 x 必须位于横轴范围内")
             if (parameters.number("y") !in yMin..yMax) add("参数 y 必须位于纵轴范围内")
