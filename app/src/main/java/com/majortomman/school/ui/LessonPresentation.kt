@@ -8,9 +8,9 @@ import com.majortomman.school.learning.course.CourseKeyIdea
 import com.majortomman.school.learning.course.CourseLesson
 import com.majortomman.school.learning.course.CoursePractice
 import com.majortomman.school.learning.course.CourseQuestion
-import com.majortomman.school.learning.course.CourseSceneStep
 import com.majortomman.school.learning.course.CourseStep
 import com.majortomman.school.learning.course.CourseSummaryStep
+import com.majortomman.school.learning.course.CourseVisualizationStep
 
 /** Stable semantic pages. Layout size never decides where a lesson page breaks. */
 internal sealed interface LessonPresentationPage {
@@ -36,9 +36,7 @@ internal fun composeLessonPresentation(lesson: CourseLesson): List<LessonPresent
     if (lesson.goals.isNotEmpty()) pages += LessonPresentationPage.Overview(lesson.goals)
     pages += composeTeachingPages(lesson.steps)
     if (lesson.summary.isNotEmpty()) pages += LessonPresentationPage.Summary(lesson.summary)
-    lesson.practice.forEachIndexed { index, practice ->
-        pages += LessonPresentationPage.Practice(index + 1, lesson.practice.size, practice)
-    }
+    lesson.practice.forEachIndexed { index, practice -> pages += LessonPresentationPage.Practice(index + 1, lesson.practice.size, practice) }
     return pages.ifEmpty { listOf(LessonPresentationPage.Summary(listOf("完成本课学习。"))) }
 }
 
@@ -64,7 +62,7 @@ private fun composeTeachingPages(steps: List<CourseStep>): List<LessonPresentati
 private fun startsSemanticStage(step: CourseStep): Boolean = when (step) {
     is CourseQuestion,
     is CourseExample,
-    is CourseSceneStep,
+    is CourseVisualizationStep,
     is CourseCheckpoint,
     -> true
     is CourseExplanation -> step.title != null
@@ -77,7 +75,7 @@ private fun labelFor(step: CourseStep): String = when (step) {
     is CourseKeyIdea -> step.title ?: "关键理解"
     is CourseFormula -> "公式与规则"
     is CourseExample -> step.title
-    is CourseSceneStep -> "看一看"
+    is CourseVisualizationStep -> "看一看"
     is CourseCheckpoint -> "检查一下"
     is CourseSummaryStep -> "阶段小结"
 }
