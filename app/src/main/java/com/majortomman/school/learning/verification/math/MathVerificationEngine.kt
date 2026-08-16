@@ -25,9 +25,12 @@ import com.majortomman.school.learning.verification.core.VerificationVisualizati
 import com.majortomman.school.learning.verification.core.VerificationVisualizationValue
 import com.majortomman.school.learning.verification.core.VerificationWarning
 import com.majortomman.school.visualization.VisualizationParameterValue
+import java.math.BigDecimal
+import java.math.RoundingMode
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToLong
 
 object MathVerificationEngine : SubjectEngine {
     override val subject: VerificationSubject = VerificationSubject.MATHEMATICS
@@ -62,8 +65,10 @@ object MathVerificationEngine : SubjectEngine {
     }
 
     private fun verifyExpression(expressionText: String): VerificationResult {
-        if (hasGeneralFunctionCall(expressionText)) return verifyFunction(expressionText, declared = false)
-        val expression = ScienceExpressionParser.parse(expressionText)
+        if (hasGeneralFunctionCall(expressionText)) return verifySafeExpression(expressionText)
+        val expression = runCatching { ScienceExpressionParser.parse(expressionText) }.getOrElse {
+            return verifySafeExpression(expressionText)
+        }
         val variables = variablesOf(expression)
         if (variables.isEmpty()) return verifyConstantExpression(expressionText, expression)
         if (variables.size > 1) throw UnsupportedMathOperation("当前符号化简先支持单变量表达式；检测到变量：${variables.sorted().joinToString()}。")
@@ -73,6 +78,40 @@ object MathVerificationEngine : SubjectEngine {
         if (polynomial != null) return verifyPolynomialExpression(expressionText, variable, polynomial)
         if (variable == "x") return verifyFunction(expressionText, declared = false)
         throw UnsupportedMathOperation("这个表达式包含当前多项式内核尚未支持的结构；函数图像目前只接受自变量 x。")
+    }
+
+    private fun verifySafeExpression(expressionText: String): VerificationResult {
+        val parsed = VisualizationParameterValue.MathExpressionValue.parse(expressionText)
+        if (parsed.variables.isEmpty()) return verifyApproximateConstantExpression(expressionText, parsed)
+        if (parsed.variables.all { it == "x" }) return verifyFunction(expressionText, declared = false)
+        throw UnsupportedMathOperation("当前函数表达式只支持自变量 x；检测到变量：${parsed.variables.sorted().joinToString()}。")
+    }
+
+    private fun verifyApproximateConstantExpression(expressionText: String, expression: VisualizationParameterValue.MathExpressionValue): VerificationResult {
+        val value = expression.evaluate(emptyMap())
+        require(value.isFinite()) { "计算结果不是有限数值。" }
+        val answer = VerificationArtifact.MathSolution(formatApproximate(value))
+        return success(
+            type = TYPE_NUMERIC_EXPRESSION,
+            normalizedInput = expressionText,
+            answer = answer,
+            steps = listOf(
+                VerificationStep(
+                    rule = VerificationRuleKey("PARSE_EXPRESSION"),
+                    title = "识别表达式",
+                    before = VerificationArtifact.MathExpression(expressionText),
+                    after = VerificationArtifact.MathExpression(expressionText),
+                    explanation = "将输入解析成安全的数学表达式结构；函数名必须来自本地白名单。",
+                ),
+                VerificationStep(
+                    rule = VerificationRuleKey("EVALUATE_EXPRESSION"),
+                    title = "计算函数值",
+                    before = VerificationArtifact.MathExpression(expressionText),
+                    after = answer,
+                    explanation = "按本地数学函数定义计算结果，不调用网络、AI 或脚本执行环境。",
+                ),
+            ),
+        )
     }
 
     private fun verifyConstantExpression(expressionText: String, expression: ScienceExpression): VerificationResult {
@@ -375,7 +414,7 @@ object MathVerificationEngine : SubjectEngine {
 
     private fun polynomialPower(base: Polynomial, exponent: Int): Polynomial {
         var result = Polynomial.ONE
-        repeat(exponent) { result *= base }
+        repeat(exponent) { result = result * base }
         return result
     }
 
@@ -467,6 +506,12 @@ object MathVerificationEngine : SubjectEngine {
     private fun containsHigherMath(text: String): Boolean {
         val keywords = listOf("limit", "lim(", "derivative", "diff(", "integral", "int(", "d/dx", "∫", "极限", "导数", "微分", "积分")
         return keywords.any(text::contains)
+    }
+
+    private fun formatApproximate(value: Double): String {
+        val integer = value.roundToLong()
+        if (abs(value - integer.toDouble()) <= 1e-10) return integer.toString()
+        return BigDecimal.valueOf(value).setScale(10, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
     }
 
     private fun success(
