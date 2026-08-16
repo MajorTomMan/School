@@ -13,15 +13,18 @@ import com.majortomman.school.learning.course.CourseLesson
 import com.majortomman.school.learning.course.CoursePdf
 import com.majortomman.school.learning.course.CoursePractice
 import com.majortomman.school.learning.course.CourseQuestion
-import com.majortomman.school.learning.course.CourseScene
-import com.majortomman.school.learning.course.CourseSceneData
-import com.majortomman.school.learning.course.CourseSceneStep
-import com.majortomman.school.learning.course.CourseSceneTemplate
 import com.majortomman.school.learning.course.CourseSection
 import com.majortomman.school.learning.course.CourseSourceReference
 import com.majortomman.school.learning.course.CourseStep
 import com.majortomman.school.learning.course.CourseSummaryStep
 import com.majortomman.school.learning.course.CourseTextbook
+import com.majortomman.school.learning.course.CourseVisualizationStep
+import com.majortomman.school.visualization.SchoolVisualizationCatalog
+import com.majortomman.school.visualization.VisualizationInvocation
+import com.majortomman.school.visualization.VisualizationKey
+import com.majortomman.school.visualization.VisualizationParameterValue
+import com.majortomman.school.visualization.VisualizationParameters
+import com.majortomman.school.visualization.VisualizationTexts
 import java.io.File
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -148,14 +151,52 @@ internal object CourseDocumentParser {
         "keyIdea" -> CourseKeyIdea(json.optionalText("title"), json.text("text"))
         "formula" -> CourseFormula(json.text("expression"), json.optionalText("note"))
         "example" -> CourseExample(json.text("title"), json.text("prompt"), json.stringArray("steps"), json.text("answer"))
-        "scene" -> {
-            val templateId = json.text("template")
-            val template = CourseSceneTemplate.fromId(templateId) ?: error("$location 使用了不支持的场景：$templateId")
-            CourseSceneStep(CourseScene(template, CourseSceneData(json.objectValue("data").toMap())))
-        }
+        "visualization" -> decodeVisualization(json, location)
         "checkpoint" -> CourseCheckpoint(json.text("prompt"), json.text("expectedAnswer"), json.text("explanation"))
         "summary" -> CourseSummaryStep(json.text("text"))
         else -> error("$location 使用了不支持的教学步骤：$type")
+    }
+
+    private fun decodeVisualization(json: JSONObject, location: String): CourseVisualizationStep {
+        json.requireKeys(setOf("type", "renderer", "parameters", "texts"))
+        val renderer = VisualizationKey(json.text("renderer"))
+        val parameters = decodeVisualizationParameters(json.objectValue("parameters"), location)
+        val texts = decodeVisualizationTexts(json.objectValue("texts"), location)
+        val invocation = VisualizationInvocation(renderer, parameters, texts)
+        val issues = SchoolVisualizationCatalog.validate(invocation)
+        require(issues.isEmpty()) { "$location 可视化参数无效：${issues.joinToString("；")}" }
+        return CourseVisualizationStep(invocation)
+    }
+
+    private fun decodeVisualizationParameters(json: JSONObject, location: String): VisualizationParameters {
+        val values = linkedMapOf<String, VisualizationParameterValue>()
+        json.keys().asSequence().forEach { key ->
+            val raw = json.get(key)
+            values[key] = when (raw) {
+                is Number -> VisualizationParameterValue.NumberValue(raw.toDouble())
+                is Boolean -> VisualizationParameterValue.BooleanValue(raw)
+                is JSONArray -> {
+                    val numbers = List(raw.length()) { index ->
+                        val item = raw.get(index)
+                        require(item is Number) { "$location.parameters.$key 只能是数值列表" }
+                        item.toDouble()
+                    }
+                    VisualizationParameterValue.NumberListValue(numbers)
+                }
+                else -> error("$location.parameters.$key 只接受 number、boolean 或 number[]")
+            }
+        }
+        return VisualizationParameters.of(values)
+    }
+
+    private fun decodeVisualizationTexts(json: JSONObject, location: String): VisualizationTexts {
+        val values = linkedMapOf<String, String>()
+        json.keys().asSequence().forEach { key ->
+            val raw = json.get(key)
+            require(raw is String) { "$location.texts.$key 只能是字符串" }
+            values[key] = raw
+        }
+        return VisualizationTexts.of(values)
     }
 
     private fun decodePractice(json: JSONObject, lessonId: String, knowledgeIds: Set<String>): CoursePractice {
@@ -200,12 +241,4 @@ private fun JSONArray.objects(): List<JSONObject> = List(length()) { getJSONObje
 private fun JSONObject.requireKeys(required: Set<String>) {
     val actual = keys().asSequence().toSet()
     require(actual == required) { "字段不匹配：expected=${required.sorted()} actual=${actual.sorted()}" }
-}
-private fun JSONObject.toMap(): Map<String, Any?> = keys().asSequence().associateWith { key ->
-    when (val value = get(key)) {
-        JSONObject.NULL -> null
-        is JSONObject -> value.toMap()
-        is JSONArray -> List(value.length()) { index -> when (val item = value.get(index)) { JSONObject.NULL -> null; is JSONObject -> item.toMap(); else -> item } }
-        else -> value
-    }
 }
