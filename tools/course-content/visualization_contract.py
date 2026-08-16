@@ -28,6 +28,7 @@ NUMBER_LINE_BASE_TEXTS = frozenset({"title", "note"})
 GEOMETRY_TEXTS = frozenset({"title", "labelA", "labelB", "labelC", "labelD", "note"})
 CARTESIAN_RANGES = frozenset({"xMin", "xMax", "yMin", "yMax"})
 CARTESIAN_TEXTS = frozenset({"title", "pointLabel", "note"})
+FLOAT32_MAX = 3.4028234663852886e38
 
 RENDERER_SCHEMAS: dict[str, RendererSchema] = {
     "mathematics.context.opposite-quantities": RendererSchema(
@@ -144,7 +145,7 @@ RENDERER_SCHEMAS: dict[str, RendererSchema] = {
 
 
 def is_number(value: Any) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(float(value))
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(float(value)) and abs(float(value)) <= FLOAT32_MAX
 
 
 def validate_visualization(renderer: Any, parameters: Any, texts: Any, where: str) -> None:
@@ -169,12 +170,12 @@ def validate_visualization(renderer: Any, parameters: Any, texts: Any, where: st
     for name, value in parameters.items():
         if name in schema.number_list_parameters:
             if not isinstance(value, list) or not all(is_number(item) for item in value):
-                raise ValueError(f"{where}.parameters.{name}: finite number[] required")
+                raise ValueError(f"{where}.parameters.{name}: float-safe finite number[] required")
         elif name in schema.boolean_parameters:
             if not isinstance(value, bool):
                 raise ValueError(f"{where}.parameters.{name}: boolean required")
         elif not is_number(value):
-            raise ValueError(f"{where}.parameters.{name}: finite number required")
+            raise ValueError(f"{where}.parameters.{name}: float-safe finite number required")
 
     text_names = set(texts)
     unknown_texts = text_names - schema.text_names
@@ -254,6 +255,10 @@ def validate_visualization_semantics(renderer: str, parameters: dict[str, Any], 
             raise ValueError(f"{where}.parameters: xMax must be greater than xMin")
         if y_max <= y_min:
             raise ValueError(f"{where}.parameters: yMax must be greater than yMin")
+        if x_max - x_min > 100.0:
+            raise ValueError(f"{where}.parameters: x range must not exceed 100 units")
+        if y_max - y_min > 100.0:
+            raise ValueError(f"{where}.parameters: y range must not exceed 100 units")
         if renderer == "mathematics.cartesian.point":
             x = float(parameters["x"])
             y = float(parameters["y"])
