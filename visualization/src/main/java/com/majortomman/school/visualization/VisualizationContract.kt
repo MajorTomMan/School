@@ -41,6 +41,10 @@ class VisualizationParameters private constructor(private val values: Map<String
     fun boolean(name: String, default: Boolean = false): Boolean = (values[name] as? VisualizationParameterValue.BooleanValue)?.value ?: default
     fun numberList(name: String): List<Double> = (values[name] as? VisualizationParameterValue.NumberListValue)?.values.orEmpty()
 
+    override fun equals(other: Any?): Boolean = other is VisualizationParameters && values == other.values
+    override fun hashCode(): Int = values.hashCode()
+    override fun toString(): String = "VisualizationParameters(values=$values)"
+
     companion object {
         val Empty = VisualizationParameters(emptyMap())
 
@@ -57,6 +61,10 @@ class VisualizationTexts private constructor(private val values: Map<String, Str
     val keys: Set<String> get() = values.keys
 
     fun text(name: String, default: String = ""): String = values[name] ?: default
+
+    override fun equals(other: Any?): Boolean = other is VisualizationTexts && values == other.values
+    override fun hashCode(): Int = values.hashCode()
+    override fun toString(): String = "VisualizationTexts(values=$values)"
 
     companion object {
         val Empty = VisualizationTexts(emptyMap())
