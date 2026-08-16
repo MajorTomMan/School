@@ -1,383 +1,150 @@
 from __future__ import annotations
 
+import base64
+import copy
+import gzip
+import hashlib
 import json
-import re
 from pathlib import Path
 
+EXPECTED_SIZE = 263601
+EXPECTED_SHA256 = "e0250eb6d638d322f589fc1f3d13224bf226af19f65a25e189e98e518f68100f"
 
-def read(path: str) -> str:
-    return Path(path).read_text(encoding="utf-8")
-
-
-def write(path: str, content: str) -> None:
-    target = Path(path)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(content, encoding="utf-8")
-
-
-def replace(path: str, old: str, new: str, count: int = 1) -> None:
-    content = read(path)
-    actual = content.count(old)
-    if actual < count:
-        raise RuntimeError(f"{path}: expected at least {count} occurrences, found {actual}: {old[:120]!r}")
-    write(path, content.replace(old, new, count))
-
-
-replace(
-    "settings.gradle.kts",
-    "        mavenCentral()\n    }\n}",
-    "        mavenCentral()\n        maven(\"https://jitpack.io\")\n    }\n}",
-)
-replace(
-    "app/build.gradle.kts",
-    '    implementation("androidx.compose.ui:ui-tooling-preview")\n',
-    '    implementation("androidx.compose.ui:ui-tooling-preview")\n'
-    '    implementation("com.github.rikkahub.jlatexmath-android:jlatexmath:1.5")\n',
-)
-
-write(
-    "app/src/main/java/com/majortomman/school/ui/SchoolFormula.kt",
-    r'''package com.majortomman.school.ui
-
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.unit.TextUnit
-import ru.noties.jlatexmath.JLatexMathDrawable
-
-/**
- * School course formulas use pure LaTeX math syntax.
- *
- * Rendering is an APK concern: course packages never name or depend on JLaTeXMath.
- * Long formulas keep their mathematical layout and become horizontally scrollable
- * instead of being squeezed into vertical text.
- */
-@Composable
-internal fun SchoolFormula(
-    latex: String,
-    modifier: Modifier = Modifier,
-    color: Color = Color.Unspecified,
-    style: TextStyle = LocalTextStyle.current,
-) {
-    val density = LocalDensity.current
-    val defaultColor = MaterialTheme.colorScheme.onBackground
-    val defaultSize = MaterialTheme.typography.headlineMedium.fontSize
-    val resolvedColor = if (color == Color.Unspecified) {
-        if (style.color == Color.Unspecified) defaultColor else style.color
-    } else {
-        color
-    }
-    val resolvedSize = if (style.fontSize == TextUnit.Unspecified) defaultSize else style.fontSize
-    val drawable = remember(latex, resolvedColor, resolvedSize, density.density, density.fontScale) {
-        runCatching {
-            JLatexMathDrawable.builder(latex.trim())
-                .textSize(with(density) { resolvedSize.toPx() })
-                .color(resolvedColor.toArgb())
-                .padding(0)
-                .align(JLatexMathDrawable.ALIGN_LEFT)
-                .build()
-        }.getOrNull()
-    }
-
-    if (drawable == null) {
-        Text(text = latex, modifier = modifier, color = resolvedColor, style = style)
-        return
-    }
-
-    val scrollState = rememberScrollState()
-    with(density) {
-        Row(
-            modifier = modifier.fillMaxWidth().horizontalScroll(scrollState),
-            horizontalArrangement = Arrangement.Center,
-        ) {
-            Canvas(
-                modifier = Modifier.size(
-                    width = drawable.bounds.width().toDp(),
-                    height = drawable.bounds.height().toDp(),
-                ),
-            ) {
-                drawable.draw(drawContext.canvas.nativeCanvas)
-            }
-        }
-    }
+FORMULAS = {
+    "c1l4": ("a+(-a)=0", "a 与 -a 互为相反数；0 的相反数仍是 0。"),
+    "c1l5": (r"|a|=\begin{cases}a,&a>0\\0,&a=0\\-a,&a<0\end{cases}", "绝对值表示数轴上对应点到原点的距离。"),
+    "c2l2": (r"a+b=b+a,\qquad (a+b)+c=a+(b+c)", "分别表示加法交换律和结合律。"),
+    "c2l3": (r"a-b=a+(-b)", "减去一个数，等于加上这个数的相反数。"),
+    "c2l6": (r"a(b+c)=ab+ac", "乘法分配律。"),
+    "c2l7": (r"a\div b=a\cdot\frac{1}{b},\qquad b\ne 0", "除以一个非零数，等于乘以这个数的倒数。"),
+    "c2l9": (r"a^n=a\cdot a\cdots a", "右边共有 n 个相同因数 a，n 为正整数。"),
+    "c2l11": (r"N=a\times 10^n,\qquad 1\le |a|<10", "科学记数法的标准形式。"),
+    "c2l13": (r"(a_n\cdots a_1a_0)_b=\sum_{k=0}^{n}a_kb^k", "b 是进位制的基数。"),
+    "c3l3": (r"s=vt,\qquad S=ab", "字母可以把同一类数量关系写成一般形式。"),
+    "c4l4": (r"ax+bx=(a+b)x", "合并同类项可看作分配律的逆用。"),
+    "c4l5": (r"a(b+c)=ab+ac,\qquad -(a+b)=-a-b", "去括号时，括号外的因数要作用到括号内每一项。"),
+    "c5l3": (r"a=b\Rightarrow a\pm c=b\pm c,\qquad a=b\Rightarrow ac=bc,\qquad c\ne0\Rightarrow \frac{a}{c}=\frac{b}{c}", "等式两边进行相同的合法运算，等式仍成立。"),
+    "c5l4": (r"ax=b,\quad a\ne0\Rightarrow x=\frac{b}{a}", "把未知数的系数化为 1。"),
+    "c5l13": (r"x=0.\overline{3}\Rightarrow 10x-x=3\Rightarrow x=\frac{1}{3}", "利用循环部分相同，相减后可以消去无限循环尾部。"),
+    "c5l10": (r"P=S-C,\qquad S=C(1\pm r)", "P 表示利润，S 表示售价，C 表示进价，r 表示利润率；盈利取 +，亏损取 -。"),
+    "c6l8": (r"AM=MB=\frac{1}{2}AB", "M 是线段 AB 的中点时成立。"),
+    "c6l10": (r"1^\circ=60^\prime,\qquad 1^\prime=60^{\prime\prime}", "角的度、分、秒之间按六十进制换算。"),
+    "c6l12": (r"\angle AOC=\angle COB=\frac{1}{2}\angle AOB", "OC 平分 ∠AOB 时成立。"),
+    "c6l13": (r"\alpha+\beta=90^\circ,\qquad \alpha+\beta=180^\circ", "前式表示互余，后式表示互补。"),
 }
-''',
-)
 
-ui_path = "app/src/main/java/com/majortomman/school/ui/SchoolUiSystem.kt"
-ui = read(ui_path)
-marker = "@Composable\ninternal fun SchoolCompactTopBar("
-start = ui.index(marker)
-ui = ui[:start] + r'''@Composable
-internal fun SchoolCompactTopBar(
-    title: String,
-    onBack: () -> Unit,
-    modifier: Modifier = Modifier,
-    actionLabel: String? = null,
-    onAction: (() -> Unit)? = null,
-    actionEnabled: Boolean = true,
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = SchoolUiMetrics.minTouchHeight)
-            .padding(horizontal = 22.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = "返回",
-            modifier = Modifier.clickable(onClick = onBack).padding(vertical = 8.dp),
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.52f),
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
-            softWrap = false,
-        )
-        Text(
-            text = title,
-            modifier = Modifier.weight(1f),
-            color = MaterialTheme.colorScheme.onBackground,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = if (actionLabel == null) TextAlign.End else TextAlign.Center,
-        )
-        if (actionLabel != null && onAction != null) {
-            Text(
-                text = actionLabel,
-                modifier = Modifier.clickable(enabled = actionEnabled, onClick = onAction).padding(vertical = 8.dp),
-                color = if (actionEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.28f),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                softWrap = false,
-            )
-        }
-    }
+EXPLANATIONS = {
+    "c1l1": "在许多实际问题中，同一数量会出现意义相反的两种情况。选定一个共同基准，并规定其中一种意义为正，另一种意义就用负数表示；0表示正好处在这个基准上。",
+    "c1l2": "正整数、0和负整数统称为整数；正分数和负分数统称为分数。整数也能写成分母为1的分数形式，因此这些数都可以纳入同一个数的范围来研究，这就是有理数。",
+    "c1l3": "用一条直线表示数时，需要先确定基准点、方向和长度标准。规定原点、正方向和单位长度以后，正数、0和负数就都能用直线上的点表示。",
+    "c1l4": "像3和-3这样，只有符号不同的两个数互为相反数。在数轴上，它们位于原点两侧并且到原点的距离相等；0的相反数仍是0。",
+    "c1l5": "数轴上表示数a的点到原点的距离叫作a的绝对值。距离总是不小于0，所以一对相反数的绝对值相等，而0的绝对值是0。",
+    "c1l6": "把有理数表示在水平数轴上，越靠右的点表示的数越大。两个负数都在原点左侧，绝对值较大的数离原点更远，也就更靠左，因此反而更小。",
+    "c2l1": "可以借助数轴理解有理数加法：符号表示运动方向，绝对值表示运动距离。连续完成两次运动后所在的位置，对应的数就是两个有理数的和。",
+    "c2l3": "有理数范围内仍把减法看作加法的逆运算。由这种关系可以得到：减去一个数，与加上这个数的相反数结果相同。",
+    "c2l7": "有理数除法仍是乘法的逆运算。除以一个非零数，可以转化为乘以它的倒数；商的符号判断与乘法相同。",
+    "c3l1": "用字母表示数以后，同一种数量关系可以不依赖某一组具体数值来表达。把实际问题中的数量及其关系写成含字母的式子，就得到代数式。",
+    "c5l1": "解决含有未知量的问题时，可以先设未知量为字母，再根据题目中的相等关系列出等式。含有未知数的等式叫作方程。",
+    "c6l1": "研究物体的形状、大小和相互位置时，可以暂时忽略颜色、材料等属性，只保留与几何有关的特征。由此得到的长方体、圆柱、三角形、圆等，就是几何图形。",
 }
-'''
-write(ui_path, ui)
 
-lesson_path = "app/src/main/java/com/majortomman/school/ui/InteractiveLessonScreen.kt"
-replace(
-    lesson_path,
-    "    if (pageIndex !in pages.indices) pageIndex = 0\n\n    Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {\n"
-    "        SchoolCompactTopBar(title = authoredLesson.title, onBack = onBack)\n",
-    "    if (pageIndex !in pages.indices) pageIndex = 0\n"
-    "    val textbookReference = authoredLesson.references.firstOrNull()\n\n"
-    "    Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {\n"
-    "        SchoolCompactTopBar(\n"
-    "            title = authoredLesson.title,\n"
-    "            onBack = onBack,\n"
-    "            actionLabel = if (textbookReference != null) \"PDF\" else null,\n"
-    "            onAction = { textbookReference?.let { onOpenTextbook(it.pageStart) } },\n"
-    "            actionEnabled = textbookReference != null && installedMaterial.pdfFile.isFile,\n"
-    "        )\n",
-)
-replace(
-    lesson_path,
-    "                LessonPresentationPageContent(\n"
-    "                    page = page,\n"
-    "                    lesson = authoredLesson,\n"
-    "                    textbookAvailable = installedMaterial.pdfFile.isFile,\n"
-    "                    onOpenTextbook = onOpenTextbook,\n"
-    "                )\n",
-    "                LessonPresentationPageContent(page = page, lesson = authoredLesson)\n",
-)
-replace(
-    lesson_path,
-    "private fun LessonPresentationPageContent(\n"
-    "    page: LessonPresentationPage,\n"
-    "    lesson: com.majortomman.school.learning.course.CourseLesson,\n"
-    "    textbookAvailable: Boolean,\n"
-    "    onOpenTextbook: (Int) -> Unit,\n"
-    ") {\n",
-    "private fun LessonPresentationPageContent(\n"
-    "    page: LessonPresentationPage,\n"
-    "    lesson: com.majortomman.school.learning.course.CourseLesson,\n"
-    ") {\n",
-)
-replace(
-    lesson_path,
-    "        is LessonPresentationPage.Teaching -> {\n"
-    "            AuthoredTeachingPageContent(page.steps, lesson, textbookAvailable, onOpenTextbook)\n"
-    "        }\n",
-    "        is LessonPresentationPage.Teaching -> AuthoredTeachingPageContent(page.steps, lesson)\n",
-)
-
-renderer_path = "app/src/main/java/com/majortomman/school/ui/CloudCourseBlockRenderer.kt"
-replace(
-    renderer_path,
-    "internal fun AuthoredTeachingPageContent(\n"
-    "    steps: List<CourseStep>,\n"
-    "    lesson: CourseLesson,\n"
-    "    textbookAvailable: Boolean,\n"
-    "    onOpenTextbook: (Int) -> Unit,\n"
-    ") {\n"
-    "    steps.forEachIndexed { index, step ->\n"
-    "        if (index > 0) Spacer(Modifier.height(SchoolUiMetrics.sectionGap))\n"
-    "        AuthoredStep(step, lesson, textbookAvailable, onOpenTextbook)\n"
-    "    }\n"
-    "}\n",
-    "internal fun AuthoredTeachingPageContent(steps: List<CourseStep>, lesson: CourseLesson) {\n"
-    "    steps.forEachIndexed { index, step ->\n"
-    "        if (index > 0) Spacer(Modifier.height(SchoolUiMetrics.sectionGap))\n"
-    "        AuthoredStep(step, lesson)\n"
-    "    }\n"
-    "}\n",
-)
-replace(
-    renderer_path,
-    "private fun AuthoredStep(step: CourseStep, lesson: CourseLesson, textbookAvailable: Boolean, onOpenTextbook: (Int) -> Unit) {\n",
-    "private fun AuthoredStep(step: CourseStep, lesson: CourseLesson) {\n",
-)
-replace(
-    renderer_path,
-    '''        is CourseFormula -> {
-            Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveYellow.copy(alpha = 0.3f)))
-            Text(
-                text = step.expression,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp),
-                color = InteractiveYellow,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.Center,
-            )
-            step.note?.let {
-                Text(it, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp), color = InteractiveMuted, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
-            }
-            Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveYellow.copy(alpha = 0.3f)))
-        }
-''',
-    '''        is CourseFormula -> {
-            Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveYellow.copy(alpha = 0.3f)))
-            SchoolFormula(
-                latex = step.expression,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp),
-                color = InteractiveYellow,
-                style = MaterialTheme.typography.headlineMedium,
-            )
-            step.note?.let {
-                Text(it, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp), color = InteractiveMuted, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
-            }
-            Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveYellow.copy(alpha = 0.3f)))
-        }
-''',
-)
-content = read(renderer_path)
-pattern = re.compile(r'''        is CourseSourceLink -> \{\n(?:.*\n)*?        \}\n        is CourseSummaryStep ->''')
-content, replaced_count = pattern.subn("        is CourseSourceLink -> Unit\n        is CourseSummaryStep ->", content, count=1)
-if replaced_count != 1:
-    raise RuntimeError(f"{renderer_path}: failed to replace CourseSourceLink renderer")
-write(renderer_path, content)
-
-validator = "tools/course-content/validate_authored_course.py"
-replace(
-    validator,
-    'STEP_TYPES = {"explanation", "question", "keyIdea", "formula", "example", "scene", "checkpoint", "sourceLink", "summary"}\n',
-    'STEP_TYPES = {"explanation", "question", "keyIdea", "formula", "example", "scene", "checkpoint", "summary"}\n'
-    'CJK = re.compile(r"[\\u3400-\\u9fff]")\n'
-    'NON_LATEX_MATH = set("²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉−×÷≤≥≠Σαβγθπ°′″")\n',
-)
-replace(
-    validator,
-    '''                    if step_type == "sourceLink":
-                        ref_index = step.get("referenceIndex")
-                        require(isinstance(ref_index, int) and 0 <= ref_index < len(references), f"{stw}: referenceIndex out of range")
-                    if step_type == "scene":
-''',
-    '''                    if step_type == "formula":
-                        exact(step, {"type", "expression", "note"}, stw)
-                        expression = text(step, "expression", stw)
-                        require("$" not in expression and "\\\\(" not in expression and "\\\\)" not in expression and "\\\\[" not in expression and "\\\\]" not in expression, f"{stw}.expression: store pure LaTeX math without delimiters")
-                        require(CJK.search(expression) is None, f"{stw}.expression: Chinese prose belongs outside formulas")
-                        require(not any(char in NON_LATEX_MATH for char in expression), f"{stw}.expression: use LaTeX commands instead of Unicode math glyphs")
-                        note = step.get("note")
-                        require(note is None or (isinstance(note, str) and note.strip()), f"{stw}.note: null or non-empty string required")
-                    if step_type == "scene":
-''',
-)
-
-example_path = Path("courses/examples/pep-math-7-1-course.json")
-example = json.loads(example_path.read_text(encoding="utf-8"))
-example_steps = example["chapters"][0]["sections"][0]["lessons"][0]["steps"]
-example_steps[:] = [step for step in example_steps if step["type"] != "sourceLink"]
-for step in example_steps:
-    if step["type"] == "formula":
-        step["expression"] = r"+3,\qquad -3"
-example_path.write_text(json.dumps(example, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-
-write(
-    "docs/FORMULA_STANDARD.md",
-    r'''# School 数学公式规范
-
-课程包中的公式统一使用标准 LaTeX 数学语法，App 负责把公式渲染到界面。
-
-## 数据约定
-
-`CourseFormula.expression` 只保存数学表达式本身，不保存 `$...$`、`$$...$$`、`\(...\)` 或 `\[...\]` 分隔符，也不保存渲染器名称。
-
-示例：
-
-```json
-{
-  "type": "formula",
-  "expression": "\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}",
-  "note": "公式说明放在普通正文中。"
+KEY_IDEAS = {
+    "c1l1": "正数和负数表示的是相对于同一基准的两种相反意义；0既不是正数也不是负数。",
+    "c1l2": "整数和分数统称为有理数。按符号还可以把有理数分为正有理数、0和负有理数。",
+    "c1l3": "数轴由原点、正方向和单位长度三个要素确定；每一个有理数都可以用数轴上的点表示。",
+    "c1l4": "-a表示a的相反数。a可以是正数、0或负数，所以-a并不一定是负数。",
+    "c1l5": "正数的绝对值是它本身，负数的绝对值是它的相反数，0的绝对值是0。",
+    "c1l6": "正数大于0，0大于负数；两个负数比较大小时，绝对值大的反而小。",
+    "c2l1": "同号两数相加，取相同的符号并把绝对值相加；异号两数相加，取绝对值较大加数的符号，并用较大的绝对值减去较小的绝对值。",
+    "c2l3": "有理数减法可以统一转化为加法，转化时减数要同时变成它的相反数。",
+    "c2l7": "除数不能为0；除法转化为乘法后，再按乘法的符号法则和绝对值进行计算。",
+    "c3l1": "列代数式时，先明确各数量之间的关系，再按照运算关系写出式子。",
+    "c5l1": "列方程时，应先找出题目中能够用等号连接的两个量，再把它们分别表示出来。",
+    "c6l1": "从实际物体中抽取与形状、大小和位置有关的特征，是研究几何图形的基本方法。",
 }
-```
 
-课程数据不得使用 Unicode 上下标、Unicode 数学运算符或中文句子代替 LaTeX。中文解释放在 `note`、`explanation`、`keyIdea` 等正文区域。
+PROCESS_TEXT = "解含分母的一元一次方程时，通常先去分母，再去括号、移项、合并同类项，最后把未知数的系数化为 1。"
 
-## 显示职责
 
-- 课程包只负责标准 LaTeX。
-- APK 通过 `SchoolFormula` 统一渲染，当前实现使用 JLaTeXMath Android。
-- 长公式保持正常数学布局；超出屏幕宽度时允许横向滚动，不把公式压成竖排。
-- 渲染失败时回退显示原始表达式，避免课程页面崩溃。
-- 用户文字缩放通过 Compose `sp` / `LocalDensity` 同步作用到公式字号。
+def formalize(text: str) -> str:
+    for old, new in (
+        ("核心是", "可以归结为"),
+        ("关键不是", "需要注意的不是"),
+        ("本质是", "实质上是"),
+        ("最重要的边界条件", "需要特别注意的条件"),
+        ("“统一语言”是", "可以统一写成"),
+        ("翻译成", "写成"),
+        ("翻译回", "解释回"),
+        ("套路", "方法"),
+    ):
+        text = text.replace(old, new)
+    return text
 
-## 教材入口
 
-教材 PDF 是课程参考资料，不作为正文步骤。每个 Lesson 继续保留 `references` 页码元数据，App 在课程顶部右侧提供唯一的 `PDF` 入口，并跳转到当前 Lesson 的首个教材参考页。
+source = Path("courses/pep-math-7-1")
+encoded = "".join((source / f"course.json.gz.b64.part{index:02d}").read_text(encoding="utf-8") for index in range(1, 8))
+course = json.loads(gzip.decompress(base64.b64decode(encoded)).decode("utf-8"))
 
-## 第三方实现说明
+for chapter in course["chapters"]:
+    for section in chapter["sections"]:
+        for lesson in section["lessons"]:
+            lesson_id = lesson["id"]
+            rewritten = []
+            for step in lesson["steps"]:
+                step_type = step["type"]
+                if step_type == "sourceLink":
+                    continue
+                step = copy.deepcopy(step)
+                if step_type == "explanation":
+                    step["title"] = None
+                    step["text"] = EXPLANATIONS.get(lesson_id, formalize(step["text"]))
+                elif step_type == "keyIdea":
+                    step["title"] = None
+                    step["text"] = KEY_IDEAS.get(lesson_id, formalize(step["text"]))
+                elif step_type == "formula":
+                    if lesson_id == "c5l7":
+                        rewritten.append({"type": "explanation", "text": PROCESS_TEXT, "title": None})
+                        continue
+                    expression, note = FORMULAS[lesson_id]
+                    step["expression"] = expression
+                    step["note"] = note
+                elif step_type == "question":
+                    step["prompt"] = formalize(step["prompt"])
+                elif step_type == "summary":
+                    step["text"] = formalize(step["text"])
+                elif step_type == "checkpoint":
+                    step["prompt"] = formalize(step["prompt"])
+                    step["explanation"] = formalize(step["explanation"])
+                elif step_type == "example":
+                    step["prompt"] = formalize(step["prompt"])
+                    step["steps"] = [formalize(item) for item in step["steps"]]
+                    step["answer"] = formalize(step["answer"])
+                rewritten.append(step)
+            lesson["steps"] = rewritten
+            lesson["goals"] = [formalize(item) for item in lesson["goals"]]
+            lesson["summary"] = [formalize(item) for item in lesson["summary"]]
+            for practice in lesson["practice"]:
+                practice["prompt"] = formalize(practice["prompt"])
+                practice["answer"] = formalize(practice["answer"])
+                practice["analysis"] = [formalize(item) for item in practice["analysis"]]
 
-当前 APK 使用 `rikkahub/jlatexmath-android` 1.5（JLaTeXMath Android fork）作为公式绘制实现。课程 JSON 不依赖该实现，未来替换渲染器不需要修改课程格式。
-''',
-)
+raw = (json.dumps(course, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+if len(raw) != EXPECTED_SIZE:
+    raise RuntimeError(f"unexpected course size: {len(raw)}")
+actual_sha = hashlib.sha256(raw).hexdigest()
+if actual_sha != EXPECTED_SHA256:
+    raise RuntimeError(f"unexpected course SHA-256: {actual_sha}")
 
-replace("version.properties", "VERSION_NAME=0.26.4\nVERSION_CODE=43\n", "VERSION_NAME=0.26.5\nVERSION_CODE=44\n")
-notes = ".release-notes/current.md"
-replace(
-    notes,
-    "## 修改点\n\n",
-    "## 修改点\n\n"
-    "- 课程公式统一使用标准 LaTeX 数学语法，新增 `SchoolFormula` 原生 Compose 渲染层；课程数据不再绑定具体第三方渲染器。\n"
-    "- Lesson 教材引用收口到顶部右侧唯一 `PDF` 入口，正文不再插入教材跳转步骤；入口直接定位到当前 Lesson 的教材参考页。\n"
-    "- 七上课程正文按教材原有知识顺序、术语和讲解节奏重新校正表达，保留教材式的引入与归纳风格，同时继续使用原创措辞和原创例题练习。\n",
-)
-replace(
-    notes,
-    "## 修复点\n\n",
-    "## 修复点\n\n"
-    "- 修复分数、根式、上下标、角度和方程等公式只能以普通文本显示的问题；长公式不再通过压缩文字适配窄屏。\n"
-    "- 清理七上课程中 64 个正文 `sourceLink` 和非公式型“流程公式”，20 个真正公式全部改为纯 LaTeX 表达式。\n",
-)
+archive = gzip.compress(raw, compresslevel=9, mtime=0)
+new_encoded = base64.b64encode(archive).decode("ascii")
+parts = [new_encoded[index:index + 8000] for index in range(0, len(new_encoded), 8000)]
+if len(parts) != 7:
+    raise RuntimeError(f"expected 7 course parts, got {len(parts)}")
+for index, part in enumerate(parts, start=1):
+    (source / f"course.json.gz.b64.part{index:02d}").write_text(part, encoding="utf-8")
+
+for workflow_path in (Path(".github/workflows/course.yml"), Path(".github/workflows/course-r2-release.yml")):
+    text = workflow_path.read_text(encoding="utf-8")
+    text = text.replace("62015378a5ab5308110edd098d440de2b1e58d7193df86a535b8f28c0e09cc46", EXPECTED_SHA256)
+    text = text.replace('test "$(stat -c%s build/authored/pep-math-7-1/course.json)" = "271393"', f'test "$(stat -c%s build/authored/pep-math-7-1/course.json)" = "{EXPECTED_SIZE}"')
+    workflow_path.write_text(text, encoding="utf-8")
