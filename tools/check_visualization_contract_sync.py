@@ -23,6 +23,8 @@ def load_python_contract() -> tuple[set[str], str]:
                 parameter_type = "NUMBER_LIST"
             elif name in schema.boolean_parameters:
                 parameter_type = "BOOLEAN"
+            elif name in schema.math_expression_parameters:
+                parameter_type = "MATH_EXPRESSION"
             else:
                 parameter_type = "NUMBER"
             requirement = "required" if name in schema.required_parameters else "optional"
