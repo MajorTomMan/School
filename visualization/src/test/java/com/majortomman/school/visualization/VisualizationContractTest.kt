@@ -149,6 +149,21 @@ class VisualizationContractTest {
     }
 
     @Test
+    fun semanticallyEqualInvocationsHaveValueEquality() {
+        fun invocation() = VisualizationInvocation(
+            renderer = VisualizationKey("mathematics.number-line.points"),
+            parameters = VisualizationParameters.of(
+                "min" to VisualizationParameterValue.NumberValue(-5.0),
+                "max" to VisualizationParameterValue.NumberValue(5.0),
+                "values" to VisualizationParameterValue.NumberListValue(listOf(-2.0, 3.0)),
+            ),
+            texts = VisualizationTexts.of("title" to "数轴"),
+        )
+        assertEquals(invocation(), invocation())
+        assertEquals(invocation().hashCode(), invocation().hashCode())
+    }
+
+    @Test
     fun unknownRendererIsRejected() {
         val issues = SchoolVisualizationCatalog.validate(VisualizationInvocation(VisualizationKey("mathematics.missing")))
         assertFalse(issues.isEmpty())
