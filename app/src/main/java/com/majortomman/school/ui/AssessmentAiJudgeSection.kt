@@ -393,5 +393,5 @@ private fun LearningContent.plainText(): String = when (this) {
         append(columns.joinToString("、"))
         rows.forEach { row -> append("；").append(row.joinToString("、")) }
     }
-    is LearningContent.Scene -> "题目中的交互数学图"
+    is LearningContent.Visualization -> visualization.texts.keys.sorted().map { visualization.texts.text(it) }.filter(String::isNotBlank).joinToString("；").ifBlank { "题目中的可视化图" }
 }
