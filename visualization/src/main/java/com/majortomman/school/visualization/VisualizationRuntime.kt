@@ -54,6 +54,8 @@ internal abstract class VisualizationRenderer {
     abstract val subject: VisualizationSubject
     abstract val schema: VisualizationSchema
 
+    open fun validate(invocation: VisualizationInvocation): List<String> = schema.validate(invocation)
+
     @Composable
     abstract fun Render(context: VisualizationRenderContext, modifier: Modifier)
 }
@@ -71,7 +73,7 @@ internal class VisualizationRegistry(renderers: List<VisualizationRenderer>) {
 
     fun validate(invocation: VisualizationInvocation): List<String> {
         val renderer = byKey[invocation.renderer] ?: return listOf("未注册的可视化 renderer：${invocation.renderer.value}")
-        return renderer.schema.validate(invocation)
+        return renderer.validate(invocation)
     }
 
     @Composable
@@ -81,7 +83,7 @@ internal class VisualizationRegistry(renderers: List<VisualizationRenderer>) {
             VisualizationError(listOf("未注册的可视化 renderer：${invocation.renderer.value}"), modifier)
             return
         }
-        val issues = renderer.schema.validate(invocation)
+        val issues = renderer.validate(invocation)
         if (issues.isNotEmpty()) {
             VisualizationError(issues, modifier)
             return
