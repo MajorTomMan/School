@@ -142,9 +142,3 @@ if len(parts) != 7:
     raise RuntimeError(f"expected 7 course parts, got {len(parts)}")
 for index, part in enumerate(parts, start=1):
     (source / f"course.json.gz.b64.part{index:02d}").write_text(part, encoding="utf-8")
-
-for workflow_path in (Path(".github/workflows/course.yml"), Path(".github/workflows/course-r2-release.yml")):
-    text = workflow_path.read_text(encoding="utf-8")
-    text = text.replace("62015378a5ab5308110edd098d440de2b1e58d7193df86a535b8f28c0e09cc46", EXPECTED_SHA256)
-    text = text.replace('test "$(stat -c%s build/authored/pep-math-7-1/course.json)" = "271393"', f'test "$(stat -c%s build/authored/pep-math-7-1/course.json)" = "{EXPECTED_SIZE}"')
-    workflow_path.write_text(text, encoding="utf-8")
