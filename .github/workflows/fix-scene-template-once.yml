@@ -1,0 +1,33 @@
+name: One-time Scene Template Fix
+
+on:
+  push:
+    branches: [agent/scene-qa-release-notes]
+    paths:
+      - ".github/scripts/fix_scene_template_once.py"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/scene-qa-release-notes
+      - name: Fix scene template enum name
+        run: python3 .github/scripts/fix_scene_template_once.py
+      - name: Commit fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add app/src/main/java/com/majortomman/school/ui/TextbookMathVisualizations.kt
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "fix: use declarative diagram scene enum"
+            git push origin HEAD:agent/scene-qa-release-notes
+          fi
