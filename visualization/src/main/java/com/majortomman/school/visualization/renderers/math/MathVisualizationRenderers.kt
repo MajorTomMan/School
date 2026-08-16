@@ -8,6 +8,7 @@ import com.majortomman.school.visualization.VisualizationKey
 import com.majortomman.school.visualization.VisualizationRenderContext
 import com.majortomman.school.visualization.VisualizationRenderer
 import kotlin.math.abs
+import kotlin.math.pow
 import kotlin.math.round
 
 internal object MathVisualizationRenderers {
@@ -73,9 +74,16 @@ private fun validateMathSemantics(invocation: VisualizationInvocation): List<Str
         val min = parameters.number("min", -8.0)
         val max = parameters.number("max", 8.0)
         val step = parameters.number("step", 1.0)
+        val minFloat = min.toFloat()
+        val maxFloat = max.toFloat()
+        val stepFloat = step.toFloat()
         if (max <= min) add("参数 max 必须大于 min")
         if (step <= 0.0) add("参数 step 必须大于 0")
+        if (step in 0.0..<0.01) add("参数 step 不能小于 0.01")
+        if (max > min && (!(maxFloat > minFloat) || !(maxFloat - minFloat).isFinite())) add("数轴范围超出 Float 绘制精度")
+        if (step > 0.0 && !(stepFloat > 0f)) add("参数 step 超出 Float 绘制精度")
         if (max > min && step > 0.0 && (max - min) / step > 80.0 + 1e-9) add("数轴刻度数量不能超过 80")
+        if (maxFloat > minFloat && stepFloat > 0f && (maxFloat - minFloat).isFinite() && (maxFloat - minFloat) / stepFloat > 80.01f) add("数轴在实际绘制精度下刻度数量不能超过 80")
         if (isEmpty()) {
             fun inRange(value: Double): Boolean = value in min..max
             when (key) {
@@ -117,10 +125,16 @@ private fun validateMathSemantics(invocation: VisualizationInvocation): List<Str
         val xMax = parameters.number("xMax", 5.0)
         val yMin = parameters.number("yMin", -4.0)
         val yMax = parameters.number("yMax", 4.0)
+        val xMinFloat = xMin.toFloat()
+        val xMaxFloat = xMax.toFloat()
+        val yMinFloat = yMin.toFloat()
+        val yMaxFloat = yMax.toFloat()
         if (xMax <= xMin) add("参数 xMax 必须大于 xMin")
         if (yMax <= yMin) add("参数 yMax 必须大于 yMin")
         if (xMax > xMin && xMax - xMin > 100.0) add("横轴范围不能超过 100 个单位")
         if (yMax > yMin && yMax - yMin > 100.0) add("纵轴范围不能超过 100 个单位")
+        if (xMax > xMin && !(xMaxFloat > xMinFloat)) add("横轴范围超出 Float 绘制精度")
+        if (yMax > yMin && !(yMaxFloat > yMinFloat)) add("纵轴范围超出 Float 绘制精度")
         if (key == "mathematics.cartesian.point" && xMax > xMin && yMax > yMin) {
             if (parameters.number("x") !in xMin..xMax) add("参数 x 必须位于横轴范围内")
             if (parameters.number("y") !in yMin..yMax) add("参数 y 必须位于纵轴范围内")
@@ -131,6 +145,12 @@ private fun validateMathSemantics(invocation: VisualizationInvocation): List<Str
         val values = parameters.numberList("values")
         if (values.isEmpty()) add("参数 values 不能为空")
         if (values.size > 8) add("参数 values 最多包含 8 个值")
+        if (values.isNotEmpty()) {
+            val floatValues = values.map(Double::toFloat)
+            val minimum = minOf(0f, floatValues.minOrNull() ?: 0f)
+            val maximum = maxOf(0f, floatValues.maxOrNull() ?: 0f)
+            if (!(maximum - minimum).isFinite()) add("图表数值跨度超出 Float 绘制范围")
+        }
     }
 
     if (key == "mathematics.process.power") {
@@ -138,9 +158,19 @@ private fun validateMathSemantics(invocation: VisualizationInvocation): List<Str
         val minBase = parameters.number("minBase", -4.0)
         val maxBase = parameters.number("maxBase", 4.0)
         val base = parameters.number("base")
-        if (abs(exponent - round(exponent)) > 1e-9 || exponent !in 1.0..8.0) add("参数 exponent 必须是 1 到 8 的整数")
+        val exponentValid = abs(exponent - round(exponent)) <= 1e-9 && exponent in 1.0..8.0
+        if (!exponentValid) add("参数 exponent 必须是 1 到 8 的整数")
         if (maxBase <= minBase) add("参数 maxBase 必须大于 minBase")
         if (maxBase > minBase && base !in minBase..maxBase) add("参数 base 必须位于 minBase..maxBase 范围内")
+        if (maxBase > minBase) {
+            val minFloat = minBase.toFloat()
+            val maxFloat = maxBase.toFloat()
+            if (!(maxFloat > minFloat) || !(maxFloat - minFloat).isFinite()) add("幂运算滑块范围超出 Float 绘制精度")
+        }
+        if (exponentValid) {
+            val exponentInt = round(exponent).toInt()
+            if (!abs(minBase).pow(exponentInt).isFinite() || !abs(maxBase).pow(exponentInt).isFinite()) add("幂运算滑块端点会产生非有限结果")
+        }
     }
 
     if (key == "mathematics.balance.equation" && "tilt" in parameters.keys && parameters.number("tilt") !in -1.0..1.0) add("参数 tilt 必须位于 -1..1 范围内")
