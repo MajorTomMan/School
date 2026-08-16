@@ -31,6 +31,26 @@ sealed interface VisualizationParameterValue {
         override fun hashCode(): Int = values.hashCode()
         override fun toString(): String = "NumberListValue(values=$values)"
     }
+
+    class MathExpressionValue private constructor(
+        val source: String,
+        internal val compiled: SafeMathExpression,
+    ) : VisualizationParameterValue {
+        val variables: Set<String> get() = compiled.variables
+
+        fun evaluate(values: Map<String, Double>): Double = compiled.evaluate(values)
+
+        override fun equals(other: Any?): Boolean = other is MathExpressionValue && source == other.source
+        override fun hashCode(): Int = source.hashCode()
+        override fun toString(): String = "MathExpressionValue(source=$source)"
+
+        companion object {
+            fun parse(source: String): MathExpressionValue {
+                val compiled = SafeMathExpression.parse(source)
+                return MathExpressionValue(compiled.source, compiled)
+            }
+        }
+    }
 }
 
 class VisualizationParameters private constructor(private val values: Map<String, VisualizationParameterValue>) {
@@ -40,6 +60,7 @@ class VisualizationParameters private constructor(private val values: Map<String
     fun number(name: String, default: Double = 0.0): Double = (values[name] as? VisualizationParameterValue.NumberValue)?.value ?: default
     fun boolean(name: String, default: Boolean = false): Boolean = (values[name] as? VisualizationParameterValue.BooleanValue)?.value ?: default
     fun numberList(name: String): List<Double> = (values[name] as? VisualizationParameterValue.NumberListValue)?.values.orEmpty()
+    fun mathExpression(name: String): VisualizationParameterValue.MathExpressionValue? = values[name] as? VisualizationParameterValue.MathExpressionValue
 
     override fun equals(other: Any?): Boolean = other is VisualizationParameters && values == other.values
     override fun hashCode(): Int = values.hashCode()
@@ -88,6 +109,7 @@ enum class VisualizationParameterType {
     NUMBER,
     BOOLEAN,
     NUMBER_LIST,
+    MATH_EXPRESSION,
 }
 
 data class VisualizationParameterSpec(
@@ -118,6 +140,8 @@ data class VisualizationSchema(
         require(parameters.map { it.name }.distinct().size == parameters.size) { "可视化参数 schema 存在重复字段" }
         require(texts.map { it.name }.distinct().size == texts.size) { "可视化文本 schema 存在重复字段" }
     }
+
+    fun parameter(name: String): VisualizationParameterSpec? = parameters.firstOrNull { it.name == name }
 
     fun validate(invocation: VisualizationInvocation): List<String> = buildList {
         val parameterSpecs = parameters.associateBy { it.name }
@@ -151,6 +175,7 @@ data class VisualizationSchema(
         VisualizationParameterType.NUMBER -> value is VisualizationParameterValue.NumberValue
         VisualizationParameterType.BOOLEAN -> value is VisualizationParameterValue.BooleanValue
         VisualizationParameterType.NUMBER_LIST -> value is VisualizationParameterValue.NumberListValue
+        VisualizationParameterType.MATH_EXPRESSION -> value is VisualizationParameterValue.MathExpressionValue
     }
 }
 
