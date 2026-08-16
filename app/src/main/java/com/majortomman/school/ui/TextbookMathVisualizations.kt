@@ -143,7 +143,7 @@ internal fun TextbookMathVisual(
                 CourseSceneTemplate.DATA_CHART -> drawDataChart(data.string("mode", "bar"))
                 CourseSceneTemplate.PROBABILITY -> drawProbabilityTree()
                 CourseSceneTemplate.PROJECTION -> drawProjection()
-                CourseSceneTemplate.DIAGRAM -> drawDiagram(data)
+                CourseSceneTemplate.DECLARATIVE_DIAGRAM -> drawDiagram(data)
                 else -> Unit
             }
         }
