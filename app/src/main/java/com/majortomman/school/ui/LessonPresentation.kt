@@ -9,7 +9,6 @@ import com.majortomman.school.learning.course.CourseLesson
 import com.majortomman.school.learning.course.CoursePractice
 import com.majortomman.school.learning.course.CourseQuestion
 import com.majortomman.school.learning.course.CourseSceneStep
-import com.majortomman.school.learning.course.CourseSourceLink
 import com.majortomman.school.learning.course.CourseStep
 import com.majortomman.school.learning.course.CourseSummaryStep
 
@@ -80,7 +79,6 @@ private fun labelFor(step: CourseStep): String = when (step) {
     is CourseExample -> step.title
     is CourseSceneStep -> "看一看"
     is CourseCheckpoint -> "检查一下"
-    is CourseSourceLink -> "教材参考"
     is CourseSummaryStep -> "阶段小结"
 }
 
