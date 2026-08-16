@@ -165,7 +165,7 @@ internal fun CourseSceneView(scene: CourseScene, formulaFallback: String?) {
             CourseSceneTemplate.OPPOSITE_NUMBERS -> AdjustableNumberLine(NumberLineMode.OPPOSITE)
             CourseSceneTemplate.ABSOLUTE_VALUE -> AbsoluteValueNumberLineVisual()
             CourseSceneTemplate.NUMBER_COMPARISON -> ComparisonVisual()
-            CourseSceneTemplate.ADDITION_PROCESS -> SignedUnitVisual()
+            CourseSceneTemplate.ADDITION_PROCESS -> SignedMovementNumberLineVisual()
             CourseSceneTemplate.SUBTRACTION_TRANSFORM, CourseSceneTemplate.DIVISION_TRANSFORM -> FormulaProcessVisual(formulaFallback.orEmpty())
             CourseSceneTemplate.MULTIPLICATION_SIGN -> SignRuleVisual()
             CourseSceneTemplate.POWER_PROCESS -> PowerVisual()

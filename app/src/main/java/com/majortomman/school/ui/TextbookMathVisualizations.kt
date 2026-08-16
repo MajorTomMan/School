@@ -182,8 +182,8 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawEquationBalance
     drawPath(base, InteractiveMuted.copy(alpha = .5f), style = Stroke(3f))
     drawLine(InteractiveBlue, Offset(size.width * .25f, beamY), Offset(size.width * .25f, beamY + 62f), 2f)
     drawLine(InteractiveYellow, Offset(size.width * .75f, beamY), Offset(size.width * .75f, beamY + 62f), 2f)
-    drawCenteredText(data.string("left", "x + 3"), size.width * .25f, beamY + 92f, InteractiveBlue, 30f)
-    drawCenteredText(data.string("right", "7"), size.width * .75f, beamY + 92f, InteractiveYellow, 30f)
+    drawCenteredMultilineText(data.string("left", "x + 3"), size.width * .25f, beamY + 92f, InteractiveBlue, 24f)
+    drawCenteredMultilineText(data.string("right", "7"), size.width * .75f, beamY + 92f, InteractiveYellow, 24f)
     drawCenteredText("等式两边进行相同的运算，等式仍成立", centerX, size.height * .94f, InteractiveMuted, 21f)
 }
 
@@ -494,18 +494,36 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawProbabilityTree
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawProjection() {
-    val x = size.width * .28f
-    val y = size.height * .25f
-    val w = size.width * .38f
-    val h = size.height * .42f
-    val d = size.width * .13f
+    val x = size.width * .08f
+    val y = size.height * .32f
+    val w = size.width * .26f
+    val h = size.height * .34f
+    val d = size.width * .09f
     val points = listOf(
         Offset(x, y), Offset(x + w, y), Offset(x + w, y + h), Offset(x, y + h),
         Offset(x + d, y - d), Offset(x + w + d, y - d), Offset(x + w + d, y + h - d), Offset(x + d, y + h - d),
     )
     val edges = listOf(0 to 1, 1 to 2, 2 to 3, 3 to 0, 4 to 5, 5 to 6, 6 to 7, 7 to 4, 0 to 4, 1 to 5, 2 to 6, 3 to 7)
     edges.forEach { (a, b) -> drawLine(InteractiveBlue, points[a], points[b], 3f) }
-    drawArrow(size.width * .73f, size.height * .48f, size.width * .9f, size.height * .48f, InteractiveYellow)
+    drawCenteredText("立体图形", size.width * .22f, size.height * .83f, InteractiveBlue, 20f)
+    drawArrow(size.width * .42f, size.height * .49f, size.width * .53f, size.height * .49f, InteractiveYellow)
+
+    val viewX = size.width * .62f
+    val frontY = size.height * .18f
+    val viewWidth = size.width * .24f
+    val viewHeight = size.height * .16f
+    drawRect(InteractiveYellow, Offset(viewX, frontY), androidx.compose.ui.geometry.Size(viewWidth, viewHeight), style = Stroke(3f))
+    drawCenteredText("正面", viewX + viewWidth / 2, frontY - 12f, InteractiveWhite, 18f)
+
+    val sideWidth = size.width * .1f
+    val sideY = size.height * .48f
+    drawRect(InteractiveYellow, Offset(viewX + (viewWidth - sideWidth) / 2, sideY), androidx.compose.ui.geometry.Size(sideWidth, viewHeight), style = Stroke(3f))
+    drawCenteredText("侧面", viewX + viewWidth / 2, sideY - 12f, InteractiveWhite, 18f)
+
+    val topHeight = size.height * .07f
+    val topY = size.height * .78f
+    drawRect(InteractiveYellow, Offset(viewX, topY), androidx.compose.ui.geometry.Size(viewWidth, topHeight), style = Stroke(3f))
+    drawCenteredText("上面", viewX + viewWidth / 2, topY - 12f, InteractiveWhite, 18f)
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPolygon(points: List<Offset>, color: Color) {
@@ -518,6 +536,21 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawArrow(x1: Float
     val l = 13f
     drawLine(color, Offset(x2, y2), Offset(x2 - l * cos((angle - PI.toFloat() / 6).toDouble()).toFloat(), y2 - l * sin((angle - PI.toFloat() / 6).toDouble()).toFloat()), 4f)
     drawLine(color, Offset(x2, y2), Offset(x2 - l * cos((angle + PI.toFloat() / 6).toDouble()).toFloat(), y2 - l * sin((angle + PI.toFloat() / 6).toDouble()).toFloat()), 4f)
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCenteredMultilineText(
+    text: String,
+    x: Float,
+    y: Float,
+    color: Color,
+    textSize: Float,
+    maxCharsPerLine: Int = 7,
+) {
+    val clean = text.trim()
+    val lines = if (clean.length <= maxCharsPerLine) listOf(clean) else clean.chunked(maxCharsPerLine)
+    val lineHeight = visualTextSizePx(textSize) * 1.12f
+    val firstY = y - (lines.size - 1) * lineHeight / 2f
+    lines.forEachIndexed { index, line -> drawCenteredText(line, x, firstY + index * lineHeight, color, textSize) }
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCenteredText(
