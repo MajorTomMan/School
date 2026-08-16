@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from typing import Any
 
 
@@ -143,7 +144,7 @@ RENDERER_SCHEMAS: dict[str, RendererSchema] = {
 
 
 def is_number(value: Any) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(float(value))
 
 
 def validate_visualization(renderer: Any, parameters: Any, texts: Any, where: str) -> None:
@@ -168,12 +169,12 @@ def validate_visualization(renderer: Any, parameters: Any, texts: Any, where: st
     for name, value in parameters.items():
         if name in schema.number_list_parameters:
             if not isinstance(value, list) or not all(is_number(item) for item in value):
-                raise ValueError(f"{where}.parameters.{name}: number[] required")
+                raise ValueError(f"{where}.parameters.{name}: finite number[] required")
         elif name in schema.boolean_parameters:
             if not isinstance(value, bool):
                 raise ValueError(f"{where}.parameters.{name}: boolean required")
         elif not is_number(value):
-            raise ValueError(f"{where}.parameters.{name}: number required")
+            raise ValueError(f"{where}.parameters.{name}: finite number required")
 
     text_names = set(texts)
     unknown_texts = text_names - schema.text_names
@@ -187,3 +188,98 @@ def validate_visualization(renderer: Any, parameters: Any, texts: Any, where: st
             raise ValueError(f"{where}.texts.{name}: string required")
         if name in schema.required_texts and not value.strip():
             raise ValueError(f"{where}.texts.{name}: non-empty string required")
+
+    validate_visualization_semantics(renderer, parameters, where)
+
+
+def validate_visualization_semantics(renderer: str, parameters: dict[str, Any], where: str) -> None:
+    if renderer.startswith("mathematics.number-line."):
+        minimum = float(parameters.get("min", -8.0))
+        maximum = float(parameters.get("max", 8.0))
+        step = float(parameters.get("step", 1.0))
+        if maximum <= minimum:
+            raise ValueError(f"{where}.parameters: max must be greater than min")
+        if step <= 0:
+            raise ValueError(f"{where}.parameters.step: must be greater than 0")
+        if (maximum - minimum) / step > 80.0 + 1e-9:
+            raise ValueError(f"{where}.parameters: number-line tick count must not exceed 80")
+
+        def in_range(value: float) -> bool:
+            return minimum <= value <= maximum
+
+        if renderer == "mathematics.number-line.basic" and "value" in parameters and not in_range(float(parameters["value"])):
+            raise ValueError(f"{where}.parameters.value: must be inside number-line range")
+        if renderer == "mathematics.number-line.construction" and not in_range(0.0):
+            raise ValueError(f"{where}.parameters: construction range must contain 0")
+        if renderer == "mathematics.number-line.points":
+            values = [float(item) for item in parameters["values"]]
+            if not values:
+                raise ValueError(f"{where}.parameters.values: must not be empty")
+            if len(values) > 8:
+                raise ValueError(f"{where}.parameters.values: at most 8 points are supported")
+            if any(not in_range(value) for value in values):
+                raise ValueError(f"{where}.parameters.values: all points must be inside number-line range")
+        if renderer == "mathematics.number-line.opposite":
+            value = abs(float(parameters.get("value", 3.0)))
+            if not in_range(0.0):
+                raise ValueError(f"{where}.parameters: opposite range must contain 0")
+            if value > min(abs(minimum), abs(maximum)):
+                raise ValueError(f"{where}.parameters.value: both opposite points must fit inside number-line range")
+        if renderer == "mathematics.number-line.absolute-value":
+            value = float(parameters.get("value", -3.0))
+            if not in_range(value):
+                raise ValueError(f"{where}.parameters.value: must be inside number-line range")
+            if not in_range(0.0) or abs(value) > maximum:
+                raise ValueError(f"{where}.parameters.value: value and absolute value must both fit inside number-line range")
+        if renderer == "mathematics.number-line.comparison":
+            for name in ("left", "right"):
+                if name in parameters and not in_range(float(parameters[name])):
+                    raise ValueError(f"{where}.parameters.{name}: must be inside number-line range")
+        if renderer == "mathematics.number-line.movement":
+            start = float(parameters.get("start", -3.0))
+            delta = float(parameters.get("delta", 2.0))
+            if not in_range(start):
+                raise ValueError(f"{where}.parameters.start: must be inside number-line range")
+            if not in_range(start + delta):
+                raise ValueError(f"{where}.parameters: start + delta must be inside number-line range")
+        if renderer == "mathematics.number-line.root" and not in_range(float(parameters["value"])):
+            raise ValueError(f"{where}.parameters.value: must be inside number-line range")
+
+    if renderer.startswith("mathematics.cartesian."):
+        x_min = float(parameters.get("xMin", -5.0))
+        x_max = float(parameters.get("xMax", 5.0))
+        y_min = float(parameters.get("yMin", -4.0))
+        y_max = float(parameters.get("yMax", 4.0))
+        if x_max <= x_min:
+            raise ValueError(f"{where}.parameters: xMax must be greater than xMin")
+        if y_max <= y_min:
+            raise ValueError(f"{where}.parameters: yMax must be greater than yMin")
+        if renderer == "mathematics.cartesian.point":
+            x = float(parameters["x"])
+            y = float(parameters["y"])
+            if not x_min <= x <= x_max:
+                raise ValueError(f"{where}.parameters.x: must be inside x range")
+            if not y_min <= y <= y_max:
+                raise ValueError(f"{where}.parameters.y: must be inside y range")
+
+    if renderer in {"mathematics.chart.line", "mathematics.chart.bar"}:
+        values = parameters["values"]
+        if not values:
+            raise ValueError(f"{where}.parameters.values: must not be empty")
+        if len(values) > 8:
+            raise ValueError(f"{where}.parameters.values: at most 8 values are supported")
+
+    if renderer == "mathematics.process.power":
+        exponent = float(parameters["exponent"])
+        minimum = float(parameters.get("minBase", -4.0))
+        maximum = float(parameters.get("maxBase", 4.0))
+        base = float(parameters["base"])
+        if abs(exponent - round(exponent)) > 1e-9 or not 1.0 <= exponent <= 8.0:
+            raise ValueError(f"{where}.parameters.exponent: integer from 1 to 8 required")
+        if maximum <= minimum:
+            raise ValueError(f"{where}.parameters: maxBase must be greater than minBase")
+        if not minimum <= base <= maximum:
+            raise ValueError(f"{where}.parameters.base: must be inside minBase..maxBase")
+
+    if renderer == "mathematics.balance.equation" and "tilt" in parameters and not -1.0 <= float(parameters["tilt"]) <= 1.0:
+        raise ValueError(f"{where}.parameters.tilt: must be inside -1..1")
