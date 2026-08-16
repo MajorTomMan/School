@@ -79,9 +79,8 @@ object LocalMathExpressionVerifier {
             .replace('÷', '/')
             .replace('（', '(')
             .replace('）', ')')
-            .replace('π', 'p')
+            .replace("π", "pi")
             .replace(" ", "")
-        text = text.replace("p", "pi")
         text = text.replace(Regex("√\\(([^()]*)\\)"), "sqrt($1)")
         text = text.replace(Regex("√([a-z0-9.]+)"), "sqrt($1)")
         text = when {
