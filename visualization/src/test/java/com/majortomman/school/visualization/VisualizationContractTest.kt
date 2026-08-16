@@ -123,6 +123,15 @@ class VisualizationContractTest {
     }
 
     @Test
+    fun numberListsAreDefensivelyCopiedAtBoundary() {
+        val source = mutableListOf(1.0, 2.0)
+        val value = VisualizationParameterValue.NumberListValue(source)
+        source[0] = Double.NaN
+        source += 3.0
+        assertEquals(listOf(1.0, 2.0), value.values)
+    }
+
+    @Test
     fun unknownRendererIsRejected() {
         val issues = SchoolVisualizationCatalog.validate(VisualizationInvocation(VisualizationKey("mathematics.missing")))
         assertFalse(issues.isEmpty())
