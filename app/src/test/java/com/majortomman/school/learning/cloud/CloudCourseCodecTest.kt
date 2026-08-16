@@ -34,6 +34,24 @@ class CloudCourseCodecTest {
     }
 
     @Test
+    fun blankOptionalTeachingTextIsRejected() {
+        val invalid = SAMPLE_COURSE.replace("\"hint\":\"想想方向\"", "\"hint\":\"   \"")
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(invalid) }
+    }
+
+    @Test
+    fun authoredIntegerFieldsRejectStringAndDecimalCoercion() {
+        val stringDifficulty = SAMPLE_COURSE.replace("\"difficulty\":1", "\"difficulty\":\"1\"")
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(stringDifficulty) }
+
+        val decimalDifficulty = SAMPLE_COURSE.replace("\"difficulty\":1", "\"difficulty\":1.0")
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(decimalDifficulty) }
+
+        val decimalPageOffset = SAMPLE_COURSE.replace("\"pageIndexOffset\":7", "\"pageIndexOffset\":7.0")
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(decimalPageOffset) }
+    }
+
+    @Test
     fun oldPageContractIsRejected() {
         assertThrows(IllegalArgumentException::class.java) {
             CourseDocumentParser.decode(SAMPLE_COURSE.replace("\"knowledgePoints\":", "\"pages\":[] ,\"knowledgePoints\":"))
