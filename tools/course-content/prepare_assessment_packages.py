@@ -13,12 +13,14 @@ from typing import Any
 
 import fitz
 
+from visualization_contract import validate_visualization
+
 ASSESSMENTS = "assessments.json"
 KNOWLEDGE = "knowledge-points.json"
 CROPS = "asset-crops.json"
 ID = re.compile(r"^[a-z0-9][a-z0-9._-]{0,95}$")
 ASSET_ID = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
-CONTENT_TYPES = {"heading", "text", "formula", "list", "image", "table", "scene"}
+CONTENT_TYPES = {"heading", "text", "formula", "list", "image", "table", "visualization"}
 TEXT_STYLES = {"body", "prompt", "caption", "explanation"}
 INPUT_ANSWER = {
     "integer": "exact_integer",
@@ -102,21 +104,6 @@ def validate_rational(value: Any, where: str) -> None:
         raise ValueError(f"{where}.denominator cannot be zero")
 
 
-def validate_scene(value: dict[str, Any], where: str) -> None:
-    exact(value, {"type", "template", "data"}, set(), where)
-    template = text(value["template"], f"{where}.template")
-    if not isinstance(value["data"], dict):
-        raise ValueError(f"{where}.data must be an object")
-    if template == "number_line":
-        allowed = {"title", "mode", "signed", "initial"}
-        unknown = value["data"].keys() - allowed
-        if unknown:
-            raise ValueError(f"{where}.data has unknown keys: {sorted(unknown)}")
-        mode = value["data"].get("mode")
-        if mode is not None and mode not in {"road", "construction", "value", "example", "read_points", "opposite", "opposite_symbol"}:
-            raise ValueError(f"{where}.data.mode is unsupported")
-
-
 def validate_content(value: Any, where: str, referenced_assets: set[str]) -> None:
     if not isinstance(value, dict):
         raise ValueError(f"{where} must be an object")
@@ -159,8 +146,9 @@ def validate_content(value: Any, where: str, referenced_assets: set[str]) -> Non
             text(value["caption"], f"{where}.caption")
         if "sourceAssetId" in value:
             referenced_assets.add(identifier(value["sourceAssetId"], f"{where}.sourceAssetId", ASSET_ID))
-    else:
-        validate_scene(value, where)
+    elif kind == "visualization":
+        exact(value, {"type", "renderer", "parameters", "texts"}, set(), where)
+        validate_visualization(value["renderer"], value["parameters"], value["texts"], where)
 
 
 def validate_content_array(value: Any, where: str, referenced_assets: set[str], allow_empty: bool) -> None:
@@ -330,6 +318,7 @@ def validate_package(root: Path) -> dict[str, int]:
             raise ValueError(f"invalid prerequisites for {point_id}")
     visiting: set[str] = set()
     visited: set[str] = set()
+
     def visit(point_id: str) -> None:
         if point_id in visited:
             return
@@ -340,6 +329,7 @@ def validate_package(root: Path) -> dict[str, int]:
             visit(item)
         visiting.remove(point_id)
         visited.add(point_id)
+
     for point_id in knowledge_ids:
         visit(point_id)
 
@@ -378,9 +368,7 @@ def validate_package(root: Path) -> dict[str, int]:
         if not isinstance(questions, list) or not questions:
             raise ValueError(f"{where}.questions must be non-empty")
         for question_index, question in enumerate(questions):
-            question_id = validate_question(
-                question, f"{where}.questions[{question_index}]", knowledge_ids, referenced_assets
-            )
+            question_id = validate_question(question, f"{where}.questions[{question_index}]", knowledge_ids, referenced_assets)
             key = (question_id, question["revision"])
             if key in question_ids:
                 raise ValueError(f"duplicate question key: {key}")
@@ -407,8 +395,7 @@ def validate_package(root: Path) -> dict[str, int]:
         raise ValueError("each question set must be placed exactly once")
     if referenced_assets != declared_assets:
         raise ValueError(f"asset references mismatch: declared={sorted(declared_assets)}, used={sorted(referenced_assets)}")
-    return {"questionSets": len(set_ids), "questions": len(question_ids), "knowledgePoints": len(knowledge_ids),
-            "assets": len(declared_assets)}
+    return {"questionSets": len(set_ids), "questions": len(question_ids), "knowledgePoints": len(knowledge_ids), "assets": len(declared_assets)}
 
 
 def prepare_one(manual: Path, generated: Path, pdf: Path) -> dict[str, int]:
