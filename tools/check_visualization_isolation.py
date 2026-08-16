@@ -54,6 +54,12 @@ FORBIDDEN_IMPORT_PREFIXES = (
     "com.majortomman.school.update",
 )
 
+# Imports are not the only way to reach APIs in Kotlin. These prefixes also reject fully qualified
+# references such as java.io.File(...) or android.content.Intent(...) inside source bodies.
+FORBIDDEN_QUALIFIED_PREFIXES = tuple(f"{prefix}." for prefix in FORBIDDEN_IMPORT_PREFIXES if prefix != "com.majortomman.school.BuildConfig") + (
+    "com.majortomman.school.BuildConfig.",
+)
+
 FORBIDDEN_TOKENS = (
     "http://",
     "https://",
@@ -116,6 +122,8 @@ def validate_build_file() -> list[str]:
         violations.append(f"{BUILD_FILE.relative_to(ROOT)}: unexpected plugins {sorted(unexpected_plugins)}")
     if "project(" in text or "files(" in text or "fileTree(" in text:
         violations.append(f"{BUILD_FILE.relative_to(ROOT)}: project/file dependencies are not allowed")
+    if "dependencies.add(" in text or "add(\"implementation\"" in text or "add(\"api\"" in text:
+        violations.append(f"{BUILD_FILE.relative_to(ROOT)}: alternate dependency declaration syntax is not allowed")
 
     for line_number, line in enumerate(text.splitlines(), start=1):
         match = DEPENDENCY_PATTERN.match(line)
@@ -148,6 +156,9 @@ def main() -> int:
         for imported in IMPORT_PATTERN.findall(text):
             if imported.startswith(FORBIDDEN_IMPORT_PREFIXES):
                 violations.append(f"{relative}: forbidden import {imported}")
+        for prefix in FORBIDDEN_QUALIFIED_PREFIXES:
+            if prefix in text:
+                violations.append(f"{relative}: forbidden fully qualified API prefix {prefix!r}")
         for token in FORBIDDEN_TOKENS:
             if token in text:
                 violations.append(f"{relative}: forbidden visualization token {token!r}")
