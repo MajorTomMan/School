@@ -209,8 +209,27 @@ def validate(path: Path) -> dict[str, int]:
                     require(isinstance(item["difficulty"], int) and not isinstance(item["difficulty"], bool) and 1 <= item["difficulty"] <= 5, f"{pw}.difficulty must be 1..5")
                     practice_count += 1
                 strings(lesson["summary"], f"{lw}.summary", allow_empty=False)
+
+    lesson_prerequisites = {lesson_id: [] for lesson_id in lesson_ids}
     for lesson_id, dependency in pending_lesson_deps:
         require(dependency in lesson_ids, f"{lesson_id}: unknown prerequisite lesson {dependency}")
+        lesson_prerequisites[lesson_id].append(dependency)
+    lesson_visiting: set[str] = set()
+    lesson_visited: set[str] = set()
+
+    def visit_lesson(lesson_id: str) -> None:
+        if lesson_id in lesson_visited:
+            return
+        require(lesson_id not in lesson_visiting, f"lesson prerequisite cycle at {lesson_id}")
+        lesson_visiting.add(lesson_id)
+        for dependency in lesson_prerequisites[lesson_id]:
+            visit_lesson(dependency)
+        lesson_visiting.remove(lesson_id)
+        lesson_visited.add(lesson_id)
+
+    for lesson_id in lesson_ids:
+        visit_lesson(lesson_id)
+
     print(f"validated {path}: textbook={textbook_id}, knowledge={len(point_ids)}, lessons={lesson_count}, steps={step_count}, visualizations={visualization_count}, practice={practice_count}")
     return {"knowledgePoints": len(point_ids), "lessons": lesson_count, "steps": step_count, "visualizations": visualization_count, "practice": practice_count}
 
