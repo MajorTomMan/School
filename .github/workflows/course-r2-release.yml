@@ -27,9 +27,9 @@ jobs:
   publish-pep-math-7-1:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -183,7 +183,7 @@ jobs:
 
       - name: Upload release artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: course-r2-${{ steps.release.outputs.release_id }}
           path: build/course-release/
