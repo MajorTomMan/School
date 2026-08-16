@@ -43,6 +43,10 @@ def strings(value: Any, where: str, allow_empty: bool = True) -> list[str]:
     return [item.strip() for item in value]
 
 
+def is_json_int(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
 def validate(path: Path) -> dict[str, int]:
     root = json.loads(path.read_text(encoding="utf-8"))
     require(isinstance(root, dict), f"{path}: root must be object")
@@ -59,8 +63,8 @@ def validate(path: Path) -> dict[str, int]:
     exact(pdf, {"path", "pageCount", "pageIndexOffset"}, "textbook.pdf")
     pdf_path = text(pdf, "path", "textbook.pdf")
     require(pdf_path.lower().endswith(".pdf") and not pdf_path.startswith("/") and ".." not in Path(pdf_path).parts, "invalid PDF path")
-    require(isinstance(pdf["pageCount"], int) and pdf["pageCount"] > 0, "pageCount must be positive int")
-    require(isinstance(pdf["pageIndexOffset"], int), "pageIndexOffset must be int")
+    require(is_json_int(pdf["pageCount"]) and pdf["pageCount"] > 0, "pageCount must be positive int")
+    require(is_json_int(pdf["pageIndexOffset"]), "pageIndexOffset must be int")
 
     points = root["knowledgePoints"]
     require(isinstance(points, list) and points, "knowledgePoints must be non-empty array")
@@ -142,7 +146,7 @@ def validate(path: Path) -> dict[str, int]:
                     exact(reference, {"label", "pageStart", "pageEnd"}, rw)
                     text(reference, "label", rw)
                     start, end = reference["pageStart"], reference["pageEnd"]
-                    require(isinstance(start, int) and isinstance(end, int) and not isinstance(start, bool) and not isinstance(end, bool) and 1 <= start <= end <= pdf["pageCount"], f"{rw}: invalid page range")
+                    require(is_json_int(start) and is_json_int(end) and 1 <= start <= end <= pdf["pageCount"], f"{rw}: invalid page range")
                 steps = lesson["steps"]
                 require(isinstance(steps, list) and steps, f"{lw}.steps must be non-empty")
                 for step_index, step in enumerate(steps):
@@ -206,7 +210,7 @@ def validate(path: Path) -> dict[str, int]:
                     strings(item["analysis"], f"{pw}.analysis", allow_empty=False)
                     item_points = strings(item["knowledgePointIds"], f"{pw}.knowledgePointIds", allow_empty=False)
                     require(set(item_points) <= point_ids, f"{pw}: unknown knowledge point")
-                    require(isinstance(item["difficulty"], int) and not isinstance(item["difficulty"], bool) and 1 <= item["difficulty"] <= 5, f"{pw}.difficulty must be 1..5")
+                    require(is_json_int(item["difficulty"]) and 1 <= item["difficulty"] <= 5, f"{pw}.difficulty must be 1..5")
                     practice_count += 1
                 strings(lesson["summary"], f"{lw}.summary", allow_empty=False)
 
