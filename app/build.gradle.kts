@@ -179,6 +179,7 @@ dependencies {
     val firebaseBom = platform("com.google.firebase:firebase-bom:34.15.0")
     val roomVersion = "2.8.4"
 
+    implementation(project(":visualization"))
     implementation(composeBom)
     implementation(firebaseBom)
     implementation("androidx.activity:activity-compose:1.13.0")

@@ -30,17 +30,16 @@ import com.majortomman.school.learning.course.CourseKeyIdea
 import com.majortomman.school.learning.course.CourseLesson
 import com.majortomman.school.learning.course.CoursePractice
 import com.majortomman.school.learning.course.CourseQuestion
-import com.majortomman.school.learning.course.CourseScene
-import com.majortomman.school.learning.course.CourseSceneStep
-import com.majortomman.school.learning.course.CourseSceneTemplate
 import com.majortomman.school.learning.course.CourseStep
 import com.majortomman.school.learning.course.CourseSummaryStep
+import com.majortomman.school.learning.course.CourseVisualizationStep
+import com.majortomman.school.visualization.SchoolVisualization
 
 @Composable
 internal fun AuthoredTeachingPageContent(steps: List<CourseStep>, lesson: CourseLesson) {
     steps.forEachIndexed { index, step ->
         if (index > 0) Spacer(Modifier.height(SchoolUiMetrics.sectionGap))
-        AuthoredStep(step, lesson)
+        AuthoredStep(step)
     }
 }
 
@@ -80,7 +79,7 @@ internal fun AuthoredPracticePage(practice: CoursePractice, number: Int, total: 
 }
 
 @Composable
-private fun AuthoredStep(step: CourseStep, lesson: CourseLesson) {
+private fun AuthoredStep(step: CourseStep) {
     when (step) {
         is CourseExplanation -> {
             step.title?.let {
@@ -129,7 +128,9 @@ private fun AuthoredStep(step: CourseStep, lesson: CourseLesson) {
             }
             Text("答案：${step.answer}", color = InteractiveYellow, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, modifier = Modifier.padding(top = 14.dp))
         }
-        is CourseSceneStep -> CourseSceneView(step.scene, lesson.steps.filterIsInstance<CourseFormula>().firstOrNull()?.expression)
+        is CourseVisualizationStep -> Box(Modifier.fillMaxWidth().height(380.dp)) {
+            SchoolVisualization(step.visualization, Modifier.fillMaxWidth())
+        }
         is CourseCheckpoint -> {
             OpenSectionTitle("检查一下", InteractiveGreen)
             Spacer(Modifier.height(10.dp))
@@ -146,28 +147,5 @@ private fun OpenSectionTitle(title: String, color: androidx.compose.ui.graphics.
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.height(2.dp).weight(0.08f).background(color))
         Text(title, modifier = Modifier.weight(0.92f), color = InteractiveWhite, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-@Composable
-internal fun CourseSceneView(scene: CourseScene, formulaFallback: String?) {
-    Box(modifier = Modifier.fillMaxWidth().height(when (scene.template) {
-        CourseSceneTemplate.OPPOSITE_QUANTITIES, CourseSceneTemplate.RATIONAL_CLASSIFICATION, CourseSceneTemplate.INTEGER_TO_FRACTION, CourseSceneTemplate.NUMBER_LINE -> 420.dp
-        else -> 320.dp
-    })) {
-        when (scene.template) {
-            CourseSceneTemplate.OPPOSITE_QUANTITIES -> OppositeQuantitiesSceneVisual(scene.data)
-            CourseSceneTemplate.RATIONAL_CLASSIFICATION -> RationalConceptFlowVisual(scene.data)
-            CourseSceneTemplate.INTEGER_TO_FRACTION -> IntegerToFractionTextbookVisual()
-            CourseSceneTemplate.NUMBER_LINE -> WholeNumberLineVisual(scene.data)
-            CourseSceneTemplate.OPPOSITE_NUMBERS -> AdjustableNumberLine(NumberLineMode.OPPOSITE)
-            CourseSceneTemplate.ABSOLUTE_VALUE -> AbsoluteValueNumberLineVisual()
-            CourseSceneTemplate.NUMBER_COMPARISON -> ComparisonVisual()
-            CourseSceneTemplate.ADDITION_PROCESS -> SignedMovementNumberLineVisual()
-            CourseSceneTemplate.SUBTRACTION_TRANSFORM, CourseSceneTemplate.DIVISION_TRANSFORM -> FormulaProcessVisual(formulaFallback.orEmpty())
-            CourseSceneTemplate.MULTIPLICATION_SIGN -> SignRuleVisual()
-            CourseSceneTemplate.POWER_PROCESS -> PowerVisual()
-            else -> TextbookMathVisual(scene.template, scene.data)
-        }
     }
 }

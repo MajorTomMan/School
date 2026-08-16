@@ -6,6 +6,8 @@ on:
     paths:
       - "courses/**"
       - "tools/course-content/**"
+      - "tools/check_visualization_contract_sync.py"
+      - "visualization/**"
       - "app/src/main/java/com/majortomman/school/learning/course/**"
       - "app/src/main/java/com/majortomman/school/learning/cloud/**"
       - ".github/workflows/course.yml"
@@ -14,6 +16,8 @@ on:
     paths:
       - "courses/**"
       - "tools/course-content/**"
+      - "tools/check_visualization_contract_sync.py"
+      - "visualization/**"
       - "app/src/main/java/com/majortomman/school/learning/course/**"
       - "app/src/main/java/com/majortomman/school/learning/cloud/**"
       - ".github/workflows/course.yml"
@@ -56,7 +60,9 @@ jobs:
             gzip --test "$archive"
             gzip -dc "$archive" > "$target"
             if [ "$relative" = "pep-math-7-1" ]; then
-              printf '%s  %s\n' 'e0250eb6d638d322f589fc1f3d13224bf226af19f65a25e189e98e518f68100f' "$target" | sha256sum --check --strict
+              test "$(find "$dir" -maxdepth 1 -type f -name 'course.json.gz.b64.part*' | wc -l)" -eq 8
+              test "$(stat -c%s "$target")" = "270303"
+              printf '%s  %s\n' '30eb89c3f6c292f461df74541f901e87ec2391bdbc415d6ff9559de6057eddc6' "$target" | sha256sum --check --strict
             fi
             files+=("$target")
           done < <(find courses -type f -name 'course.json.gz.b64.part01' | sort)
@@ -67,7 +73,17 @@ jobs:
           fi
           python3 tools/course-content/validate_authored_course.py "${files[@]}"
 
-      - name: Reject retired OCR/page pipeline
+      - name: Verify renderer contract synchronization
+        run: python3 tools/check_visualization_contract_sync.py
+
+      - name: Compile course contract tooling
+        run: |
+          python3 -m py_compile \
+            tools/check_visualization_contract_sync.py \
+            tools/course-content/visualization_contract.py \
+            tools/course-content/validate_authored_course.py
+
+      - name: Reject retired OCR/page, assessment and scene compatibility pipelines
         shell: bash
         run: |
           set -euo pipefail
@@ -78,10 +94,13 @@ jobs:
             tools/course-content/audit_math_courses.py
             tools/course-content/normalize_course_contract.py
             tools/course-content/pdf_asset_workflow.py
+            tools/course-content/postprocess_math_courses.py
+            tools/course-content/prepare_assessment_packages.py
+            tools/course-content/migrate_scene_visualizations.py
           )
           for path in "${retired[@]}"; do
             if [ -e "$path" ]; then
-              echo "Retired course pipeline path must not return: $path" >&2
+              echo "Retired course/scene pipeline path must not return: $path" >&2
               exit 1
             fi
           done

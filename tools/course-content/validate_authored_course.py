@@ -7,17 +7,12 @@ import re
 from pathlib import Path
 from typing import Any
 
+from visualization_contract import validate_visualization
+
 ID = re.compile(r"^[A-Za-z0-9._:-]+$")
-STEP_TYPES = {"explanation", "question", "keyIdea", "formula", "example", "scene", "checkpoint", "summary"}
+STEP_TYPES = {"explanation", "question", "keyIdea", "formula", "example", "visualization", "checkpoint", "summary"}
 CJK = re.compile(r"[\u3400-\u9fff]")
 NON_LATEX_MATH = set("²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉−×÷≤≥≠Σαβγθπ°′″")
-SCENES = {
-    "opposite_quantities", "rational_classification", "integer_to_fraction", "number_line", "opposite_numbers",
-    "absolute_value", "number_comparison", "addition_process", "subtraction_transform", "multiplication_sign",
-    "division_transform", "power_process", "algebra_process", "equation_balance", "root_number_line",
-    "cartesian_plane", "function_graph", "geometry", "transformation", "right_triangle", "data_chart",
-    "probability", "projection", "diagram",
-}
 
 
 def require(condition: bool, message: str) -> None:
@@ -48,6 +43,10 @@ def strings(value: Any, where: str, allow_empty: bool = True) -> list[str]:
     return [item.strip() for item in value]
 
 
+def is_json_int(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
 def validate(path: Path) -> dict[str, int]:
     root = json.loads(path.read_text(encoding="utf-8"))
     require(isinstance(root, dict), f"{path}: root must be object")
@@ -64,8 +63,8 @@ def validate(path: Path) -> dict[str, int]:
     exact(pdf, {"path", "pageCount", "pageIndexOffset"}, "textbook.pdf")
     pdf_path = text(pdf, "path", "textbook.pdf")
     require(pdf_path.lower().endswith(".pdf") and not pdf_path.startswith("/") and ".." not in Path(pdf_path).parts, "invalid PDF path")
-    require(isinstance(pdf["pageCount"], int) and pdf["pageCount"] > 0, "pageCount must be positive int")
-    require(isinstance(pdf["pageIndexOffset"], int), "pageIndexOffset must be int")
+    require(is_json_int(pdf["pageCount"]) and pdf["pageCount"] > 0, "pageCount must be positive int")
+    require(is_json_int(pdf["pageIndexOffset"]), "pageIndexOffset must be int")
 
     points = root["knowledgePoints"]
     require(isinstance(points, list) and points, "knowledgePoints must be non-empty array")
@@ -85,6 +84,7 @@ def validate(path: Path) -> dict[str, int]:
         require(set(deps) <= point_ids, f"{point_id}: unknown prerequisite {sorted(set(deps) - point_ids)}")
     visiting: set[str] = set()
     visited: set[str] = set()
+
     def visit(point_id: str) -> None:
         if point_id in visited:
             return
@@ -94,6 +94,7 @@ def validate(path: Path) -> dict[str, int]:
             visit(dependency)
         visiting.remove(point_id)
         visited.add(point_id)
+
     for point_id in point_ids:
         visit(point_id)
 
@@ -105,18 +106,21 @@ def validate(path: Path) -> dict[str, int]:
     lesson_count = 0
     step_count = 0
     practice_count = 0
+    visualization_count = 0
     for chapter_index, chapter in enumerate(chapters):
         cw = f"chapters[{chapter_index}]"
         require(isinstance(chapter, dict), f"{cw}: object required")
         exact(chapter, {"id", "title", "sections"}, cw)
-        identifier(chapter, "id", cw); text(chapter, "title", cw)
+        identifier(chapter, "id", cw)
+        text(chapter, "title", cw)
         sections = chapter["sections"]
         require(isinstance(sections, list) and sections, f"{cw}.sections must be non-empty")
         for section_index, section in enumerate(sections):
             sw = f"{cw}.sections[{section_index}]"
             require(isinstance(section, dict), f"{sw}: object required")
             exact(section, {"id", "title", "lessons"}, sw)
-            identifier(section, "id", sw); text(section, "title", sw)
+            identifier(section, "id", sw)
+            text(section, "title", sw)
             lessons = section["lessons"]
             require(isinstance(lessons, list) and lessons, f"{sw}.lessons must be non-empty")
             for lesson_index, lesson in enumerate(lessons):
@@ -125,7 +129,8 @@ def validate(path: Path) -> dict[str, int]:
                 exact(lesson, {"id", "title", "aliases", "goals", "knowledgePointIds", "prerequisiteLessonIds", "references", "steps", "practice", "summary"}, lw)
                 lesson_id = identifier(lesson, "id", lw)
                 require(lesson_id not in lesson_ids, f"duplicate lesson {lesson_id}")
-                lesson_ids.add(lesson_id); lesson_count += 1
+                lesson_ids.add(lesson_id)
+                lesson_count += 1
                 text(lesson, "title", lw)
                 strings(lesson["aliases"], f"{lw}.aliases")
                 strings(lesson["goals"], f"{lw}.goals", allow_empty=False)
@@ -141,7 +146,7 @@ def validate(path: Path) -> dict[str, int]:
                     exact(reference, {"label", "pageStart", "pageEnd"}, rw)
                     text(reference, "label", rw)
                     start, end = reference["pageStart"], reference["pageEnd"]
-                    require(isinstance(start, int) and isinstance(end, int) and 1 <= start <= end <= pdf["pageCount"], f"{rw}: invalid page range")
+                    require(is_json_int(start) and is_json_int(end) and 1 <= start <= end <= pdf["pageCount"], f"{rw}: invalid page range")
                 steps = lesson["steps"]
                 require(isinstance(steps, list) and steps, f"{lw}.steps must be non-empty")
                 for step_index, step in enumerate(steps):
@@ -157,9 +162,39 @@ def validate(path: Path) -> dict[str, int]:
                         require(not any(char in NON_LATEX_MATH for char in expression), f"{stw}.expression: use LaTeX commands instead of Unicode math glyphs")
                         note = step.get("note")
                         require(note is None or (isinstance(note, str) and note.strip()), f"{stw}.note: null or non-empty string required")
-                    if step_type == "scene":
-                        require(text(step, "template", stw) in SCENES, f"{stw}: unsupported scene")
-                        require(isinstance(step.get("data"), dict), f"{stw}.data must be object")
+                    elif step_type == "visualization":
+                        exact(step, {"type", "renderer", "parameters", "texts"}, stw)
+                        validate_visualization(step["renderer"], step["parameters"], step["texts"], stw)
+                        visualization_count += 1
+                    elif step_type == "explanation":
+                        exact(step, {"type", "title", "text"}, stw)
+                        title = step.get("title")
+                        require(title is None or (isinstance(title, str) and title.strip()), f"{stw}.title: null or non-empty string required")
+                        text(step, "text", stw)
+                    elif step_type == "question":
+                        exact(step, {"type", "prompt", "hint"}, stw)
+                        text(step, "prompt", stw)
+                        hint = step.get("hint")
+                        require(hint is None or (isinstance(hint, str) and hint.strip()), f"{stw}.hint: null or non-empty string required")
+                    elif step_type == "keyIdea":
+                        exact(step, {"type", "title", "text"}, stw)
+                        title = step.get("title")
+                        require(title is None or (isinstance(title, str) and title.strip()), f"{stw}.title: null or non-empty string required")
+                        text(step, "text", stw)
+                    elif step_type == "example":
+                        exact(step, {"type", "title", "prompt", "steps", "answer"}, stw)
+                        text(step, "title", stw)
+                        text(step, "prompt", stw)
+                        strings(step["steps"], f"{stw}.steps", allow_empty=False)
+                        text(step, "answer", stw)
+                    elif step_type == "checkpoint":
+                        exact(step, {"type", "prompt", "expectedAnswer", "explanation"}, stw)
+                        text(step, "prompt", stw)
+                        text(step, "expectedAnswer", stw)
+                        text(step, "explanation", stw)
+                    elif step_type == "summary":
+                        exact(step, {"type", "text"}, stw)
+                        text(step, "text", stw)
                     step_count += 1
                 practice = lesson["practice"]
                 require(isinstance(practice, list), f"{lw}.practice must be array")
@@ -170,17 +205,37 @@ def validate(path: Path) -> dict[str, int]:
                     practice_id = identifier(item, "id", pw)
                     require(practice_id not in practice_ids, f"duplicate practice {practice_id}")
                     practice_ids.add(practice_id)
-                    text(item, "prompt", pw); text(item, "answer", pw)
+                    text(item, "prompt", pw)
+                    text(item, "answer", pw)
                     strings(item["analysis"], f"{pw}.analysis", allow_empty=False)
                     item_points = strings(item["knowledgePointIds"], f"{pw}.knowledgePointIds", allow_empty=False)
                     require(set(item_points) <= point_ids, f"{pw}: unknown knowledge point")
-                    require(isinstance(item["difficulty"], int) and 1 <= item["difficulty"] <= 5, f"{pw}.difficulty must be 1..5")
+                    require(is_json_int(item["difficulty"]) and 1 <= item["difficulty"] <= 5, f"{pw}.difficulty must be 1..5")
                     practice_count += 1
                 strings(lesson["summary"], f"{lw}.summary", allow_empty=False)
+
+    lesson_prerequisites = {lesson_id: [] for lesson_id in lesson_ids}
     for lesson_id, dependency in pending_lesson_deps:
         require(dependency in lesson_ids, f"{lesson_id}: unknown prerequisite lesson {dependency}")
-    print(f"validated {path}: textbook={textbook_id}, knowledge={len(point_ids)}, lessons={lesson_count}, steps={step_count}, practice={practice_count}")
-    return {"knowledgePoints": len(point_ids), "lessons": lesson_count, "steps": step_count, "practice": practice_count}
+        lesson_prerequisites[lesson_id].append(dependency)
+    lesson_visiting: set[str] = set()
+    lesson_visited: set[str] = set()
+
+    def visit_lesson(lesson_id: str) -> None:
+        if lesson_id in lesson_visited:
+            return
+        require(lesson_id not in lesson_visiting, f"lesson prerequisite cycle at {lesson_id}")
+        lesson_visiting.add(lesson_id)
+        for dependency in lesson_prerequisites[lesson_id]:
+            visit_lesson(dependency)
+        lesson_visiting.remove(lesson_id)
+        lesson_visited.add(lesson_id)
+
+    for lesson_id in lesson_ids:
+        visit_lesson(lesson_id)
+
+    print(f"validated {path}: textbook={textbook_id}, knowledge={len(point_ids)}, lessons={lesson_count}, steps={step_count}, visualizations={visualization_count}, practice={practice_count}")
+    return {"knowledgePoints": len(point_ids), "lessons": lesson_count, "steps": step_count, "visualizations": visualization_count, "practice": practice_count}
 
 
 def main() -> None:

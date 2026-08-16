@@ -37,7 +37,7 @@ class AssessmentContractParserTest {
         val firstStem = assessments.questionSets.single().questions.first().stem
         assertTrue(firstStem.any { it is LearningContent.Image })
         assertTrue(firstStem.any { it is LearningContent.Table })
-        assertTrue(firstStem.any { it is LearningContent.Scene })
+        assertTrue(firstStem.any { it is LearningContent.Visualization })
     }
 
     @Test
@@ -49,12 +49,21 @@ class AssessmentContractParserTest {
     }
 
     @Test
-    fun rejectsUnknownSceneDataField() {
+    fun rejectsUnknownVisualizationParameter() {
         val root = JSONObject(validAssessmentsJson())
-        val scene = root.getJSONArray("questionSets").getJSONObject(0).getJSONArray("questions").getJSONObject(0).getJSONArray("stem").getJSONObject(3)
-        scene.getJSONObject("data").put("script", "alert(1)")
+        val visualization = root.getJSONArray("questionSets").getJSONObject(0).getJSONArray("questions").getJSONObject(0).getJSONArray("stem").getJSONObject(3)
+        visualization.getJSONObject("parameters").put("script", 1)
         val error = runCatching { AssessmentDocumentParser.decode(root) }.exceptionOrNull()
-        assertTrue(error?.message.orEmpty().contains("未知字段"))
+        assertTrue(error?.message.orEmpty().contains("不接受参数 script"))
+    }
+
+    @Test
+    fun rejectsStringVisualizationParameter() {
+        val root = JSONObject(validAssessmentsJson())
+        val visualization = root.getJSONArray("questionSets").getJSONObject(0).getJSONArray("questions").getJSONObject(0).getJSONArray("stem").getJSONObject(3)
+        visualization.getJSONObject("parameters").put("min", "-5")
+        val error = runCatching { AssessmentDocumentParser.decode(root) }.exceptionOrNull()
+        assertTrue(error?.message.orEmpty().contains("只接受 number、boolean 或 number[]"))
     }
 
     @Test
@@ -201,9 +210,10 @@ class AssessmentContractParserTest {
               "rows": [["A", "-3"], ["B", "2"]]
             },
             {
-              "type": "scene",
-              "template": "number_line",
-              "data": {"title": "读取数轴", "mode": "read_points", "signed": true, "initial": -3}
+              "type": "visualization",
+              "renderer": "mathematics.number-line.points",
+              "parameters": {"min": -5, "max": 5, "step": 1, "values": [-3, 2]},
+              "texts": {"title": "读取数轴", "label0": "A", "label1": "B"}
             }
           ],
           "input": {"type": "integer"},

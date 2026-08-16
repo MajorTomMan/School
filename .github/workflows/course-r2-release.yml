@@ -8,6 +8,7 @@ on:
       - "tools/course-content/build_course_release.py"
       - "tools/course-content/course_release_bundle.py"
       - "tools/course-content/publish_course_r2.py"
+      - "tools/course-content/visualization_contract.py"
       - "tools/course-content/validate_authored_course.py"
       - ".github/workflows/course-r2-release.yml"
   workflow_dispatch:
@@ -37,15 +38,15 @@ jobs:
         run: |
           set -euo pipefail
           source_dir="courses/pep-math-7-1"
-          test "$(find "$source_dir" -maxdepth 1 -type f -name 'course.json.gz.b64.part*' | wc -l)" -eq 7
+          test "$(find "$source_dir" -maxdepth 1 -type f -name 'course.json.gz.b64.part*' | wc -l)" -eq 8
           mkdir -p build/authored/pep-math-7-1
           cat "$source_dir"/course.json.gz.b64.part* > build/authored/pep-math-7-1/course.json.gz.b64
           base64 --decode build/authored/pep-math-7-1/course.json.gz.b64 > build/authored/pep-math-7-1/course.json.gz
           gzip --test build/authored/pep-math-7-1/course.json.gz
           gzip -dc build/authored/pep-math-7-1/course.json.gz > build/authored/pep-math-7-1/course.json
-          test "$(stat -c%s build/authored/pep-math-7-1/course.json)" = "263601"
+          test "$(stat -c%s build/authored/pep-math-7-1/course.json)" = "270303"
           printf '%s  %s\n' \
-            'e0250eb6d638d322f589fc1f3d13224bf226af19f65a25e189e98e518f68100f' \
+            '30eb89c3f6c292f461df74541f901e87ec2391bdbc415d6ff9559de6057eddc6' \
             'build/authored/pep-math-7-1/course.json' | sha256sum --check --strict
           python3 tools/course-content/validate_authored_course.py build/authored/pep-math-7-1/course.json
 
@@ -55,6 +56,7 @@ jobs:
             tools/course-content/build_course_release.py \
             tools/course-content/course_release_bundle.py \
             tools/course-content/publish_course_r2.py \
+            tools/course-content/visualization_contract.py \
             tools/course-content/validate_authored_course.py
 
       - name: Resolve immutable release ID

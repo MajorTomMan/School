@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import com.majortomman.school.learning.content.ContentAssetId
 import com.majortomman.school.learning.content.LearningContent
 import com.majortomman.school.learning.content.LearningTextStyle
+import com.majortomman.school.visualization.SchoolVisualization
 import java.io.File
 
 @Composable
@@ -52,7 +53,7 @@ private fun AssessmentLearningContentItem(item: LearningContent, assetFiles: Map
         is LearningContent.ItemList -> AssessmentList(item, compact)
         is LearningContent.Image -> AssessmentImage(item, assetFiles[item.assetId])
         is LearningContent.Table -> AssessmentTable(item)
-        is LearningContent.Scene -> CourseSceneView(item.scene, null)
+        is LearningContent.Visualization -> SchoolVisualization(item.visualization, Modifier.fillMaxWidth().height(if (compact) 240.dp else 280.dp))
     }
 }
 

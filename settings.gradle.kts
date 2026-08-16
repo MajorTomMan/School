@@ -20,4 +20,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "School"
+include(":visualization")
 include(":app")
