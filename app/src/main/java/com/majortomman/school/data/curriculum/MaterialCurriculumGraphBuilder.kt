@@ -57,7 +57,7 @@ internal object MaterialCurriculumGraphBuilder {
                         type = CurriculumNodeType.LEVEL,
                         title = gradeLabel(slot.grade),
                         orderIndex = slot.grade,
-                        metadata = mapOf("legacyGrade" to slot.grade.toString(), "stage" to slot.stage.id),
+                        metadata = mapOf("grade" to slot.grade.toString(), "stage" to slot.stage.id),
                     ),
                 )
                 val termId = "$curriculumId:term:${slot.grade}:${slot.volume.id}"
@@ -70,7 +70,7 @@ internal object MaterialCurriculumGraphBuilder {
                         type = CurriculumNodeType.TERM,
                         title = slot.volumeLabel,
                         orderIndex = slot.volume.id,
-                        metadata = mapOf("legacyVolume" to slot.volume.id.toString()),
+                        metadata = mapOf("volume" to slot.volume.id.toString()),
                     ),
                 )
                 val courseId = "$curriculumId:course:${slot.key}"
@@ -83,7 +83,7 @@ internal object MaterialCurriculumGraphBuilder {
                     title = textbook.pack.manifest.title,
                     orderIndex = textbookIndex,
                     metadata = mapOf(
-                        "legacyTextbookKey" to slot.key,
+                        "textbookKey" to slot.key,
                         "pdfBound" to pdfBound.toString(),
                         "pageCount" to textbook.pageCount.toString(),
                     ),
@@ -98,7 +98,7 @@ internal object MaterialCurriculumGraphBuilder {
                     uri = textbook.pack.pdfFile.takeIf(File::isFile)?.toURI()?.toString(),
                     publisher = textbookPublisher(textbook),
                     edition = textbookEdition(textbook),
-                    legacyTextbookKey = slot.key,
+                    textbookKey = slot.key,
                     metadata = mapOf(
                         "version" to textbook.pack.manifest.version,
                         "sha256" to textbook.pack.manifest.pdf.sha256,
@@ -156,7 +156,7 @@ internal object MaterialCurriculumGraphBuilder {
                             type = leafType,
                             title = lesson.title,
                             orderIndex = lesson.orderIndex.takeIf { it != 0 } ?: lessonIndex,
-                            legacyLessonId = lesson.id,
+                            lessonId = lesson.id,
                             metadata = mapOf(
                                 "sourceId" to lesson.sourceId,
                                 "pageStart" to lesson.pageStart.toString(),

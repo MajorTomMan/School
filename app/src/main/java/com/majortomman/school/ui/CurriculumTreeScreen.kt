@@ -56,13 +56,13 @@ internal fun CurriculumTreeScreen(
     snapshot: CurriculumSnapshot,
     curriculumId: String,
     progress: Map<String, CurriculumNodeProgress>,
-    activeLegacyLessonId: String?,
+    activeLessonId: String?,
     onOpenLesson: (String) -> Unit,
 ) {
     val curriculum = snapshot.curriculumById[curriculumId]
     val subject = curriculum?.subjectId?.let(snapshot.subjectById::get)
     val subjectId = curriculum?.subjectId.orEmpty()
-    val activeNode = activeLegacyLessonId?.let(snapshot::nodeForLegacyLesson)
+    val activeNode = activeLessonId?.let(snapshot::nodeForLesson)
     val activeKnowledge = activeNode?.let { node -> snapshot.knowledgeForNode(node.id).firstOrNull() }
     val appContext = LocalContext.current.applicationContext
     val trendRepository = remember(appContext) { MasteryTrendRepository.getInstance(appContext) }
@@ -78,7 +78,7 @@ internal fun CurriculumTreeScreen(
     }.collectAsState(initial = emptyList())
 
     val rows = snapshot.flattenedTree(curriculumId).filterNot { it.node.type == CurriculumNodeType.ROOT }
-    val lessonRows = rows.filter { it.node.legacyLessonId != null }
+    val lessonRows = rows.filter { it.node.lessonId != null }
     val mastered = lessonRows.count { progress[it.node.id]?.status == CurriculumNodeProgressStatus.MASTERED }
 
     LazyColumn(
@@ -158,8 +158,8 @@ internal fun CurriculumTreeScreen(
                 row = row,
                 snapshot = snapshot,
                 progress = progress[row.node.id],
-                active = row.node.legacyLessonId == activeLegacyLessonId,
-                onClick = row.node.legacyLessonId?.let { lessonId -> { onOpenLesson(lessonId) } },
+                active = row.node.lessonId == activeLessonId,
+                onClick = row.node.lessonId?.let { lessonId -> { onOpenLesson(lessonId) } },
             )
         }
 
@@ -176,7 +176,7 @@ private fun CurriculumTreeRowItem(
     onClick: (() -> Unit)?,
 ) {
     val node = row.node
-    val isLesson = node.legacyLessonId != null
+    val isLesson = node.lessonId != null
     val status = progress?.status ?: if (active) CurriculumNodeProgressStatus.LEARNING else CurriculumNodeProgressStatus.NOT_STARTED
     val statusColor = when (status) {
         CurriculumNodeProgressStatus.MASTERED -> TreeYellow

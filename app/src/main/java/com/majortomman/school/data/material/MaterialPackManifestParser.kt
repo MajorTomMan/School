@@ -1,6 +1,5 @@
 package com.majortomman.school.data.material
 
-import org.json.JSONArray
 import org.json.JSONObject
 
 object MaterialPackManifestParser {
@@ -86,8 +85,4 @@ object MaterialPackManifestParser {
         require(has(name)) { "manifest.json 缺少 $name" }
         return getInt(name)
     }
-}
-
-private fun JSONArray.toStringList(): List<String> = buildList {
-    for (index in 0 until length()) add(getString(index))
 }

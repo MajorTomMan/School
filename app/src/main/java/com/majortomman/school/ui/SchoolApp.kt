@@ -95,7 +95,7 @@ fun SchoolApp(
     val activeCurriculumId = activeTextbook?.let(curriculumRepository::curriculumIdFor)
     val lessons = activeTextbook?.lessons.orEmpty().mapIndexed { index, generated ->
         val stored = progress.lessonStatuses[generated.id]
-        val nodeStatus = curriculumState.nodeForLegacyLesson(generated.id)
+        val nodeStatus = curriculumState.nodeForLesson(generated.id)
             ?.let { curriculumProgress[it.id]?.status }
             ?.let { runCatching { MasteryStatus.valueOf(it.name) }.getOrNull() }
         val fallback = if (index == 0) MasteryStatus.LEARNING else MasteryStatus.NOT_STARTED
@@ -222,10 +222,9 @@ fun SchoolApp(
                                     if (activeTextbook == null || dailyPlan == null || lessons.isEmpty()) {
                                         NoActiveTextbookScreen { selectedTabName = MainTab.SUBJECTS.name }
                                     } else {
-                                        SceneTodayScreen(
+                                        TodayScreen(
                                             plan = dailyPlan,
                                             lessons = lessons,
-                                            progress = progress,
                                             onStartLesson = { openedLessonId = it },
                                             onOpenPath = { selectedTabName = MainTab.PATH.name },
                                         )
@@ -242,12 +241,12 @@ fun SchoolApp(
                                                 snapshot = curriculumState,
                                                 curriculumId = activeCurriculumId,
                                                 progress = curriculumProgress,
-                                                activeLegacyLessonId = currentLesson?.id,
+                                                activeLessonId = currentLesson?.id,
                                                 onOpenLesson = { openedLessonId = it },
                                             )
                                         }
                                         else -> {
-                                            SceneCoursePathScreen(
+                                            CoursePathScreen(
                                                 lessons = lessons,
                                                 onOpenLesson = { openedLessonId = it },
                                             )

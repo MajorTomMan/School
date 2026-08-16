@@ -10,48 +10,45 @@ object TextbookCatalogParser {
         selectedSlot: TextbookSlot,
     ): TextbookCatalog {
         val root = JSONObject(json)
-        val bookObject = root.optJSONObject("book")
-        val subject = bookObject?.optString("subject")?.takeIf { it.isNotBlank() }
-            ?: manifest.subject
-        val grade = bookObject?.optInt("grade", selectedSlot.grade) ?: selectedSlot.grade
-        val volume = TextbookVolume.fromId(bookObject?.optInt("volume", selectedSlot.volume.id) ?: selectedSlot.volume.id)
+        require(root.getInt("schemaVersion") == MATERIAL_PACK_SCHEMA_VERSION) {
+            "不支持的教材目录格式版本：${root.getInt("schemaVersion")}"
+        }
+        val bookObject = root.getJSONObject("book")
+        val subject = bookObject.getString("subject").trim()
+        val grade = bookObject.getInt("grade")
+        val volume = TextbookVolume.fromId(bookObject.getInt("volume"))
         val book = CatalogBook(
-            id = bookObject?.optString("id")?.takeIf { it.isNotBlank() }
-                ?: root.optString("bookId").takeIf { it.isNotBlank() }
-                ?: manifest.packId,
-            title = bookObject?.optString("title")?.takeIf { it.isNotBlank() } ?: manifest.title,
+            id = bookObject.getString("id").trim(),
+            title = bookObject.getString("title").trim(),
             subject = subject,
             grade = grade,
             volume = volume,
-            publisher = bookObject?.optString("publisher").orEmpty(),
-            edition = bookObject?.optString("edition").orEmpty(),
+            publisher = bookObject.optString("publisher").trim(),
+            edition = bookObject.optString("edition").trim(),
         )
-
+        require(book.id.isNotBlank() && book.title.isNotBlank() && book.subject.isNotBlank()) {
+            "catalog.json 的 book 缺少 id、title 或 subject"
+        }
         require(book.grade == selectedSlot.grade) {
             "所选教材属于${gradeLabel(book.grade)}，与当前${gradeLabel(selectedSlot.grade)}不一致"
         }
         require(book.volume == selectedSlot.volume) {
             "所选教材为${book.volume.labelFor(selectedSlot.stage)}，与当前${selectedSlot.volumeLabel}不一致"
         }
-        require(book.subject == selectedSlot.subjectTitle || manifest.subject == selectedSlot.subjectTitle) {
+        require(book.subject == selectedSlot.subjectTitle && manifest.subject == selectedSlot.subjectTitle) {
             "所选教材科目为${book.subject}，与当前${selectedSlot.subjectTitle}不一致"
         }
 
-        val flatLessons = root.optJSONArray("lessons")
-        val lessons = if (flatLessons != null) {
-            parseFlatLessons(flatLessons)
-        } else {
-            parseLegacyChapters(root.optJSONArray("chapters") ?: JSONArray())
-        }
+        val lessons = parseLessons(root.getJSONArray("lessons"))
         require(lessons.isNotEmpty()) { "catalog.json 中没有可生成的课程" }
         return TextbookCatalog(book, lessons)
     }
 
-    private fun parseFlatLessons(source: JSONArray): List<CatalogLesson> = buildList {
+    private fun parseLessons(source: JSONArray): List<CatalogLesson> = buildList {
         for (index in 0 until source.length()) {
             val lesson = source.getJSONObject(index)
-            val id = lesson.optString("id").trim()
-            val title = lesson.optString("title").trim()
+            val id = lesson.getString("id").trim()
+            val title = lesson.getString("title").trim()
             require(id.isNotBlank() && title.isNotBlank()) { "catalog.json 中课程缺少 id 或 title" }
             val start = lesson.getInt("pageStart")
             val end = lesson.optInt("pageEnd", start)
@@ -67,24 +64,6 @@ object TextbookCatalogParser {
                     orderIndex = lesson.optInt("orderIndex", index),
                 ),
             )
-        }
-    }
-
-    private fun parseLegacyChapters(chapters: JSONArray): List<CatalogLesson> = buildList {
-        for (chapterIndex in 0 until chapters.length()) {
-            val lessonArray = chapters.getJSONObject(chapterIndex).optJSONArray("lessons") ?: continue
-            for (lessonIndex in 0 until lessonArray.length()) {
-                val lesson = lessonArray.getJSONObject(lessonIndex)
-                val id = lesson.optString("id").trim()
-                val title = lesson.optString("title").trim()
-                require(id.isNotBlank() && title.isNotBlank()) { "catalog.json 中课程缺少 id 或 title" }
-                val pages = lesson.optJSONArray("pages") ?: throw IllegalArgumentException("课程 $title 缺少 pages")
-                require(pages.length() >= 1) { "课程 $title 的 pages 不能为空" }
-                val start = pages.getInt(0)
-                val end = if (pages.length() >= 2) pages.getInt(1) else start
-                require(start > 0 && end >= start) { "课程 $title 的页码范围无效" }
-                add(CatalogLesson(id, title, start, end, orderIndex = size))
-            }
         }
     }
 

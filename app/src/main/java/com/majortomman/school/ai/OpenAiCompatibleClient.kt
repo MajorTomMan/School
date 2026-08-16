@@ -2,8 +2,6 @@ package com.majortomman.school.ai
 
 import android.util.Base64
 import com.majortomman.school.data.AiSettings
-import com.majortomman.school.learning.verification.AnswerVerificationRequest
-import com.majortomman.school.learning.verification.AnswerVerificationResult
 import com.majortomman.school.network.AppProxy
 import com.majortomman.school.network.ProxyRoute
 import java.io.IOException
@@ -12,22 +10,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-
-data class VerificationImage(
-    val bytes: ByteArray,
-    val mediaType: String,
-) {
-    init {
-        require(bytes.isNotEmpty()) { "验证图片不能为空" }
-        require(bytes.size <= MAX_IMAGE_BYTES) { "单张验证图片不能超过 ${MAX_IMAGE_BYTES / 1024 / 1024}MB" }
-        require(mediaType in SUPPORTED_IMAGE_MEDIA_TYPES) { "不支持的验证图片格式：$mediaType" }
-    }
-
-    companion object {
-        const val MAX_IMAGE_BYTES = 4 * 1024 * 1024
-        val SUPPORTED_IMAGE_MEDIA_TYPES = setOf("image/jpeg", "image/png", "image/webp")
-    }
-}
 
 class OpenAiCompatibleClient(
     private val settings: AiSettings,
@@ -74,48 +56,6 @@ class OpenAiCompatibleClient(
             jsonMode = true,
         )
         return StrictAiGradingProtocol.parse(raw)
-    }
-
-    suspend fun verifyGenericAnswer(
-        request: AnswerVerificationRequest,
-        questionImages: List<VerificationImage> = emptyList(),
-        answerImages: List<VerificationImage> = emptyList(),
-    ): AnswerVerificationResult = withContext(Dispatchers.IO) {
-        require(request.question.isNotBlank() || questionImages.isNotEmpty()) { "请提供题目文字或题目图片" }
-        require(request.answer.isNotBlank() || answerImages.isNotEmpty()) { "请提供答案文字或答案图片" }
-        require(questionImages.size <= 3 && answerImages.size <= 3) { "题目图片和答案图片各最多 3 张" }
-        require((questionImages + answerImages).sumOf { it.bytes.size } <= MAX_VERIFICATION_IMAGE_BYTES) { "验证图片总大小不能超过 12MB" }
-
-        val content = JSONArray()
-        content.put(
-            JSONObject().put("type", "text").put(
-                "text",
-                buildString {
-                    appendLine("学科提示：${request.subjectHint?.label ?: "自动识别"}")
-                    appendLine("题目文字：")
-                    appendLine(request.question.ifBlank { "（见题目图片）" })
-                    appendLine("做题过程：")
-                    appendLine(request.workProcess.ifBlank { "（未提供）" })
-                    appendLine("最终答案文字：")
-                    appendLine(request.answer.ifBlank { "（见答案图片）" })
-                    appendLine("用户提供的参考答案：")
-                    append(request.referenceAnswer?.ifBlank { "（未提供）" } ?: "（未提供）")
-                },
-            ),
-        )
-        if (questionImages.isNotEmpty()) {
-            content.put(JSONObject().put("type", "text").put("text", "下面按顺序是题目图片："))
-            questionImages.forEach { content.put(it.toImageContent()) }
-        }
-        if (answerImages.isNotEmpty()) {
-            content.put(JSONObject().put("type", "text").put("text", "下面按顺序是学习者答案/作答图片："))
-            answerImages.forEach { content.put(it.toImageContent()) }
-        }
-
-        val messages = JSONArray()
-            .put(JSONObject().put("role", "system").put("content", GenericAnswerVerificationProtocol.systemPrompt))
-            .put(JSONObject().put("role", "user").put("content", content))
-        GenericAnswerVerificationProtocol.parse(sendChat(messages, temperature = 0.0, maxTokens = 1_800, jsonMode = true))
     }
 
     suspend fun analyzeTextbookLessonFromText(
@@ -176,13 +116,6 @@ class OpenAiCompatibleClient(
             .put(JSONObject().put("role", "system").put("content", lessonCompilerSystem("教材页面截图")))
             .put(JSONObject().put("role", "user").put("content", content))
         sendChat(messages, temperature = 0.1, maxTokens = 1_800)
-    }
-
-    private fun VerificationImage.toImageContent(): JSONObject {
-        val encoded = Base64.encodeToString(bytes, Base64.NO_WRAP)
-        return JSONObject()
-            .put("type", "image_url")
-            .put("image_url", JSONObject().put("url", "data:$mediaType;base64,$encoded"))
     }
 
     private fun lessonCompilerSystem(inputKind: String): String = """
@@ -279,7 +212,6 @@ class OpenAiCompatibleClient(
     private companion object {
         const val MAX_TEXT_PER_PAGE = 8_000
         const val MAX_TOTAL_TEXT = 24_000
-        const val MAX_VERIFICATION_IMAGE_BYTES = 12 * 1024 * 1024
         const val CONNECT_TIMEOUT_MILLIS = 10_000
         const val READ_TIMEOUT_MILLIS = 45_000
     }

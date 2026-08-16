@@ -51,14 +51,14 @@ enum class TextbookVolume(
     SELECTIVE_LOWER(213, "选择性必修下册");
 
     fun labelFor(stage: EducationStage): String = when {
-        this !in LEGACY_VOLUMES -> label
+        this !in SEMESTER_VOLUMES -> label
         stage == EducationStage.PRIMARY || stage == EducationStage.JUNIOR_HIGH -> label
         this == FIRST -> "上学期"
         else -> "下学期"
     }
 
     companion object {
-        private val LEGACY_VOLUMES = setOf(FIRST, SECOND)
+        private val SEMESTER_VOLUMES = setOf(FIRST, SECOND)
 
         fun fromId(id: Int): TextbookVolume = entries.firstOrNull { it.id == id } ?: FIRST
 

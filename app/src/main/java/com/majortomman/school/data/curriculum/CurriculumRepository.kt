@@ -141,9 +141,9 @@ class CurriculumRepository(
         dao.upsertKnowledgeMastery(mastery.toEntity())
     }
 
-    suspend fun markLegacyLessonStatus(legacyLessonId: String, status: MasteryStatus) {
-        val node = state.value.nodeForLegacyLesson(legacyLessonId)
-            ?: dao.getNodeByLegacyLessonId(legacyLessonId)?.toDomain()
+    suspend fun markLessonStatus(lessonId: String, status: MasteryStatus) {
+        val node = state.value.nodeForLesson(lessonId)
+            ?: dao.getNodeByLessonId(lessonId)?.toDomain()
             ?: return
         markNodeStatus(node.id, status.toCurriculumStatus())
     }
@@ -164,18 +164,18 @@ class CurriculumRepository(
         )
     }
 
-    suspend fun lessonTitle(legacyLessonId: String): String? = state.value
-        .nodeForLegacyLesson(legacyLessonId)
+    suspend fun lessonTitle(lessonId: String): String? = state.value
+        .nodeForLesson(lessonId)
         ?.title
-        ?: dao.getNodeByLegacyLessonId(legacyLessonId)?.title
+        ?: dao.getNodeByLessonId(lessonId)?.title
 
     fun curriculumIdFor(textbook: InstalledTextbook): String = curriculumIdFor(
         subjectId = textbook.slot.subjectId,
         stage = textbook.slot.stage,
     )
 
-    fun curriculumIdForLegacyTextbook(textbookKey: String): String? =
-        state.value.curriculumIdForLegacyTextbook(textbookKey)
+    fun curriculumIdForTextbook(textbookKey: String): String? =
+        state.value.curriculumIdForTextbook(textbookKey)
 
     suspend fun clearLearningState() {
         dao.clearKnowledgeMastery()

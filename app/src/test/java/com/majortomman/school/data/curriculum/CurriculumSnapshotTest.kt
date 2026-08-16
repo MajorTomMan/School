@@ -6,7 +6,7 @@ import org.junit.Test
 
 class CurriculumSnapshotTest {
     @Test
-    fun `tree keeps parent order depth and legacy lesson mapping`() {
+    fun `tree keeps parent order depth and lesson mapping`() {
         val curriculum = Curriculum(
             id = "math-junior",
             subjectId = "math",
@@ -31,7 +31,7 @@ class CurriculumSnapshotTest {
         val rows = snapshot.flattenedTree(curriculum.id)
         assertEquals(listOf("root", "grade-7", "term-1", "lesson-1", "lesson-2"), rows.map { it.node.id })
         assertEquals(listOf(0, 1, 2, 3, 3), rows.map { it.depth })
-        assertEquals("lesson-2", snapshot.nodeForLegacyLesson("math-7-1:number-line")?.id)
+        assertEquals("lesson-2", snapshot.nodeForLesson("math-7-1:number-line")?.id)
         assertTrue(snapshot.validate().isEmpty())
     }
 

@@ -33,9 +33,9 @@ jobs:
   validate-course-contract:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -82,25 +82,3 @@ jobs:
             tools/check_visualization_contract_sync.py \
             tools/course-content/visualization_contract.py \
             tools/course-content/validate_authored_course.py
-
-      - name: Reject retired OCR/page, assessment and scene compatibility pipelines
-        shell: bash
-        run: |
-          set -euo pipefail
-          retired=(
-            tools/course_quality
-            tools/course-content/manual
-            tools/course-content/generate_math_courses.py
-            tools/course-content/audit_math_courses.py
-            tools/course-content/normalize_course_contract.py
-            tools/course-content/pdf_asset_workflow.py
-            tools/course-content/postprocess_math_courses.py
-            tools/course-content/prepare_assessment_packages.py
-            tools/course-content/migrate_scene_visualizations.py
-          )
-          for path in "${retired[@]}"; do
-            if [ -e "$path" ]; then
-              echo "Retired course/scene pipeline path must not return: $path" >&2
-              exit 1
-            fi
-          done

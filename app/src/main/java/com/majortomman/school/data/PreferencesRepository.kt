@@ -148,7 +148,7 @@ class PreferencesRepository(
         context.schoolDataStore.edit { preferences ->
             preferences[lessonStatusKey(lessonId)] = status.name
         }
-        curriculumRepository.markLegacyLessonStatus(lessonId, status)
+        curriculumRepository.markLessonStatus(lessonId, status)
     }
 
     suspend fun finishLessonAndStartNext(
@@ -172,8 +172,8 @@ class PreferencesRepository(
             }
             preferences[Keys.lastLessonId] = nextLessonId ?: currentLessonId
         }
-        curriculumRepository.markLegacyLessonStatus(currentLessonId, MasteryStatus.MASTERED)
-        nextLessonId?.let { curriculumRepository.markLegacyLessonStatus(it, MasteryStatus.LEARNING) }
+        curriculumRepository.markLessonStatus(currentLessonId, MasteryStatus.MASTERED)
+        nextLessonId?.let { curriculumRepository.markLessonStatus(it, MasteryStatus.LEARNING) }
     }
 
     suspend fun recordAttempt(
@@ -211,7 +211,7 @@ class PreferencesRepository(
             preferences[Keys.lastAnswer] = draft.answer.take(2_000)
             preferences[Keys.lastFeedback] = draft.feedback.take(2_000)
         }
-        curriculumRepository.markLegacyLessonStatus(lessonId, status)
+        curriculumRepository.markLessonStatus(lessonId, status)
     }
 
     suspend fun clearLearningProgress() {
@@ -235,7 +235,7 @@ class PreferencesRepository(
     }
 
     private fun lessonTitle(lessonId: String): String = curriculumRepository.state.value
-        .nodeForLegacyLesson(lessonId)
+        .nodeForLesson(lessonId)
         ?.title
         ?: SampleContent.lessons.firstOrNull { it.id == lessonId }?.title
         ?: lessonId
