@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
  * 只保存新版 Assessment 的追加事实与结算快照。
@@ -22,7 +24,7 @@ import androidx.room.RoomDatabase
         MasteryStateEntity::class,
         MasterySnapshotEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 internal abstract class LearningProgressDatabase : RoomDatabase() {
@@ -30,6 +32,12 @@ internal abstract class LearningProgressDatabase : RoomDatabase() {
 
     companion object {
         private const val DATABASE_NAME = "school-learning-progress.db"
+
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE assessment_attempt ADD COLUMN workProcess TEXT NOT NULL DEFAULT ''")
+            }
+        }
 
         @Volatile
         private var instance: LearningProgressDatabase? = null
@@ -39,7 +47,7 @@ internal abstract class LearningProgressDatabase : RoomDatabase() {
                 context.applicationContext,
                 LearningProgressDatabase::class.java,
                 DATABASE_NAME,
-            ).build().also { instance = it }
+            ).addMigrations(MIGRATION_1_2).build().also { instance = it }
         }
     }
 }
