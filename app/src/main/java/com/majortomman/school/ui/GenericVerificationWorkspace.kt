@@ -146,7 +146,7 @@ internal fun GenericVerificationWorkspace(aiSettings: AiSettings) {
         }
 
         error?.let { Text(it, color = InteractiveRed, fontSize = 13.sp, lineHeight = 20.sp) }
-        result?.let(::VerificationResultPanel)
+        result?.let { VerificationResultPanel(it) }
     }
 }
 
