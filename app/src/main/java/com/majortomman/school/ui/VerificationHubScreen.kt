@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -112,7 +113,7 @@ private fun VerificationSubjectEntry(subject: VerificationSubject, modifier: Mod
 @Composable
 private fun MathExpressionVerificationPage(onBack: () -> Unit) {
     var input by rememberSaveable { mutableStateOf("") }
-    var result by rememberSaveable(stateSaver = LocalMathExpressionResultSaver) { mutableStateOf<LocalMathExpressionResult?>(null) }
+    var result by remember { mutableStateOf<LocalMathExpressionResult?>(null) }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
 
     Column(
@@ -257,15 +258,6 @@ private fun VerificationSubjectPlaceholderPage(subject: VerificationSubject, onB
         }
     }
 }
-
-private val LocalMathExpressionResultSaver = androidx.compose.runtime.saveable.Saver<LocalMathExpressionResult?, List<String>>(
-    save = { value ->
-        if (value == null) emptyList() else listOf(value.kind.name, value.normalizedExpression, value.displayAnswer)
-    },
-    restore = { saved ->
-        if (saved.size != 3) null else runCatching { LocalMathExpressionVerifier.verify(saved[1]) }.getOrNull()
-    },
-)
 
 private fun axisNumber(value: Double): String {
     val integer = value.toInt()
