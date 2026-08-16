@@ -21,6 +21,12 @@ class VisualizationContractTest {
     }
 
     @Test
+    fun checkedInStructuralSnapshotMatchesRuntimeSchemas() {
+        val expected = requireNotNull(javaClass.classLoader?.getResourceAsStream("visualization-contract.snapshot")) { "missing visualization-contract.snapshot" }.bufferedReader().use { it.readText() }
+        assertEquals(expected, runtimeContractSnapshot())
+    }
+
+    @Test
     fun schemaRejectsUnknownParametersAndTexts() {
         val invocation = VisualizationInvocation(
             renderer = VisualizationKey("mathematics.number-line.basic"),
@@ -120,5 +126,13 @@ class VisualizationContractTest {
     fun unknownRendererIsRejected() {
         val issues = SchoolVisualizationCatalog.validate(VisualizationInvocation(VisualizationKey("mathematics.missing")))
         assertFalse(issues.isEmpty())
+    }
+
+    private fun runtimeContractSnapshot(): String = buildString {
+        SchoolVisualizationCatalog.contractSchemas().entries.sortedBy { it.key.value }.forEach { (key, schema) ->
+            val parameters = schema.parameters.sortedBy { it.name }.joinToString(",") { spec -> "${spec.name}:${spec.type.name}:${if (spec.required) "required" else "optional"}" }
+            val texts = schema.texts.sortedBy { it.name }.joinToString(",") { spec -> "${spec.name}:${if (spec.required) "required" else "optional"}:${spec.allowBlank}" }
+            append(key.value).append('|').append(parameters).append('|').append(texts).append('\n')
+        }
     }
 }
