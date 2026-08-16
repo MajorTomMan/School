@@ -27,7 +27,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         KnowledgeMasteryEntity::class,
         CurriculumNodeProgressEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class SchoolDatabase : RoomDatabase() {
@@ -330,13 +330,100 @@ abstract class SchoolDatabase : RoomDatabase() {
             }
         }
 
+        private val migration3To4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE `learning_levels_new` (
+                        `id` TEXT NOT NULL,
+                        `systemId` TEXT NOT NULL,
+                        `parentId` TEXT,
+                        `title` TEXT NOT NULL,
+                        `orderIndex` INTEGER NOT NULL,
+                        `grade` INTEGER,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent(),
+                )
+                database.execSQL(
+                    """
+                    INSERT INTO `learning_levels_new` (`id`, `systemId`, `parentId`, `title`, `orderIndex`, `grade`)
+                    SELECT `id`, `systemId`, `parentId`, `title`, `orderIndex`, `legacyGrade` FROM `learning_levels`
+                    """.trimIndent(),
+                )
+                database.execSQL("DROP TABLE `learning_levels`")
+                database.execSQL("ALTER TABLE `learning_levels_new` RENAME TO `learning_levels`")
+                database.execSQL("CREATE INDEX `index_learning_levels_systemId` ON `learning_levels` (`systemId`)")
+                database.execSQL("CREATE INDEX `index_learning_levels_parentId` ON `learning_levels` (`parentId`)")
+                database.execSQL("CREATE INDEX `index_learning_levels_grade` ON `learning_levels` (`grade`)")
+
+                database.execSQL(
+                    """
+                    CREATE TABLE `curriculum_nodes_new` (
+                        `id` TEXT NOT NULL,
+                        `curriculumId` TEXT NOT NULL,
+                        `parentId` TEXT,
+                        `type` TEXT NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `orderIndex` INTEGER NOT NULL,
+                        `lessonId` TEXT,
+                        `metadataJson` TEXT NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent(),
+                )
+                database.execSQL(
+                    """
+                    INSERT INTO `curriculum_nodes_new` (`id`, `curriculumId`, `parentId`, `type`, `title`, `orderIndex`, `lessonId`, `metadataJson`)
+                    SELECT `id`, `curriculumId`, `parentId`, `type`, `title`, `orderIndex`, `legacyLessonId`, `metadataJson` FROM `curriculum_nodes`
+                    """.trimIndent(),
+                )
+                database.execSQL("DROP TABLE `curriculum_nodes`")
+                database.execSQL("ALTER TABLE `curriculum_nodes_new` RENAME TO `curriculum_nodes`")
+                database.execSQL("CREATE INDEX `index_curriculum_nodes_curriculumId` ON `curriculum_nodes` (`curriculumId`)")
+                database.execSQL("CREATE INDEX `index_curriculum_nodes_parentId` ON `curriculum_nodes` (`parentId`)")
+                database.execSQL("CREATE INDEX `index_curriculum_nodes_lessonId` ON `curriculum_nodes` (`lessonId`)")
+                database.execSQL("CREATE INDEX `index_curriculum_nodes_curriculumId_parentId_orderIndex` ON `curriculum_nodes` (`curriculumId`, `parentId`, `orderIndex`)")
+
+                database.execSQL(
+                    """
+                    CREATE TABLE `learning_resources_new` (
+                        `id` TEXT NOT NULL,
+                        `subjectId` TEXT NOT NULL,
+                        `type` TEXT NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `uri` TEXT,
+                        `publisher` TEXT,
+                        `edition` TEXT,
+                        `textbookKey` TEXT,
+                        `metadataJson` TEXT NOT NULL,
+                        `origin` TEXT NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent(),
+                )
+                database.execSQL(
+                    """
+                    INSERT INTO `learning_resources_new` (`id`, `subjectId`, `type`, `title`, `uri`, `publisher`, `edition`, `textbookKey`, `metadataJson`, `origin`)
+                    SELECT `id`, `subjectId`, `type`, `title`, `uri`, `publisher`, `edition`, `legacyTextbookKey`, `metadataJson`, `origin` FROM `learning_resources`
+                    """.trimIndent(),
+                )
+                database.execSQL("DROP TABLE `learning_resources`")
+                database.execSQL("ALTER TABLE `learning_resources_new` RENAME TO `learning_resources`")
+                database.execSQL("CREATE INDEX `index_learning_resources_subjectId` ON `learning_resources` (`subjectId`)")
+                database.execSQL("CREATE INDEX `index_learning_resources_type` ON `learning_resources` (`type`)")
+                database.execSQL("CREATE INDEX `index_learning_resources_textbookKey` ON `learning_resources` (`textbookKey`)")
+                database.execSQL("CREATE INDEX `index_learning_resources_origin` ON `learning_resources` (`origin`)")
+            }
+        }
+
         fun getInstance(context: Context): SchoolDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 SchoolDatabase::class.java,
                 "school.db",
             )
-                .addMigrations(migration1To2, migration2To3)
+                .addMigrations(migration1To2, migration2To3, migration3To4)
                 .build()
                 .also { instance = it }
         }
