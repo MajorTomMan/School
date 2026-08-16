@@ -222,10 +222,9 @@ fun SchoolApp(
                                     if (activeTextbook == null || dailyPlan == null || lessons.isEmpty()) {
                                         NoActiveTextbookScreen { selectedTabName = MainTab.SUBJECTS.name }
                                     } else {
-                                        SceneTodayScreen(
+                                        TodayScreen(
                                             plan = dailyPlan,
                                             lessons = lessons,
-                                            progress = progress,
                                             onStartLesson = { openedLessonId = it },
                                             onOpenPath = { selectedTabName = MainTab.PATH.name },
                                         )
@@ -247,7 +246,7 @@ fun SchoolApp(
                                             )
                                         }
                                         else -> {
-                                            SceneCoursePathScreen(
+                                            CoursePathScreen(
                                                 lessons = lessons,
                                                 onOpenLesson = { openedLessonId = it },
                                             )
