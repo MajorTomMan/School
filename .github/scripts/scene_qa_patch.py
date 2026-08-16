@@ -1,3 +1,4 @@
+# One-time patch: refine authored lesson scenes after App-level QA.
 from pathlib import Path
 import re
 
