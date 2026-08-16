@@ -83,7 +83,7 @@ jobs:
             tools/course-content/visualization_contract.py \
             tools/course-content/validate_authored_course.py
 
-      - name: Reject retired OCR/page and scene compatibility pipelines
+      - name: Reject retired OCR/page, assessment and scene compatibility pipelines
         shell: bash
         run: |
           set -euo pipefail
@@ -95,6 +95,7 @@ jobs:
             tools/course-content/normalize_course_contract.py
             tools/course-content/pdf_asset_workflow.py
             tools/course-content/postprocess_math_courses.py
+            tools/course-content/prepare_assessment_packages.py
             tools/course-content/migrate_scene_visualizations.py
           )
           for path in "${retired[@]}"; do
