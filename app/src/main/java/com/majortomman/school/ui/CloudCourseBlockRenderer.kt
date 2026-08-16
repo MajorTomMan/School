@@ -159,7 +159,7 @@ internal fun CourseSceneView(scene: CourseScene, formulaFallback: String?) {
             CourseSceneTemplate.OPPOSITE_QUANTITIES -> OppositeQuantitiesSceneVisual(scene.data)
             CourseSceneTemplate.RATIONAL_CLASSIFICATION -> RationalConceptFlowVisual(scene.data)
             CourseSceneTemplate.INTEGER_TO_FRACTION -> IntegerToFractionTextbookVisual()
-            CourseSceneTemplate.NUMBER_LINE -> NumberLineLessonVisual(scene.data)
+            CourseSceneTemplate.NUMBER_LINE -> WholeNumberLineVisual(scene.data)
             CourseSceneTemplate.OPPOSITE_NUMBERS -> AdjustableNumberLine(NumberLineMode.OPPOSITE)
             CourseSceneTemplate.ABSOLUTE_VALUE -> AbsoluteValueNumberLineVisual()
             CourseSceneTemplate.NUMBER_COMPARISON -> ComparisonVisual()
