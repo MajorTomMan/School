@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Restore old committed course
+      - name: Restore committed course
         shell: bash
         run: |
           set -euo pipefail
@@ -40,6 +40,7 @@ jobs:
           python3 tools/course-content/migrate_scene_visualizations.py build/visualization-migration/old-course.json build/visualization-migration/course.json
           python3 tools/course-content/validate_authored_course.py build/visualization-migration/course.json
           sha256sum build/visualization-migration/course.json
+          wc -c build/visualization-migration/course.json
 
       - name: Replace committed deterministic bundle
         shell: bash
@@ -60,6 +61,7 @@ jobs:
           for index, start in enumerate(range(0, len(encoded), 8000), start=1):
               (target_dir / f'course.json.gz.b64.part{index:02d}').write_text(encoded[start:start + 8000], encoding='ascii')
           print(f'MIGRATED_COURSE_SHA256={digest}')
+          print(f'MIGRATED_COURSE_SIZE={len(raw)}')
           print(f'PART_COUNT={(len(encoded) + 7999) // 8000}')
           PY
 
