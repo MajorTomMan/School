@@ -20,10 +20,16 @@ sealed interface VisualizationParameterValue {
 
     data class BooleanValue(val value: Boolean) : VisualizationParameterValue
 
-    data class NumberListValue(val values: List<Double>) : VisualizationParameterValue {
+    class NumberListValue(values: List<Double>) : VisualizationParameterValue {
+        val values: List<Double> = values.toList()
+
         init {
-            require(values.all(Double::isFinite)) { "可视化数值列表只能包含有限数" }
+            require(this.values.all(Double::isFinite)) { "可视化数值列表只能包含有限数" }
         }
+
+        override fun equals(other: Any?): Boolean = other is NumberListValue && values == other.values
+        override fun hashCode(): Int = values.hashCode()
+        override fun toString(): String = "NumberListValue(values=$values)"
     }
 }
 
