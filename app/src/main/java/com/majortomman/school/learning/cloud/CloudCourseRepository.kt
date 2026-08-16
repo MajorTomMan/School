@@ -88,11 +88,13 @@ internal object CourseDocumentParser {
         requireKnowledgeGraph(knowledgePoints)
         val knowledgeIds = knowledgePoints.map { it.id }.toSet()
         val lessonIds = linkedSetOf<String>()
-        val chapters = root.arrayValue("chapters").objects().map { decodeChapter(it, textbook.pdf, knowledgeIds, lessonIds) }
+        val practiceIds = linkedSetOf<String>()
+        val chapters = root.arrayValue("chapters").objects().map { decodeChapter(it, textbook.pdf, knowledgeIds, lessonIds, practiceIds) }
         require(chapters.isNotEmpty()) { "课程必须包含章节" }
         val allLessons = chapters.flatMap { it.sections }.flatMap { it.lessons }
         val missingPrerequisites = allLessons.flatMap { lesson -> lesson.prerequisiteLessonIds.map { lesson.id to it } }.filter { (_, prerequisite) -> prerequisite !in lessonIds }
         require(missingPrerequisites.isEmpty()) { "课程包含不存在的前置课时：$missingPrerequisites" }
+        requireLessonGraph(allLessons)
         return CourseDocument(textbook, knowledgePoints, chapters)
     }
 
@@ -110,21 +112,21 @@ internal object CourseDocumentParser {
         return CourseKnowledgePoint(json.identifier("id"), json.text("name"), json.text("description"), json.stringArray("prerequisiteIds"))
     }
 
-    private fun decodeChapter(json: JSONObject, pdf: CoursePdf, knowledgeIds: Set<String>, lessonIds: MutableSet<String>): CourseChapter {
+    private fun decodeChapter(json: JSONObject, pdf: CoursePdf, knowledgeIds: Set<String>, lessonIds: MutableSet<String>, practiceIds: MutableSet<String>): CourseChapter {
         json.requireKeys(setOf("id", "title", "sections"))
-        val sections = json.arrayValue("sections").objects().map { decodeSection(it, pdf, knowledgeIds, lessonIds) }
+        val sections = json.arrayValue("sections").objects().map { decodeSection(it, pdf, knowledgeIds, lessonIds, practiceIds) }
         require(sections.isNotEmpty()) { "章节 ${json.optString("id")} 不包含小节" }
         return CourseChapter(json.identifier("id"), json.text("title"), sections)
     }
 
-    private fun decodeSection(json: JSONObject, pdf: CoursePdf, knowledgeIds: Set<String>, lessonIds: MutableSet<String>): CourseSection {
+    private fun decodeSection(json: JSONObject, pdf: CoursePdf, knowledgeIds: Set<String>, lessonIds: MutableSet<String>, practiceIds: MutableSet<String>): CourseSection {
         json.requireKeys(setOf("id", "title", "lessons"))
-        val lessons = json.arrayValue("lessons").objects().map { decodeLesson(it, pdf, knowledgeIds, lessonIds) }
+        val lessons = json.arrayValue("lessons").objects().map { decodeLesson(it, pdf, knowledgeIds, lessonIds, practiceIds) }
         require(lessons.isNotEmpty()) { "小节 ${json.optString("id")} 不包含课时" }
         return CourseSection(json.identifier("id"), json.text("title"), lessons)
     }
 
-    private fun decodeLesson(json: JSONObject, pdf: CoursePdf, knowledgeIds: Set<String>, lessonIds: MutableSet<String>): CourseLesson {
+    private fun decodeLesson(json: JSONObject, pdf: CoursePdf, knowledgeIds: Set<String>, lessonIds: MutableSet<String>, practiceIds: MutableSet<String>): CourseLesson {
         json.requireKeys(setOf("id", "title", "aliases", "goals", "knowledgePointIds", "prerequisiteLessonIds", "references", "steps", "practice", "summary"))
         val id = json.identifier("id")
         require(lessonIds.add(id)) { "课时 ID 重复：$id" }
@@ -133,7 +135,7 @@ internal object CourseDocumentParser {
         val references = json.arrayValue("references").objects().map { decodeReference(it, pdf, id) }
         val steps = json.arrayValue("steps").objects().mapIndexed { index, item -> decodeStep(item, "$id.steps[$index]") }
         require(steps.isNotEmpty()) { "课时 $id 不包含教学步骤" }
-        val practice = json.arrayValue("practice").objects().map { decodePractice(it, id, knowledgeIds) }
+        val practice = json.arrayValue("practice").objects().map { decodePractice(it, id, knowledgeIds, practiceIds) }
         return CourseLesson(id, json.text("title"), json.stringArray("aliases"), json.stringArray("goals").also { require(it.isNotEmpty()) { "课时 $id 必须声明教学目标" } }, lessonKnowledge, json.stringArray("prerequisiteLessonIds"), references, steps, practice, json.stringArray("summary").also { require(it.isNotEmpty()) { "课时 $id 必须有总结" } })
     }
 
@@ -146,14 +148,39 @@ internal object CourseDocumentParser {
     }
 
     private fun decodeStep(json: JSONObject, location: String): CourseStep = when (val type = json.text("type")) {
-        "explanation" -> CourseExplanation(json.optionalText("title"), json.text("text"))
-        "question" -> CourseQuestion(json.text("prompt"), json.optionalText("hint"))
-        "keyIdea" -> CourseKeyIdea(json.optionalText("title"), json.text("text"))
-        "formula" -> CourseFormula(json.text("expression"), json.optionalText("note"))
-        "example" -> CourseExample(json.text("title"), json.text("prompt"), json.stringArray("steps"), json.text("answer"))
+        "explanation" -> {
+            json.requireKeys(setOf("type", "title", "text"))
+            CourseExplanation(json.optionalText("title"), json.text("text"))
+        }
+        "question" -> {
+            json.requireKeys(setOf("type", "prompt", "hint"))
+            CourseQuestion(json.text("prompt"), json.optionalText("hint"))
+        }
+        "keyIdea" -> {
+            json.requireKeys(setOf("type", "title", "text"))
+            CourseKeyIdea(json.optionalText("title"), json.text("text"))
+        }
+        "formula" -> {
+            json.requireKeys(setOf("type", "expression", "note"))
+            val expression = json.text("expression")
+            requirePureLatex(expression, location)
+            CourseFormula(expression, json.optionalText("note"))
+        }
+        "example" -> {
+            json.requireKeys(setOf("type", "title", "prompt", "steps", "answer"))
+            val steps = json.stringArray("steps")
+            require(steps.isNotEmpty()) { "$location.steps 不能为空" }
+            CourseExample(json.text("title"), json.text("prompt"), steps, json.text("answer"))
+        }
         "visualization" -> decodeVisualization(json, location)
-        "checkpoint" -> CourseCheckpoint(json.text("prompt"), json.text("expectedAnswer"), json.text("explanation"))
-        "summary" -> CourseSummaryStep(json.text("text"))
+        "checkpoint" -> {
+            json.requireKeys(setOf("type", "prompt", "expectedAnswer", "explanation"))
+            CourseCheckpoint(json.text("prompt"), json.text("expectedAnswer"), json.text("explanation"))
+        }
+        "summary" -> {
+            json.requireKeys(setOf("type", "text"))
+            CourseSummaryStep(json.text("text"))
+        }
         else -> error("$location 使用了不支持的教学步骤：$type")
     }
 
@@ -199,13 +226,17 @@ internal object CourseDocumentParser {
         return VisualizationTexts.of(values)
     }
 
-    private fun decodePractice(json: JSONObject, lessonId: String, knowledgeIds: Set<String>): CoursePractice {
+    private fun decodePractice(json: JSONObject, lessonId: String, knowledgeIds: Set<String>, practiceIds: MutableSet<String>): CoursePractice {
         json.requireKeys(setOf("id", "prompt", "answer", "analysis", "knowledgePointIds", "difficulty"))
+        val id = json.identifier("id")
+        require(practiceIds.add(id)) { "练习 ID 重复：$id" }
+        val analysis = json.stringArray("analysis")
+        require(analysis.isNotEmpty()) { "课时 $lessonId 的练习 $id 必须包含解析" }
         val ids = json.stringArray("knowledgePointIds")
         require(ids.isNotEmpty() && ids.all { it in knowledgeIds }) { "课时 $lessonId 的练习知识点绑定无效" }
         val difficulty = json.getInt("difficulty")
         require(difficulty in 1..5) { "练习难度必须在 1..5" }
-        return CoursePractice(json.identifier("id"), json.text("prompt"), json.text("answer"), json.stringArray("analysis"), ids, difficulty)
+        return CoursePractice(id, json.text("prompt"), json.text("answer"), analysis, ids, difficulty)
     }
 
     private fun requireKnowledgeGraph(points: List<CourseKnowledgePoint>) {
@@ -224,9 +255,32 @@ internal object CourseDocumentParser {
         }
         ids.forEach(::visit)
     }
+
+    private fun requireLessonGraph(lessons: List<CourseLesson>) {
+        val prerequisites = lessons.associate { it.id to it.prerequisiteLessonIds }
+        val visiting = linkedSetOf<String>()
+        val visited = linkedSetOf<String>()
+        fun visit(id: String) {
+            if (id in visited) return
+            require(id !in visiting) { "课时前置关系形成循环：${(visiting + id).joinToString(" -> ")}" }
+            visiting += id
+            prerequisites.getValue(id).forEach(::visit)
+            visiting -= id
+            visited += id
+        }
+        prerequisites.keys.forEach(::visit)
+    }
+
+    private fun requirePureLatex(expression: String, location: String) {
+        require('$' !in expression && "\\(" !in expression && "\\)" !in expression && "\\[" !in expression && "\\]" !in expression) { "$location.expression 必须保存不带定界符的纯 LaTeX 数学表达式" }
+        require(!CJK.containsMatchIn(expression)) { "$location.expression 不能包含中文说明文字" }
+        require(expression.none { it in NON_LATEX_MATH }) { "$location.expression 必须使用 LaTeX 命令而不是 Unicode 数学符号" }
+    }
 }
 
 private val IDENTIFIER = Regex("^[A-Za-z0-9._:-]+$")
+private val CJK = Regex("[\\u3400-\\u9fff]")
+private val NON_LATEX_MATH = "²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉−×÷≤≥≠Σαβγθπ°′″".toSet()
 private fun JSONObject.text(key: String): String = getString(key).trim().also { require(it.isNotEmpty()) { "$key 不能为空" } }
 private fun JSONObject.optionalText(key: String): String? {
     if (!has(key) || isNull(key)) return null
