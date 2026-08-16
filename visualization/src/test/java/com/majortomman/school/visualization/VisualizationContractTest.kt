@@ -86,6 +86,21 @@ class VisualizationContractTest {
     }
 
     @Test
+    fun semanticValidationRejectsOversizedCartesianGrid() {
+        val invocation = VisualizationInvocation(
+            renderer = VisualizationKey("mathematics.cartesian.linear"),
+            parameters = VisualizationParameters.of(
+                "slope" to VisualizationParameterValue.NumberValue(1.0),
+                "intercept" to VisualizationParameterValue.NumberValue(0.0),
+                "xMin" to VisualizationParameterValue.NumberValue(-100.0),
+                "xMax" to VisualizationParameterValue.NumberValue(100.0),
+            ),
+        )
+        val issues = SchoolVisualizationCatalog.validate(invocation)
+        assertTrue(issues.any { "横轴范围" in it })
+    }
+
+    @Test
     fun semanticValidationRejectsEmptyChart() {
         val invocation = VisualizationInvocation(
             renderer = VisualizationKey("mathematics.chart.line"),
@@ -117,9 +132,11 @@ class VisualizationContractTest {
     }
 
     @Test
-    fun nonFiniteNumbersAreRejectedAtBoundary() {
+    fun nonFiniteOrFloatOverflowNumbersAreRejectedAtBoundary() {
         assertThrows(IllegalArgumentException::class.java) { VisualizationParameterValue.NumberValue(Double.NaN) }
+        assertThrows(IllegalArgumentException::class.java) { VisualizationParameterValue.NumberValue(Double.MAX_VALUE) }
         assertThrows(IllegalArgumentException::class.java) { VisualizationParameterValue.NumberListValue(listOf(1.0, Double.POSITIVE_INFINITY)) }
+        assertThrows(IllegalArgumentException::class.java) { VisualizationParameterValue.NumberListValue(listOf(Double.MAX_VALUE)) }
     }
 
     @Test
