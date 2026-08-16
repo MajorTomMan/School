@@ -72,6 +72,29 @@ class VisualizationContractTest {
     }
 
     @Test
+    fun semanticValidationRejectsNumberLineBelowRendererPrecision() {
+        val tinyStep = VisualizationInvocation(
+            renderer = VisualizationKey("mathematics.number-line.basic"),
+            parameters = VisualizationParameters.of(
+                "min" to VisualizationParameterValue.NumberValue(0.0),
+                "max" to VisualizationParameterValue.NumberValue(0.05),
+                "step" to VisualizationParameterValue.NumberValue(0.005),
+            ),
+        )
+        assertTrue(SchoolVisualizationCatalog.validate(tinyStep).any { "0.01" in it })
+
+        val collapsedRange = VisualizationInvocation(
+            renderer = VisualizationKey("mathematics.number-line.basic"),
+            parameters = VisualizationParameters.of(
+                "min" to VisualizationParameterValue.NumberValue(100_000_000.0),
+                "max" to VisualizationParameterValue.NumberValue(100_000_001.0),
+                "step" to VisualizationParameterValue.NumberValue(1.0),
+            ),
+        )
+        assertTrue(SchoolVisualizationCatalog.validate(collapsedRange).any { "Float" in it })
+    }
+
+    @Test
     fun semanticValidationRejectsOutOfRangeNumberLinePoint() {
         val invocation = VisualizationInvocation(
             renderer = VisualizationKey("mathematics.number-line.points"),
@@ -101,13 +124,18 @@ class VisualizationContractTest {
     }
 
     @Test
-    fun semanticValidationRejectsEmptyChart() {
-        val invocation = VisualizationInvocation(
+    fun semanticValidationRejectsEmptyOrFloatOverflowChart() {
+        val empty = VisualizationInvocation(
             renderer = VisualizationKey("mathematics.chart.line"),
             parameters = VisualizationParameters.of("values" to VisualizationParameterValue.NumberListValue(emptyList())),
         )
-        val issues = SchoolVisualizationCatalog.validate(invocation)
-        assertTrue(issues.any { "不能为空" in it })
+        assertTrue(SchoolVisualizationCatalog.validate(empty).any { "不能为空" in it })
+
+        val overflow = VisualizationInvocation(
+            renderer = VisualizationKey("mathematics.chart.line"),
+            parameters = VisualizationParameters.of("values" to VisualizationParameterValue.NumberListValue(listOf(-3.0e38, 3.0e38))),
+        )
+        assertTrue(SchoolVisualizationCatalog.validate(overflow).any { "Float" in it })
     }
 
     @Test
