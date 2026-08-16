@@ -50,8 +50,8 @@ interface CurriculumDao {
     @Query("SELECT * FROM knowledge_mastery WHERE subjectId = :subjectId AND knowledgePointId = :knowledgePointId LIMIT 1")
     suspend fun getKnowledgeMastery(subjectId: String, knowledgePointId: String): KnowledgeMasteryEntity?
 
-    @Query("SELECT * FROM curriculum_nodes WHERE legacyLessonId = :legacyLessonId LIMIT 1")
-    suspend fun getNodeByLegacyLessonId(legacyLessonId: String): CurriculumNodeEntity?
+    @Query("SELECT * FROM curriculum_nodes WHERE lessonId = :lessonId LIMIT 1")
+    suspend fun getNodeByLessonId(lessonId: String): CurriculumNodeEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertSubjects(items: List<SubjectEntity>)
