@@ -33,12 +33,16 @@
             {
               "id": "positive-negative-intro",
               "title": "为什么需要负数",
-              "aliases": ["正数和负数"],
+              "aliases": [
+                "正数和负数"
+              ],
               "goals": [
                 "理解正数和负数可以表示相反意义的量",
                 "理解0不是正数也不是负数"
               ],
-              "knowledgePointIds": ["positive-negative"],
+              "knowledgePointIds": [
+                "positive-negative"
+              ],
               "prerequisiteLessonIds": [],
               "references": [
                 {
@@ -65,7 +69,7 @@
                 },
                 {
                   "type": "formula",
-                  "expression": "+3，-3",
+                  "expression": "+3,\\qquad -3",
                   "note": "两个数大小相同，但表示的方向相反。"
                 },
                 {
@@ -73,10 +77,6 @@
                   "prompt": "如果存入100元记作+100元，那么取出40元怎样表示？",
                   "expectedAnswer": "-40元",
                   "explanation": "存入和取出是一对相反方向，因此使用相反的符号。"
-                },
-                {
-                  "type": "sourceLink",
-                  "referenceIndex": 0
                 }
               ],
               "practice": [
@@ -88,7 +88,9 @@
                     "东和西是相反方向。",
                     "已经规定向东为正，因此向西使用负号。"
                   ],
-                  "knowledgePointIds": ["positive-negative"],
+                  "knowledgePointIds": [
+                    "positive-negative"
+                  ],
                   "difficulty": 1
                 }
               ],
