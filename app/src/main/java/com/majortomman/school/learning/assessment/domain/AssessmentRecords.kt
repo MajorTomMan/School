@@ -34,12 +34,18 @@ data class AttemptRecord(
     val questionKey: QuestionKey,
     val submissionSequence: Int,
     val answer: UserAnswer,
+    val workProcess: String,
     val result: JudgeResult,
     val submittedAtEpochMillis: Long,
 ) {
     init {
         require(submissionSequence > 0) { "submissionSequence 必须大于 0" }
+        require(workProcess.length <= MAX_WORK_PROCESS_LENGTH) { "做题过程不能超过 $MAX_WORK_PROCESS_LENGTH 个字符" }
         require(submittedAtEpochMillis >= 0L) { "submittedAtEpochMillis 不能小于 0" }
+    }
+
+    companion object {
+        const val MAX_WORK_PROCESS_LENGTH = 12_000
     }
 }
 
