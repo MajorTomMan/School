@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
+import struct
 from typing import Any
 
 
@@ -144,6 +145,13 @@ RENDERER_SCHEMAS: dict[str, RendererSchema] = {
 }
 
 
+def float32(value: float) -> float:
+    try:
+        return struct.unpack("!f", struct.pack("!f", float(value)))[0]
+    except OverflowError:
+        return math.copysign(math.inf, value)
+
+
 def is_number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(float(value)) and abs(float(value)) <= FLOAT32_MAX
 
@@ -198,12 +206,24 @@ def validate_visualization_semantics(renderer: str, parameters: dict[str, Any], 
         minimum = float(parameters.get("min", -8.0))
         maximum = float(parameters.get("max", 8.0))
         step = float(parameters.get("step", 1.0))
+        minimum_f = float32(minimum)
+        maximum_f = float32(maximum)
+        step_f = float32(step)
+        span_f = float32(maximum_f - minimum_f)
         if maximum <= minimum:
             raise ValueError(f"{where}.parameters: max must be greater than min")
         if step <= 0:
             raise ValueError(f"{where}.parameters.step: must be greater than 0")
+        if 0 < step < 0.01:
+            raise ValueError(f"{where}.parameters.step: must not be smaller than 0.01")
+        if not maximum_f > minimum_f or not math.isfinite(span_f):
+            raise ValueError(f"{where}.parameters: number-line range exceeds Float rendering precision")
+        if step > 0 and not step_f > 0:
+            raise ValueError(f"{where}.parameters.step: exceeds Float rendering precision")
         if (maximum - minimum) / step > 80.0 + 1e-9:
             raise ValueError(f"{where}.parameters: number-line tick count must not exceed 80")
+        if step_f > 0 and span_f / step_f > 80.01:
+            raise ValueError(f"{where}.parameters: number-line tick count exceeds 80 at Float rendering precision")
 
         def in_range(value: float) -> bool:
             return minimum <= value <= maximum
@@ -259,6 +279,10 @@ def validate_visualization_semantics(renderer: str, parameters: dict[str, Any], 
             raise ValueError(f"{where}.parameters: x range must not exceed 100 units")
         if y_max - y_min > 100.0:
             raise ValueError(f"{where}.parameters: y range must not exceed 100 units")
+        if x_max > x_min and not float32(x_max) > float32(x_min):
+            raise ValueError(f"{where}.parameters: x range exceeds Float rendering precision")
+        if y_max > y_min and not float32(y_max) > float32(y_min):
+            raise ValueError(f"{where}.parameters: y range exceeds Float rendering precision")
         if renderer == "mathematics.cartesian.point":
             x = float(parameters["x"])
             y = float(parameters["y"])
@@ -273,18 +297,32 @@ def validate_visualization_semantics(renderer: str, parameters: dict[str, Any], 
             raise ValueError(f"{where}.parameters.values: must not be empty")
         if len(values) > 8:
             raise ValueError(f"{where}.parameters.values: at most 8 values are supported")
+        float_values = [float32(float(value)) for value in values]
+        minimum_f = min(0.0, min(float_values))
+        maximum_f = max(0.0, max(float_values))
+        if not math.isfinite(float32(maximum_f - minimum_f)):
+            raise ValueError(f"{where}.parameters.values: chart span exceeds Float rendering precision")
 
     if renderer == "mathematics.process.power":
         exponent = float(parameters["exponent"])
         minimum = float(parameters.get("minBase", -4.0))
         maximum = float(parameters.get("maxBase", 4.0))
         base = float(parameters["base"])
-        if abs(exponent - round(exponent)) > 1e-9 or not 1.0 <= exponent <= 8.0:
+        exponent_valid = abs(exponent - round(exponent)) <= 1e-9 and 1.0 <= exponent <= 8.0
+        if not exponent_valid:
             raise ValueError(f"{where}.parameters.exponent: integer from 1 to 8 required")
         if maximum <= minimum:
             raise ValueError(f"{where}.parameters: maxBase must be greater than minBase")
         if not minimum <= base <= maximum:
             raise ValueError(f"{where}.parameters.base: must be inside minBase..maxBase")
+        if maximum > minimum:
+            minimum_f = float32(minimum)
+            maximum_f = float32(maximum)
+            if not maximum_f > minimum_f or not math.isfinite(float32(maximum_f - minimum_f)):
+                raise ValueError(f"{where}.parameters: power slider range exceeds Float rendering precision")
+        exponent_int = int(round(exponent))
+        if not math.isfinite(abs(minimum) ** exponent_int) or not math.isfinite(abs(maximum) ** exponent_int):
+            raise ValueError(f"{where}.parameters: power slider endpoint produces non-finite result")
 
     if renderer == "mathematics.balance.equation" and "tilt" in parameters and not -1.0 <= float(parameters["tilt"]) <= 1.0:
         raise ValueError(f"{where}.parameters.tilt: must be inside -1..1")
