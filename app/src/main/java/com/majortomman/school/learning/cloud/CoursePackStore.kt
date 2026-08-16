@@ -272,7 +272,7 @@ internal class CoursePackStore(context: Context) {
     companion object {
         private const val COURSE_FILE_NAME = "course.json"
         private const val STATE_FILE_NAME = ".course-state.json"
-        private val INTERNAL_CACHE_FILES = setOf(STATE_FILE_NAME, "generated/lessons.json")
+        private val INTERNAL_CACHE_FILES = setOf(STATE_FILE_NAME)
         private const val MAX_UNCOMPRESSED_PACKAGE_BYTES = 2L * 1024L * 1024L * 1024L
 
         fun sha256(file: File): String {
