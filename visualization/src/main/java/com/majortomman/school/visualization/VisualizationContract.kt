@@ -14,7 +14,7 @@ value class VisualizationKey(val value: String) {
 sealed interface VisualizationParameterValue {
     data class NumberValue(val value: Double) : VisualizationParameterValue {
         init {
-            require(value.isFinite()) { "可视化数值参数必须是有限数" }
+            require(value.isFinite() && value.toFloat().isFinite()) { "可视化数值参数必须是可安全绘制的有限数" }
         }
     }
 
@@ -24,7 +24,7 @@ sealed interface VisualizationParameterValue {
         val values: List<Double> = values.toList()
 
         init {
-            require(this.values.all(Double::isFinite)) { "可视化数值列表只能包含有限数" }
+            require(this.values.all { it.isFinite() && it.toFloat().isFinite() }) { "可视化数值列表只能包含可安全绘制的有限数" }
         }
 
         override fun equals(other: Any?): Boolean = other is NumberListValue && values == other.values
