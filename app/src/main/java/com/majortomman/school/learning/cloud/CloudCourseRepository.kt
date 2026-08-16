@@ -104,7 +104,7 @@ internal object CourseDocumentParser {
         pdfJson.requireKeys(setOf("path", "pageCount", "pageIndexOffset"))
         val path = pdfJson.text("path")
         require(path.endsWith(".pdf", true) && !path.startsWith('/') && ".." !in path.split('/')) { "教材 PDF 路径无效" }
-        return CourseTextbook(json.identifier("id"), json.text("title"), json.text("publisher"), json.text("edition"), json.text("grade"), json.text("semester"), json.text("subject"), CoursePdf(path, pdfJson.positiveInt("pageCount"), pdfJson.getInt("pageIndexOffset")))
+        return CourseTextbook(json.identifier("id"), json.text("title"), json.text("publisher"), json.text("edition"), json.text("grade"), json.text("semester"), json.text("subject"), CoursePdf(path, pdfJson.positiveInt("pageCount"), pdfJson.strictInt("pageIndexOffset")))
     }
 
     private fun decodeKnowledgePoint(json: JSONObject): CourseKnowledgePoint {
@@ -234,7 +234,7 @@ internal object CourseDocumentParser {
         require(analysis.isNotEmpty()) { "课时 $lessonId 的练习 $id 必须包含解析" }
         val ids = json.stringArray("knowledgePointIds")
         require(ids.isNotEmpty() && ids.all { it in knowledgeIds }) { "课时 $lessonId 的练习知识点绑定无效" }
-        val difficulty = json.getInt("difficulty")
+        val difficulty = json.strictInt("difficulty")
         require(difficulty in 1..5) { "练习难度必须在 1..5" }
         return CoursePractice(id, json.text("prompt"), json.text("answer"), analysis, ids, difficulty)
     }
@@ -287,7 +287,14 @@ private fun JSONObject.optionalText(key: String): String? {
     return getString(key).trim().also { require(it.isNotEmpty()) { "$key 不能是空字符串" } }
 }
 private fun JSONObject.identifier(key: String): String = text(key).also { require(IDENTIFIER.matches(it)) { "$key 不是合法 ID：$it" } }
-private fun JSONObject.positiveInt(key: String): Int = getInt(key).also { require(it > 0) { "$key 必须是正整数" } }
+private fun JSONObject.strictInt(key: String): Int {
+    val raw = get(key)
+    require(raw is Byte || raw is Short || raw is Int || raw is Long) { "$key 必须是 JSON 整数" }
+    val value = (raw as Number).toLong()
+    require(value in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong()) { "$key 超出 Int 范围" }
+    return value.toInt()
+}
+private fun JSONObject.positiveInt(key: String): Int = strictInt(key).also { require(it > 0) { "$key 必须是正整数" } }
 private fun JSONObject.objectValue(key: String): JSONObject = getJSONObject(key)
 private fun JSONObject.arrayValue(key: String): JSONArray = getJSONArray(key)
 private fun JSONObject.stringArray(key: String): List<String> = arrayValue(key).let { array -> List(array.length()) { array.getString(it).trim() }.also { values -> require(values.all(String::isNotEmpty)) { "$key 包含空字符串" } } }
