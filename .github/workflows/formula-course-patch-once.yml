@@ -1,0 +1,33 @@
+name: One-time Formula Course Patch
+
+on:
+  push:
+    branches: [agent/standard-latex-course-refinement]
+    paths:
+      - ".github/scripts/formula_course_patch.py"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/standard-latex-course-refinement
+      - name: Apply formula and lesson UI patch
+        run: python3 .github/scripts/formula_course_patch.py
+      - name: Commit changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add settings.gradle.kts app tools courses/examples version.properties .release-notes/current.md docs
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "feat: standardize LaTeX formulas and lesson PDF entry"
+            git push origin HEAD:agent/standard-latex-course-refinement
+          fi
