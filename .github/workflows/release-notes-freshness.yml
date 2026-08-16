@@ -14,6 +14,19 @@ on:
       - ".release-notes/current.md"
       - ".github/workflows/android.yml"
       - ".github/workflows/release-notes-freshness.yml"
+  push:
+    branches: [dev]
+    paths:
+      - "app/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - "version.properties"
+      - "gradle/**"
+      - "signing/**"
+      - ".release-notes/current.md"
+      - ".github/workflows/android.yml"
+      - ".github/workflows/release-notes-freshness.yml"
 
 permissions:
   contents: read
@@ -29,7 +42,7 @@ jobs:
       - name: Reject inherited release-note bullets
         shell: bash
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
         run: |
           set -euo pipefail
           python3 - <<'PY'
@@ -39,6 +52,9 @@ jobs:
           notes_path = Path('.release-notes/current.md')
           current = notes_path.read_text(encoding='utf-8').strip()
           base_sha = os.environ['BASE_SHA'].strip()
+          if not base_sha or set(base_sha) == {'0'}:
+              raise SystemExit('无法确定上一版提交，拒绝跳过发布说明新鲜度检查')
+
           changed = subprocess.check_output(['git', 'diff', '--name-only', base_sha, 'HEAD'], text=True).splitlines()
           relevant = [path for path in changed if path.startswith(('app/', 'gradle/', 'signing/')) or path in {
               'build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'version.properties',
