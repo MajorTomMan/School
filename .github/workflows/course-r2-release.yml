@@ -43,9 +43,9 @@ jobs:
           base64 --decode build/authored/pep-math-7-1/course.json.gz.b64 > build/authored/pep-math-7-1/course.json.gz
           gzip --test build/authored/pep-math-7-1/course.json.gz
           gzip -dc build/authored/pep-math-7-1/course.json.gz > build/authored/pep-math-7-1/course.json
-          test "$(stat -c%s build/authored/pep-math-7-1/course.json)" = "271393"
+          test "$(stat -c%s build/authored/pep-math-7-1/course.json)" = "263601"
           printf '%s  %s\n' \
-            '62015378a5ab5308110edd098d440de2b1e58d7193df86a535b8f28c0e09cc46' \
+            'e0250eb6d638d322f589fc1f3d13224bf226af19f65a25e189e98e518f68100f' \
             'build/authored/pep-math-7-1/course.json' | sha256sum --check --strict
           python3 tools/course-content/validate_authored_course.py build/authored/pep-math-7-1/course.json
 
