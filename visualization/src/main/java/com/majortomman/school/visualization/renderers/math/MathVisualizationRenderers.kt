@@ -32,6 +32,7 @@ internal object MathVisualizationRenderers {
         CartesianRenderer(VisualizationKey("mathematics.cartesian.linear"), CartesianVariant.LINEAR),
         CartesianRenderer(VisualizationKey("mathematics.cartesian.quadratic"), CartesianVariant.QUADRATIC),
         CartesianRenderer(VisualizationKey("mathematics.cartesian.inverse"), CartesianVariant.INVERSE),
+        CartesianRenderer(VisualizationKey("mathematics.function.graph"), CartesianVariant.FUNCTION),
         GeometryRenderer(VisualizationKey("mathematics.geometry.triangle"), GeometryVariant.TRIANGLE),
         GeometryRenderer(VisualizationKey("mathematics.geometry.circle"), GeometryVariant.CIRCLE),
         GeometryRenderer(VisualizationKey("mathematics.geometry.angle"), GeometryVariant.ANGLE),
@@ -120,7 +121,7 @@ private fun validateMathSemantics(invocation: VisualizationInvocation): List<Str
         }
     }
 
-    if (key.startsWith("mathematics.cartesian.")) {
+    if (key.startsWith("mathematics.cartesian.") || key == "mathematics.function.graph") {
         val xMin = parameters.number("xMin", -5.0)
         val xMax = parameters.number("xMax", 5.0)
         val yMin = parameters.number("yMin", -4.0)
@@ -138,6 +139,20 @@ private fun validateMathSemantics(invocation: VisualizationInvocation): List<Str
         if (key == "mathematics.cartesian.point" && xMax > xMin && yMax > yMin) {
             if (parameters.number("x") !in xMin..xMax) add("参数 x 必须位于横轴范围内")
             if (parameters.number("y") !in yMin..yMax) add("参数 y 必须位于纵轴范围内")
+        }
+        if (key == "mathematics.function.graph" && xMax > xMin) {
+            val expression = parameters.mathExpression("expression")
+            if (expression != null) {
+                val unsupportedVariables = expression.variables - setOf("x")
+                if (unsupportedVariables.isNotEmpty()) add("函数图表达式目前只允许自变量 x，发现：${unsupportedVariables.sorted().joinToString()}")
+                if (unsupportedVariables.isEmpty()) {
+                    val finiteSamples = (0..16).count { index ->
+                        val x = xMin + (xMax - xMin) * index / 16.0
+                        runCatching { expression.evaluate(mapOf("x" to x)) }.getOrNull()?.isFinite() == true
+                    }
+                    if (finiteSamples < 2) add("函数在当前横轴范围内没有足够的可绘制数值")
+                }
+            }
         }
     }
 
