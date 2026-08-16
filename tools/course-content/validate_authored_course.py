@@ -7,17 +7,12 @@ import re
 from pathlib import Path
 from typing import Any
 
+from visualization_contract import validate_visualization
+
 ID = re.compile(r"^[A-Za-z0-9._:-]+$")
-STEP_TYPES = {"explanation", "question", "keyIdea", "formula", "example", "scene", "checkpoint", "summary"}
+STEP_TYPES = {"explanation", "question", "keyIdea", "formula", "example", "visualization", "checkpoint", "summary"}
 CJK = re.compile(r"[\u3400-\u9fff]")
 NON_LATEX_MATH = set("²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉−×÷≤≥≠Σαβγθπ°′″")
-SCENES = {
-    "opposite_quantities", "rational_classification", "integer_to_fraction", "number_line", "opposite_numbers",
-    "absolute_value", "number_comparison", "addition_process", "subtraction_transform", "multiplication_sign",
-    "division_transform", "power_process", "algebra_process", "equation_balance", "root_number_line",
-    "cartesian_plane", "function_graph", "geometry", "transformation", "right_triangle", "data_chart",
-    "probability", "projection", "diagram",
-}
 
 
 def require(condition: bool, message: str) -> None:
@@ -85,6 +80,7 @@ def validate(path: Path) -> dict[str, int]:
         require(set(deps) <= point_ids, f"{point_id}: unknown prerequisite {sorted(set(deps) - point_ids)}")
     visiting: set[str] = set()
     visited: set[str] = set()
+
     def visit(point_id: str) -> None:
         if point_id in visited:
             return
@@ -94,6 +90,7 @@ def validate(path: Path) -> dict[str, int]:
             visit(dependency)
         visiting.remove(point_id)
         visited.add(point_id)
+
     for point_id in point_ids:
         visit(point_id)
 
@@ -105,18 +102,21 @@ def validate(path: Path) -> dict[str, int]:
     lesson_count = 0
     step_count = 0
     practice_count = 0
+    visualization_count = 0
     for chapter_index, chapter in enumerate(chapters):
         cw = f"chapters[{chapter_index}]"
         require(isinstance(chapter, dict), f"{cw}: object required")
         exact(chapter, {"id", "title", "sections"}, cw)
-        identifier(chapter, "id", cw); text(chapter, "title", cw)
+        identifier(chapter, "id", cw)
+        text(chapter, "title", cw)
         sections = chapter["sections"]
         require(isinstance(sections, list) and sections, f"{cw}.sections must be non-empty")
         for section_index, section in enumerate(sections):
             sw = f"{cw}.sections[{section_index}]"
             require(isinstance(section, dict), f"{sw}: object required")
             exact(section, {"id", "title", "lessons"}, sw)
-            identifier(section, "id", sw); text(section, "title", sw)
+            identifier(section, "id", sw)
+            text(section, "title", sw)
             lessons = section["lessons"]
             require(isinstance(lessons, list) and lessons, f"{sw}.lessons must be non-empty")
             for lesson_index, lesson in enumerate(lessons):
@@ -125,7 +125,8 @@ def validate(path: Path) -> dict[str, int]:
                 exact(lesson, {"id", "title", "aliases", "goals", "knowledgePointIds", "prerequisiteLessonIds", "references", "steps", "practice", "summary"}, lw)
                 lesson_id = identifier(lesson, "id", lw)
                 require(lesson_id not in lesson_ids, f"duplicate lesson {lesson_id}")
-                lesson_ids.add(lesson_id); lesson_count += 1
+                lesson_ids.add(lesson_id)
+                lesson_count += 1
                 text(lesson, "title", lw)
                 strings(lesson["aliases"], f"{lw}.aliases")
                 strings(lesson["goals"], f"{lw}.goals", allow_empty=False)
@@ -141,7 +142,7 @@ def validate(path: Path) -> dict[str, int]:
                     exact(reference, {"label", "pageStart", "pageEnd"}, rw)
                     text(reference, "label", rw)
                     start, end = reference["pageStart"], reference["pageEnd"]
-                    require(isinstance(start, int) and isinstance(end, int) and 1 <= start <= end <= pdf["pageCount"], f"{rw}: invalid page range")
+                    require(isinstance(start, int) and isinstance(end, int) and not isinstance(start, bool) and not isinstance(end, bool) and 1 <= start <= end <= pdf["pageCount"], f"{rw}: invalid page range")
                 steps = lesson["steps"]
                 require(isinstance(steps, list) and steps, f"{lw}.steps must be non-empty")
                 for step_index, step in enumerate(steps):
@@ -157,9 +158,39 @@ def validate(path: Path) -> dict[str, int]:
                         require(not any(char in NON_LATEX_MATH for char in expression), f"{stw}.expression: use LaTeX commands instead of Unicode math glyphs")
                         note = step.get("note")
                         require(note is None or (isinstance(note, str) and note.strip()), f"{stw}.note: null or non-empty string required")
-                    if step_type == "scene":
-                        require(text(step, "template", stw) in SCENES, f"{stw}: unsupported scene")
-                        require(isinstance(step.get("data"), dict), f"{stw}.data must be object")
+                    elif step_type == "visualization":
+                        exact(step, {"type", "renderer", "parameters", "texts"}, stw)
+                        validate_visualization(step["renderer"], step["parameters"], step["texts"], stw)
+                        visualization_count += 1
+                    elif step_type == "explanation":
+                        exact(step, {"type", "title", "text"}, stw)
+                        title = step.get("title")
+                        require(title is None or (isinstance(title, str) and title.strip()), f"{stw}.title: null or non-empty string required")
+                        text(step, "text", stw)
+                    elif step_type == "question":
+                        exact(step, {"type", "prompt", "hint"}, stw)
+                        text(step, "prompt", stw)
+                        hint = step.get("hint")
+                        require(hint is None or (isinstance(hint, str) and hint.strip()), f"{stw}.hint: null or non-empty string required")
+                    elif step_type == "keyIdea":
+                        exact(step, {"type", "title", "text"}, stw)
+                        title = step.get("title")
+                        require(title is None or (isinstance(title, str) and title.strip()), f"{stw}.title: null or non-empty string required")
+                        text(step, "text", stw)
+                    elif step_type == "example":
+                        exact(step, {"type", "title", "prompt", "steps", "answer"}, stw)
+                        text(step, "title", stw)
+                        text(step, "prompt", stw)
+                        strings(step["steps"], f"{stw}.steps", allow_empty=False)
+                        text(step, "answer", stw)
+                    elif step_type == "checkpoint":
+                        exact(step, {"type", "prompt", "expectedAnswer", "explanation"}, stw)
+                        text(step, "prompt", stw)
+                        text(step, "expectedAnswer", stw)
+                        text(step, "explanation", stw)
+                    elif step_type == "summary":
+                        exact(step, {"type", "text"}, stw)
+                        text(step, "text", stw)
                     step_count += 1
                 practice = lesson["practice"]
                 require(isinstance(practice, list), f"{lw}.practice must be array")
@@ -170,17 +201,18 @@ def validate(path: Path) -> dict[str, int]:
                     practice_id = identifier(item, "id", pw)
                     require(practice_id not in practice_ids, f"duplicate practice {practice_id}")
                     practice_ids.add(practice_id)
-                    text(item, "prompt", pw); text(item, "answer", pw)
+                    text(item, "prompt", pw)
+                    text(item, "answer", pw)
                     strings(item["analysis"], f"{pw}.analysis", allow_empty=False)
                     item_points = strings(item["knowledgePointIds"], f"{pw}.knowledgePointIds", allow_empty=False)
                     require(set(item_points) <= point_ids, f"{pw}: unknown knowledge point")
-                    require(isinstance(item["difficulty"], int) and 1 <= item["difficulty"] <= 5, f"{pw}.difficulty must be 1..5")
+                    require(isinstance(item["difficulty"], int) and not isinstance(item["difficulty"], bool) and 1 <= item["difficulty"] <= 5, f"{pw}.difficulty must be 1..5")
                     practice_count += 1
                 strings(lesson["summary"], f"{lw}.summary", allow_empty=False)
     for lesson_id, dependency in pending_lesson_deps:
         require(dependency in lesson_ids, f"{lesson_id}: unknown prerequisite lesson {dependency}")
-    print(f"validated {path}: textbook={textbook_id}, knowledge={len(point_ids)}, lessons={lesson_count}, steps={step_count}, practice={practice_count}")
-    return {"knowledgePoints": len(point_ids), "lessons": lesson_count, "steps": step_count, "practice": practice_count}
+    print(f"validated {path}: textbook={textbook_id}, knowledge={len(point_ids)}, lessons={lesson_count}, steps={step_count}, visualizations={visualization_count}, practice={practice_count}")
+    return {"knowledgePoints": len(point_ids), "lessons": lesson_count, "steps": step_count, "visualizations": visualization_count, "practice": practice_count}
 
 
 def main() -> None:
