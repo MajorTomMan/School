@@ -26,6 +26,16 @@ class MathVerificationEngineTest {
     }
 
     @Test
+    fun evaluatesWhitelistedFunctionWithoutTurningItIntoGraph() {
+        val result = MathVerificationEngine.verify(VerificationRequest("sin(0)"))
+
+        assertEquals(VerificationStatus.SUCCESS, result.status)
+        assertEquals("math.numeric-expression", result.problemType.id)
+        assertEquals("0", result.answer?.display)
+        assertTrue(result.visualizations.isEmpty())
+    }
+
+    @Test
     fun expandsPolynomialAndProducesGraphRequest() {
         val result = MathVerificationEngine.verify(VerificationRequest("(x+2)(x+3)"))
 
@@ -65,6 +75,16 @@ class MathVerificationEngineTest {
         assertEquals(VerificationStatus.SUCCESS, result.status)
         assertEquals("math.function", result.problemType.id)
         assertEquals("y = sin(x)", result.answer?.display)
+        assertEquals("mathematics.function.graph", result.visualizations.single().renderer)
+    }
+
+    @Test
+    fun fallsBackToSafeFunctionParserForExponentialGraph() {
+        val result = MathVerificationEngine.verify(VerificationRequest("e^x"))
+
+        assertEquals(VerificationStatus.SUCCESS, result.status)
+        assertEquals("math.function", result.problemType.id)
+        assertEquals("y = e^x", result.answer?.display)
         assertEquals("mathematics.function.graph", result.visualizations.single().renderer)
     }
 
