@@ -9,8 +9,16 @@ class SafeMathExpressionTest {
     fun evaluatesPolynomialWithoutExecutingCode() {
         val expression = VisualizationParameterValue.MathExpressionValue.parse("x^2-4*x+1")
         assertEquals(setOf("x"), expression.variables)
-        assertEquals(-3.0, expression.evaluate(mapOf("x" to 1.0)), 1e-9)
+        assertEquals(-2.0, expression.evaluate(mapOf("x" to 1.0)), 1e-9)
         assertEquals(1.0, expression.evaluate(mapOf("x" to 0.0)), 1e-9)
+    }
+
+    @Test
+    fun usesMathematicalExponentPrecedence() {
+        assertEquals(-4.0, VisualizationParameterValue.MathExpressionValue.parse("-2^2").evaluate(emptyMap()), 1e-9)
+        assertEquals(4.0, VisualizationParameterValue.MathExpressionValue.parse("(-2)^2").evaluate(emptyMap()), 1e-9)
+        assertEquals(0.25, VisualizationParameterValue.MathExpressionValue.parse("2^-2").evaluate(emptyMap()), 1e-9)
+        assertEquals(512.0, VisualizationParameterValue.MathExpressionValue.parse("2^3^2").evaluate(emptyMap()), 1e-9)
     }
 
     @Test
