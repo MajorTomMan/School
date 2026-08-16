@@ -166,7 +166,7 @@ internal fun CourseSceneView(scene: CourseScene, formulaFallback: String?) {
             CourseSceneTemplate.ABSOLUTE_VALUE -> AbsoluteValueNumberLineVisual()
             CourseSceneTemplate.NUMBER_COMPARISON -> ComparisonVisual()
             CourseSceneTemplate.ADDITION_PROCESS -> SignedUnitVisual()
-            CourseSceneTemplate.SUBTRACTION_TRANSFORM, CourseSceneTemplate.DIVISION_TRANSFORM -> FormulaProcessVisual(scene.data.string("expression").ifBlank { formulaFallback.orEmpty() })
+            CourseSceneTemplate.SUBTRACTION_TRANSFORM, CourseSceneTemplate.DIVISION_TRANSFORM -> FormulaProcessVisual(formulaFallback.orEmpty())
             CourseSceneTemplate.MULTIPLICATION_SIGN -> SignRuleVisual()
             CourseSceneTemplate.POWER_PROCESS -> PowerVisual()
             else -> TextbookMathVisual(scene.template, scene.data)
