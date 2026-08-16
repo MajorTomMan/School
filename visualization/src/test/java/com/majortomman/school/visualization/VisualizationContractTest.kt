@@ -52,6 +52,60 @@ class VisualizationContractTest {
     }
 
     @Test
+    fun semanticValidationRejectsNumberLineThatWouldRenderIncorrectTicks() {
+        val invocation = VisualizationInvocation(
+            renderer = VisualizationKey("mathematics.number-line.basic"),
+            parameters = VisualizationParameters.of(
+                "min" to VisualizationParameterValue.NumberValue(-10.0),
+                "max" to VisualizationParameterValue.NumberValue(10.0),
+                "step" to VisualizationParameterValue.NumberValue(0.1),
+            ),
+        )
+        val issues = SchoolVisualizationCatalog.validate(invocation)
+        assertTrue(issues.any { "80" in it })
+    }
+
+    @Test
+    fun semanticValidationRejectsOutOfRangeNumberLinePoint() {
+        val invocation = VisualizationInvocation(
+            renderer = VisualizationKey("mathematics.number-line.points"),
+            parameters = VisualizationParameters.of(
+                "min" to VisualizationParameterValue.NumberValue(-5.0),
+                "max" to VisualizationParameterValue.NumberValue(5.0),
+                "values" to VisualizationParameterValue.NumberListValue(listOf(-3.0, 9.0)),
+            ),
+        )
+        val issues = SchoolVisualizationCatalog.validate(invocation)
+        assertTrue(issues.any { "数轴范围" in it })
+    }
+
+    @Test
+    fun semanticValidationRejectsEmptyChart() {
+        val invocation = VisualizationInvocation(
+            renderer = VisualizationKey("mathematics.chart.line"),
+            parameters = VisualizationParameters.of("values" to VisualizationParameterValue.NumberListValue(emptyList())),
+        )
+        val issues = SchoolVisualizationCatalog.validate(invocation)
+        assertTrue(issues.any { "不能为空" in it })
+    }
+
+    @Test
+    fun semanticValidationRejectsInvalidPowerSliderRange() {
+        val invocation = VisualizationInvocation(
+            renderer = VisualizationKey("mathematics.process.power"),
+            parameters = VisualizationParameters.of(
+                "base" to VisualizationParameterValue.NumberValue(2.0),
+                "exponent" to VisualizationParameterValue.NumberValue(2.5),
+                "minBase" to VisualizationParameterValue.NumberValue(4.0),
+                "maxBase" to VisualizationParameterValue.NumberValue(-4.0),
+            ),
+        )
+        val issues = SchoolVisualizationCatalog.validate(invocation)
+        assertTrue(issues.any { "exponent" in it })
+        assertTrue(issues.any { "maxBase" in it })
+    }
+
+    @Test
     fun parameterContractContainsNoGenericObjectOrStringParameterType() {
         assertEquals(setOf(VisualizationParameterType.NUMBER, VisualizationParameterType.BOOLEAN, VisualizationParameterType.NUMBER_LIST), VisualizationParameterType.entries.toSet())
     }
