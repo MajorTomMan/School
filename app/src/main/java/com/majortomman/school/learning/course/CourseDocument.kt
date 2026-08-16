@@ -93,8 +93,6 @@ data class CourseCheckpoint(
     val explanation: String,
 ) : CourseStep
 
-data class CourseSourceLink(val referenceIndex: Int) : CourseStep
-
 data class CourseSummaryStep(val text: String) : CourseStep
 
 data class CoursePractice(
