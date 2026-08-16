@@ -127,23 +127,14 @@ internal class SafeMathExpression private constructor(
 
         private fun parseTerm(depth: Int): Node {
             checkDepth(depth)
-            var node = parsePower(depth + 1)
+            var node = parseUnary(depth + 1)
             while (true) {
                 skipWhitespace()
                 val operator = peek()
                 if (operator != '*' && operator != '/') return node
                 consume()
-                node = BinaryNode(node, operator, parsePower(depth + 1))
+                node = BinaryNode(node, operator, parseUnary(depth + 1))
             }
-        }
-
-        private fun parsePower(depth: Int): Node {
-            checkDepth(depth)
-            val left = parseUnary(depth + 1)
-            skipWhitespace()
-            if (peek() != '^') return left
-            consume()
-            return BinaryNode(left, '^', parsePower(depth + 1))
         }
 
         private fun parseUnary(depth: Int): Node {
@@ -154,8 +145,17 @@ internal class SafeMathExpression private constructor(
                 consume()
                 UnaryNode(operator, parseUnary(depth + 1))
             } else {
-                parsePrimary(depth + 1)
+                parsePower(depth + 1)
             }
+        }
+
+        private fun parsePower(depth: Int): Node {
+            checkDepth(depth)
+            val left = parsePrimary(depth + 1)
+            skipWhitespace()
+            if (peek() != '^') return left
+            consume()
+            return BinaryNode(left, '^', parseUnary(depth + 1))
         }
 
         private fun parsePrimary(depth: Int): Node {
