@@ -1,5 +1,6 @@
 package com.majortomman.school.learning.science.physics
 
+import com.majortomman.school.learning.course.PhysicsCourseCategory
 import kotlin.math.abs
 import kotlin.math.pow
 
