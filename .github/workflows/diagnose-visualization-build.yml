@@ -1,0 +1,68 @@
+name: Temporary visualization build diagnostics
+
+on:
+  push:
+    branches: [refactor/visualization-infrastructure]
+    paths:
+      - ".github/workflows/diagnose-visualization-build.yml"
+      - "visualization/**"
+      - "app/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.4.1"
+
+      - name: Compile visualization and app with diagnostics
+        id: gradle
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle :visualization:compileDebugKotlin :visualization:compileDebugUnitTestKotlin :app:compileDebugKotlin :app:compileDebugUnitTestKotlin --console=plain --stacktrace 2>&1 | tee gradle-diagnostics.log
+
+      - name: Surface compiler failures
+        if: steps.gradle.outcome == 'failure'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          lines = Path('gradle-diagnostics.log').read_text(encoding='utf-8', errors='replace').splitlines()
+          candidates = []
+          for line in lines:
+              clean = re.sub(r'\x1b\[[0-9;]*m', '', line).strip()
+              if re.search(r'(^e: | error: |^FAILURE:|^\* What went wrong:|Compilation error|Unresolved reference|Cannot access|Type mismatch|No value passed|Overload resolution ambiguity|Expecting )', clean, re.I):
+                  candidates.append(clean)
+          if not candidates:
+              candidates = lines[-120:]
+          message = '\n'.join(candidates[-80:])
+          message = message.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+          print(f'::error title=Gradle compile diagnostics::{message}')
+          raise SystemExit(1)
+          PY
+
+      - name: Confirm compilation
+        if: steps.gradle.outcome == 'success'
+        run: echo "Visualization and app Kotlin compilation passed."
