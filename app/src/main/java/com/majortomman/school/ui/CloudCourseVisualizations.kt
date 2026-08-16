@@ -537,16 +537,24 @@ internal fun PowerVisual() {
     val baseValue = base.roundToInt()
     val exponentValue = exponent.roundToInt().coerceIn(1, 6)
     val result = (1..exponentValue).fold(1) { current, _ -> current * baseValue }
+    val factor = if (baseValue < 0) "($baseValue)" else baseValue.toString()
+    val expansion = List(exponentValue) { factor }.joinToString("\\cdot")
+    val expression = "$factor^{$exponentValue}=$expansion=$result"
     Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.SpaceEvenly) {
         Slider(value = base, onValueChange = { base = it.roundToInt().toFloat() }, valueRange = -4f..4f, steps = 7)
         Slider(value = exponent, onValueChange = { exponent = it.roundToInt().toFloat() }, valueRange = 1f..6f, steps = 4)
         Text(
-            "$baseValue ^ $exponentValue = $result",
-            color = InteractiveYellow,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
+            "底数 $baseValue　指数 $exponentValue",
+            color = InteractiveMuted,
+            style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
+        )
+        SchoolFormula(
+            latex = expression,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            color = InteractiveYellow,
+            style = MaterialTheme.typography.headlineMedium,
         )
     }
 }
