@@ -51,6 +51,7 @@ class AssessmentSessionController(
     private val mutableState = MutableStateFlow<AssessmentState>(AssessmentState.Idle)
     private var facts: AssessmentSessionFacts? = null
     private val drafts = linkedMapOf<QuestionKey, UserAnswer?>()
+    private val workDrafts = linkedMapOf<QuestionKey, String>()
 
     val state: StateFlow<AssessmentState> = mutableState.asStateFlow()
 
@@ -70,6 +71,7 @@ class AssessmentSessionController(
     private suspend fun handle(intent: AssessmentIntent) {
         when (intent) {
             AssessmentIntent.Initialize -> initialize()
+            is AssessmentIntent.WorkProcessChanged -> changeWorkProcess(intent.process)
             is AssessmentIntent.AnswerChanged -> changeAnswer(intent.answer)
             AssessmentIntent.SubmitAnswer -> submitAnswer()
             AssessmentIntent.SkipQuestion -> skipQuestion()
@@ -121,6 +123,14 @@ class AssessmentSessionController(
         renderCurrentQuestion()
     }
 
+    private fun changeWorkProcess(process: String) {
+        val page = mutableState.value.currentPage() ?: return
+        if (page.progress.answerLocked || page.busy) return
+        require(process.length <= AttemptRecord.MAX_WORK_PROCESS_LENGTH) { "做题过程过长" }
+        workDrafts[page.question.key] = process
+        renderCurrentQuestion()
+    }
+
     private fun changeAnswer(answer: UserAnswer?) {
         val page = mutableState.value.currentPage() ?: return
         if (page.progress.answerLocked || page.busy) return
@@ -145,6 +155,7 @@ class AssessmentSessionController(
             questionKey = page.question.key,
             submissionSequence = sequence,
             answer = answer,
+            workProcess = page.draftWorkProcess.trim(),
             result = answerJudge.judge(page.question, answer),
             submittedAtEpochMillis = now,
         )
@@ -317,13 +328,16 @@ class AssessmentSessionController(
 
     private fun restoreDrafts(restored: AssessmentSessionFacts) {
         drafts.clear()
+        workDrafts.clear()
         restored.attempts
             .groupBy(AttemptRecord::questionKey)
             .forEach { (key, attempts) ->
-                drafts[key] = attempts.maxWithOrNull(
+                val latest = attempts.maxWithOrNull(
                     compareBy<AttemptRecord>(AttemptRecord::submittedAtEpochMillis)
                         .thenBy(AttemptRecord::submissionSequence),
-                )?.answer
+                )
+                drafts[key] = latest?.answer
+                workDrafts[key] = latest?.workProcess.orEmpty()
             }
     }
 
@@ -334,13 +348,15 @@ class AssessmentSessionController(
         }
         check(index >= 0) { "当前题目不属于题组" }
         val allProgress = progressStates(currentFacts)
+        val questionKey = questionSet.questions[index].key
         mutableState.value = AssessmentState.Question(
             AssessmentQuestionPageState(
                 sessionId = currentFacts.session.id,
                 questionIndex = index,
                 questionCount = questionSet.questions.size,
                 question = questionSet.questions[index],
-                draftAnswer = drafts[questionSet.questions[index].key],
+                draftWorkProcess = workDrafts[questionKey].orEmpty(),
+                draftAnswer = drafts[questionKey],
                 progress = allProgress[index],
                 allProgress = allProgress,
             ),
