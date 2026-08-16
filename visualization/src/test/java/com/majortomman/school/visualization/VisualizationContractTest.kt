@@ -1,0 +1,70 @@
+package com.majortomman.school.visualization
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
+import org.junit.Test
+
+class VisualizationContractTest {
+    @Test
+    fun catalogRegistersOneSharedNumberLineFamily() {
+        val keys = SchoolVisualizationCatalog.registeredKeys().map(VisualizationKey::value).toSet()
+        assertTrue("mathematics.number-line.basic" in keys)
+        assertTrue("mathematics.number-line.construction" in keys)
+        assertTrue("mathematics.number-line.points" in keys)
+        assertTrue("mathematics.number-line.opposite" in keys)
+        assertTrue("mathematics.number-line.absolute-value" in keys)
+        assertTrue("mathematics.number-line.comparison" in keys)
+        assertTrue("mathematics.number-line.movement" in keys)
+        assertTrue("mathematics.number-line.root" in keys)
+    }
+
+    @Test
+    fun schemaRejectsUnknownParametersAndTexts() {
+        val invocation = VisualizationInvocation(
+            renderer = VisualizationKey("mathematics.number-line.basic"),
+            parameters = VisualizationParameters.of(
+                "value" to VisualizationParameterValue.NumberValue(2.0),
+                "remoteUrl" to VisualizationParameterValue.NumberValue(1.0),
+            ),
+            texts = VisualizationTexts.of(
+                "title" to "位置",
+                "unexpected" to "不能偷偷传额外文本",
+            ),
+        )
+
+        val issues = SchoolVisualizationCatalog.validate(invocation)
+        assertTrue(issues.any { "remoteUrl" in it })
+        assertTrue(issues.any { "unexpected" in it })
+    }
+
+    @Test
+    fun requiredRendererFieldsAreValidatedBeforeRendering() {
+        val invocation = VisualizationInvocation(
+            renderer = VisualizationKey("mathematics.number-line.root"),
+            parameters = VisualizationParameters.Empty,
+            texts = VisualizationTexts.Empty,
+        )
+        val issues = SchoolVisualizationCatalog.validate(invocation)
+        assertTrue(issues.any { "value" in it })
+        assertTrue(issues.any { "pointLabel" in it })
+    }
+
+    @Test
+    fun parameterContractContainsNoGenericObjectOrStringParameterType() {
+        assertEquals(setOf(VisualizationParameterType.NUMBER, VisualizationParameterType.BOOLEAN, VisualizationParameterType.NUMBER_LIST), VisualizationParameterType.entries.toSet())
+    }
+
+    @Test
+    fun nonFiniteNumbersAreRejectedAtBoundary() {
+        assertThrows(IllegalArgumentException::class.java) { VisualizationParameterValue.NumberValue(Double.NaN) }
+        assertThrows(IllegalArgumentException::class.java) { VisualizationParameterValue.NumberListValue(listOf(1.0, Double.POSITIVE_INFINITY)) }
+    }
+
+    @Test
+    fun unknownRendererIsRejected() {
+        val issues = SchoolVisualizationCatalog.validate(VisualizationInvocation(VisualizationKey("mathematics.missing")))
+        assertFalse(issues.isEmpty())
+    }
+}
