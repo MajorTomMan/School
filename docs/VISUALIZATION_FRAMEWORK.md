@@ -1,71 +1,206 @@
-# School 跨学科可视化框架
+# School 可视化基础设施
 
-## 目标
+## 定位
 
-可视化实现必须保持以下约束：
+可视化是独立基础设施，不是课程业务层，也不是外部数据展示层。
 
-- 普通信息不使用卡片堆叠，以连续画布、留白、细线和语义色组织内容。
-- Canvas 只绘制几何图形，不直接绘制教学文字；标签使用 Compose `Text`，支持全局字号缩放。
-- 所有交互图默认支持双指缩放、拖动和双击复位。
-- 每个场景拥有稳定 key、参数 schema、学科归属和显式注册记录。
-- 不使用运行时反射扫描，避免 Android 启动不确定性和混淆问题。
-
-## 目录结构
+依赖方向固定为：
 
 ```text
-ui/visualization/
-├── core/
-│   ├── VisualizationFramework.kt      # 父类、参数、schema、能力、主题和注册表
-│   ├── VisualizationPrimitives.kt     # 坐标映射、网格、基准线、点和向量箭头
-│   └── TechnicalLineChart.kt          # 通用折线趋势图
-├── subjects/
-│   ├── SubjectVisualizationRenderers.kt
-│   └── math/
-│       └── OppositeQuantityTrendRenderers.kt
-└── SchoolVisualizationCatalog.kt      # 学科模块和统一目录
+course package
+    ↓ renderer + parameters + texts
+:app
+    ↓ VisualizationInvocation
+:visualization
 ```
 
-## 新增一个物理可视化
+`:visualization` **不能反向依赖 `:app`**。基础设施内部不读取课程包、不访问网络、不读写文件、不访问数据库、不调用 AI、不查询 Repository、不接收 URL、不接收文件路径，也不接受回调让课程执行任意逻辑。
 
-具体实现只继承对应学科父类并实现 `RenderContent`；父类自动提供参数校验、主题、错误降级和生命周期。
+课程包唯一允许做的事是：选择一个已经注册的 renderer，并传入该 renderer schema 明确允许的参数和文本。
 
-```kotlin
-object FreeFallVisualizationRenderer : PhysicsVisualizationRenderer() {
-    override val key = VisualizationKey("physics.mechanics.free-fall")
-    override val schema = VisualizationSchema(
-        listOf(
-            VisualizationFieldSpec("height", VisualizationValueType.NUMBER),
-            VisualizationFieldSpec("gravity", VisualizationValueType.NUMBER),
-        ),
-    )
+## 模块隔离
 
-    @Composable
-    override fun RenderContent(context: VisualizationRenderContext, modifier: Modifier) {
-        val height = context.arguments.float("height")
-        val gravity = context.arguments.float("gravity", 9.8f)
-        // 使用 ZoomableVisualizationCanvas、drawVectorArrow、drawReferenceLine 等通用工具。
-    }
+可视化代码全部位于独立 Android Library：
+
+```text
+visualization/
+└── src/main/java/com/majortomman/school/visualization/
+    ├── VisualizationContract.kt
+    ├── VisualizationRuntime.kt
+    ├── VisualizationSurface.kt
+    └── renderers/
+        └── math/
+```
+
+`app` 只依赖 `project(":visualization")`。旧的 `app/ui/visualization`、课程专用 Canvas、`CourseSceneTemplate`、`CourseSceneData` 和兼容分发入口已经删除，不允许重新引入。
+
+## 唯一调用契约
+
+课程步骤使用：
+
+```json
+{
+  "type": "visualization",
+  "renderer": "mathematics.number-line.opposite",
+  "parameters": {
+    "value": 3,
+    "min": -8,
+    "max": 8,
+    "step": 1
+  },
+  "texts": {
+    "title": "相反数关于 0 对称",
+    "leftLabel": "−3",
+    "rightLabel": "3",
+    "note": "两个点到 0 的距离相等、方向相反。"
+  }
 }
 ```
 
-然后在 `PhysicsVisualizationModule.renderers` 中增加该对象。目录会检查学科归属和重复 key。
+步骤字段必须且只能是：
 
-## 化学和生物
+- `type`
+- `renderer`
+- `parameters`
+- `texts`
 
-- 化学场景继承 `ChemistryVisualizationRenderer`，适合粒子、分子、反应过程、装置、溶液和定量关系。
-- 生物场景继承 `BiologyVisualizationRenderer`，适合细胞、组织、遗传、生态关系和实验过程。
-- 多学科共用场景继承 `GeneralVisualizationRenderer`。
+其中：
 
-## 优先复用的工具
+- `renderer`：稳定、显式注册的 key；
+- `parameters`：只接受 JSON number、boolean、number[]；
+- `texts`：只接受字符串；
+- 未声明字段直接拒绝；
+- 未注册 renderer 直接拒绝；
+- 缺少 required 字段直接拒绝；
+- 参数类型错误直接拒绝；
+- `NaN`、Infinity 等非有限数在运行时契约中直接拒绝。
 
-- `ZoomableVisualizationCanvas`：跨学科缩放、平移与双击复位。
-- `VisualizationPlotArea`：统一绘图区和坐标映射。
-- `drawTechnicalGrid`：极简技术网格。
-- `drawReferenceLine`：零点、海平面、平衡点、阈值等基准线。
-- `drawDataMarker`：数据点和当前强调点。
-- `drawVectorArrow`：力、速度、电场、流向、反应方向和物质迁移。
-- `TechnicalLineChart`：时间、阶段或顺序数据的折线趋势。
+**参数中不允许 String、Object、任意 JSON 树、URL、文件路径、资源引用或代码。** 文本只是教学显示文本，不作为命令、路径、表达式或数据源解释。
 
-## 何时创建专用场景
+## 校验时机
 
-具象隐喻能明显提升理解时，应创建专用 renderer，例如温度计、山脉与海平面、天平、杠杆、光路、分子结构、细胞结构。没有必要具象化时，优先复用折线图、坐标系、基准轴等通用工具，避免装饰压过知识本身。
+课程 JSON 解码时立即构造 `VisualizationInvocation`，并调用 `SchoolVisualizationCatalog.validate()`。
+
+因此非法可视化不会进入课程运行页面，而是在课程包启用前失败。渲染阶段仍保留错误状态作为最后一道防线，但它不是兼容或降级机制。
+
+## Renderer 规则
+
+每个 renderer 必须声明：
+
+1. 稳定 `VisualizationKey`；
+2. 精确 `VisualizationSchema`；
+3. 纯本地、确定性的渲染逻辑；
+4. 仅使用 invocation 中的参数和文本；
+5. 不持有 App 业务对象；
+6. 不自行拉取任何数据。
+
+所有 renderer 通过 `MathVisualizationRenderers` 等显式清单注册。禁止运行时反射扫描和基于课程字符串猜 renderer。
+
+## 几何与文字分层
+
+基础设施采用两层绘制：
+
+```text
+ZoomableVisualizationSurface
+├── Geometry Layer     Canvas
+└── Annotation Layer   Compose Text
+```
+
+Canvas 只画：
+
+- 线、点、圆、矩形、路径；
+- 坐标轴、刻度、箭头；
+- 几何轮廓和数据几何。
+
+教学文字、标签、说明使用 Compose `Text`。禁止恢复 `nativeCanvas.drawText()` 作为教学标签方案。
+
+这样字体缩放、文本测量、换行、边缘避让和无障碍能力仍由 Compose 管理。
+
+## 共享渲染器
+
+当前数学 renderer key：
+
+```text
+mathematics.context.opposite-quantities
+mathematics.classification.rational
+mathematics.process.integer-to-fraction
+mathematics.process.expression
+mathematics.rule.sign
+mathematics.process.power
+mathematics.balance.equation
+
+mathematics.number-line.basic
+mathematics.number-line.construction
+mathematics.number-line.points
+mathematics.number-line.opposite
+mathematics.number-line.absolute-value
+mathematics.number-line.comparison
+mathematics.number-line.movement
+mathematics.number-line.root
+
+mathematics.cartesian.point
+mathematics.cartesian.linear
+mathematics.cartesian.quadratic
+mathematics.cartesian.inverse
+
+mathematics.geometry.triangle
+mathematics.geometry.circle
+mathematics.geometry.angle
+mathematics.geometry.parallel
+mathematics.geometry.right-triangle
+mathematics.geometry.line-ray-segment
+mathematics.geometry.projection
+mathematics.geometry.object-abstraction
+mathematics.geometry.translation
+mathematics.geometry.symmetry
+mathematics.geometry.rotation
+
+mathematics.chart.line
+mathematics.chart.bar
+mathematics.probability.tree
+```
+
+其中数轴、二维坐标、几何、变换和图表都是基础设施家族，同一个知识体系不得再复制另一套轴、点、标签或缩放实现。
+
+## 数轴基础设施
+
+所有数轴知识统一使用 `NumberLineRenderer`。不同知识只选择不同 renderer key/schema：
+
+- 基本定位 → `mathematics.number-line.basic`
+- 构造要素 → `mathematics.number-line.construction`
+- 多点读取 → `mathematics.number-line.points`
+- 相反数 → `mathematics.number-line.opposite`
+- 绝对值 → `mathematics.number-line.absolute-value`
+- 大小比较 → `mathematics.number-line.comparison`
+- 加减移动 → `mathematics.number-line.movement`
+- 根号/无理数定位 → `mathematics.number-line.root`
+
+课程不再拥有“数轴模式”，也不允许通过标题、字符串或 `mode` 让 renderer 猜应该画什么。
+
+## 新增可视化
+
+新增 renderer 时：
+
+1. 在 `:visualization` 中实现 renderer；
+2. 定义精确 schema；
+3. 注册稳定 key；
+4. 为契约和关键数学行为补测试；
+5. 更新本文件和课程制作校验器；
+6. 课程包随后才能引用新 key。
+
+不要在 App 页面临时画一个图，也不要为旧课程格式增加 adapter、alias 或 fallback。
+
+## 禁止项
+
+以下实现一律不接受：
+
+- renderer 调 HTTP/Socket/WebView；
+- renderer 读取本地文件、ContentResolver、数据库或 DataStore；
+- renderer 引用课程 Repository、ViewModel、AI Client；
+- 参数传 URL、路径、JSON Object、任意 Map、代码字符串；
+- 课程传 Compose lambda、回调或可执行表达式；
+- 通过标题关键字决定画哪一种图；
+- 为 `scene/template/data` 保留兼容入口；
+- 在 `app` 再建一套可视化 primitive。
+
+如果某个教学内容必须依赖网络、文件或动态业务数据，它就不属于课程可视化基础设施，应由其他业务能力负责。
