@@ -6,6 +6,7 @@ on:
     paths:
       - "courses/**"
       - "tools/course-content/**"
+      - "tools/check_visualization_contract_sync.py"
       - "visualization/**"
       - "app/src/main/java/com/majortomman/school/learning/course/**"
       - "app/src/main/java/com/majortomman/school/learning/cloud/**"
@@ -15,6 +16,7 @@ on:
     paths:
       - "courses/**"
       - "tools/course-content/**"
+      - "tools/check_visualization_contract_sync.py"
       - "visualization/**"
       - "app/src/main/java/com/majortomman/school/learning/course/**"
       - "app/src/main/java/com/majortomman/school/learning/cloud/**"
@@ -71,9 +73,13 @@ jobs:
           fi
           python3 tools/course-content/validate_authored_course.py "${files[@]}"
 
+      - name: Verify renderer contract synchronization
+        run: python3 tools/check_visualization_contract_sync.py
+
       - name: Compile course contract tooling
         run: |
           python3 -m py_compile \
+            tools/check_visualization_contract_sync.py \
             tools/course-content/visualization_contract.py \
             tools/course-content/validate_authored_course.py
 
