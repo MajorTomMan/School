@@ -13,6 +13,7 @@ import kotlin.math.round
 
 internal object MathVisualizationRenderers {
     val all: List<VisualizationRenderer> = listOf(
+        NumberDevelopmentRenderer(),
         OppositeQuantitiesRenderer(),
         RationalClassificationRenderer(),
         IntegerToFractionRenderer(),
