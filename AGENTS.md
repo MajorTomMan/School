@@ -15,36 +15,38 @@
 
 ## 2. CI/CD 边界
 
-- GitHub Actions 只服务 App 自身。
-- `.github/workflows/` 只保留 App 编译、App 测试、App 架构检查、APK/更新包构建与 App 发布所需 workflow。
+- GitHub Actions 只服务 App 自身，当前只监听 `dev` 的 App/构建相关 push。
+- `.github/workflows/` 只保留 App 编译、单元测试、APK/更新包构建与 App 发布所需 workflow。
 - `courses/**` 变化不得触发 App CI/CD。
 - App CI/CD 不负责课程包的教材审校、答案核对、课程 schema 审核、打包、上传或发布。
-- 不新增 Course CI、教材专属 CI、课程发布 CI。
-- App 自身的测试与架构检查属于 CI 范围，例如 visualization isolation 和 Kotlin/Android 单元测试。
-- CI/CD 不负责决定版本号，不自动生成版本号，也不负责审核发布说明的措辞、完整性、是否与历史版本重复；这些都由 Agent 在发布前负责。
+- 不新增 Course CI、教材专属 CI、课程发布 CI，也不为了 CI 维护额外 Python validator/tool。
+- CI/CD 不负责决定版本号，不自动生成版本号，也不负责审核发布说明的措辞、完整性或是否与历史版本重复；这些都由 Agent 在发布前负责。
 - `.release-notes/current.md` 单独变化不触发 App CI/CD。
-- dev 自动发布只由两个事实共同决定：本次 push 明确修改了 `version.properties`，并且从上一发布版 `dev-latest` 到当前 HEAD 存在 App/构建相关代码变化。只满足其中一个条件时不得重新发布。
+- `dev-latest` tag 是“上一已发布开发版”的唯一版本事实源。CI/CD 只比较 `dev-latest` 与当前 `dev`。
+- dev 自动发布只由两个事实共同决定：当前 `VERSION_NAME` 已不同于 `dev-latest` 且 `VERSION_CODE` 更高，并且 `dev-latest..HEAD` 存在 App/Visualization/构建相关代码变化。只满足其中一个条件时不得重新发布。
+- 是否在“当前这一次 push”里修改 `version.properties` 不参与发布判断；版本号可以由 Agent 在准备发布时单独提交。
 
 ## 3. App 版本与发布规则
 
 - Agent 是 App 发布元数据的唯一维护者。准备发布前，Agent 必须先查看上一发布版 `dev-latest` 与当前 `dev` 的 App 差异，再决定新的版本号和本次变更点。
-- `version.properties` 是唯一版本来源。发布时由 Agent 更新 `VERSION_NAME` 和 `VERSION_CODE`；`VERSION_CODE` 必须高于上一发布版，`VERSION_NAME` 应体现一次新的版本发布。CI/CD 和 Gradle 不再基于运行次数动态改写版本号。
+- 发布版本跟踪以 `dev-latest:version.properties`、`dev-latest:.release-notes/current.md` 和 `dev-latest..dev` 的提交差异为准，不在仓库中维护额外版本追踪脚本。
+- `version.properties` 是唯一版本来源。发布时由 Agent 更新 `VERSION_NAME` 和 `VERSION_CODE`；`VERSION_CODE` 必须高于上一发布版，`VERSION_NAME` 应体现一次新的版本发布。CI/CD 和 Gradle 不基于运行次数动态改写版本号。
 - 普通开发阶段可以连续提交多个 App 改动而保持版本号不变；当这一批改动准备发布时，再由 Agent 单独完成版本号和发布说明更新。
 - 每次发布都必须重新编写 `.release-notes/current.md`，不得把它当累计 changelog。发布说明只描述“上一发布版 → 本次发布版”的变化。
 - 发布说明统一使用简洁结构：`## 变更点`，下面使用若干 `- ...` 列表项即可；不强制拆分“修改点 / 修复点”。每条只表达一个主要变化，优先写用户可感知或架构上真正重要的内容，允许简明扼要。
 - 禁止直接沿用、复制或重复上一发布版已经出现过的变更点；即使相关能力仍然存在，也只写本次新增、调整或修复的部分。发布前 Agent 应主动对照 `dev-latest:.release-notes/current.md` 去重。
 - 不为了凑数量写空泛条目，也不把提交记录逐条翻译成发布说明；多个同类小修改应合并成一个清晰的变更点。
 - 仅课程内容变化不属于 App 新版本发布条件，不提升 App 版本，也不写入 App 发布说明。
-- CI/CD 只消费 Agent 已经写好的 `version.properties` 和 `.release-notes/current.md`。当本次 push 修改了版本文件，且 `dev-latest..HEAD` 确实包含 App/构建相关代码变化时，CI/CD 才构建更新包并刷新 `dev-latest`。
-- 只有 App 代码变化但版本号未改时，CI 可以测试和构建，但不得发布；只有版本号变化但上一发布版之后没有 App/构建相关代码变化时，也不得发布。
+- CI/CD 只消费 Agent 已经写好的 `version.properties` 和 `.release-notes/current.md`。当版本相对 `dev-latest` 已提升，且上一发布版之后确实包含 App/构建相关代码变化时，CI/CD 才构建更新包并刷新 `dev-latest`。
+- 只有 App 代码变化但版本号未提升时，CI 可以测试和构建，但不得发布；只有版本号变化但上一发布版之后没有 App/构建相关代码变化时，也不得发布。
+- GitHub Release 是 APK、更新清单和签名文件的分发层；版本判断以 `dev-latest` tag 中的仓库内容为准，不依赖 Release 页面状态。
 
 ## 4. 课程包属于内容工程
 
 - 课程包与 App 构建链路解耦。
 - 课程内容的准确性由 Agent / 子代理、人工复核或其他独立内容流程负责，不依赖 GitHub Actions validator。
-- 仓库不维护课程内容 validator、教材专属 validator、课程 schema 校验脚本或 Python 版 visualization contract 镜像。
-- 需要审校课程时，由 Agent / 子代理直接读取课程包和对应教材，按当前 App 真实运行契约检查结构、知识点、答案、语言和可视化调用；不要为了审校重新创建长期 validator 工具。
-- 仓库中的课程打包/发布脚本如果仍有实际用途可以保留，但不得承担教材内容正确性判断，也不得挂入 App CI/CD。
+- 仓库不维护课程内容 validator、教材专属 validator、课程 schema 校验脚本、Python 版 visualization contract 镜像或课程打包/发布工具目录。
+- 需要审校、打包或发布课程时，由 Agent / 子代理在任务执行过程中直接读取课程包、教材和 App 当前真实契约完成；不要为了流程重新创建长期 `tools/` 目录或把一次性脚本提交进仓库。
 - 课程包的 authored source 保持可读、可 diff；当前课程使用 `courses/<textbook-id>/course.json`。
 - 不恢复 gzip/base64 分卷 authored source，不恢复旧 page-generated course、scene 兼容层或迁移器。
 - 教材负责准确，App 负责理解。课程编排、概念边界、术语和教学顺序应以对应教材为基线，App 可以改善交互、步骤和可视化，但不能擅自改写知识体系。
@@ -134,5 +136,6 @@
 - 不恢复 `docs/` 文档体系。
 - 项目长期约束只写在根目录 `AGENTS.md`。
 - 不额外维护架构 README、课程规范 README 或 Foundation 文档。
+- 不维护长期 `tools/` 辅助目录；一次性迁移、审校、打包工具应在执行环境中临时使用，不提交到仓库。
 - `.release-notes/current.md` 是 App 当前待发布版本的发布元数据，由 Agent 每次发布时重写；CI/CD 只读取它生成更新清单和 GitHub Release 文本，不负责维护其内容。
 - 代码应尽量自解释；实现细节优先通过类型、测试和清晰命名表达，而不是依赖大量旁路文档。
