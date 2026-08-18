@@ -13,7 +13,6 @@ on:
       - "version.properties"
       - "gradle/**"
       - "signing/**"
-      - ".release-notes/current.md"
       - ".github/workflows/android.yml"
   push:
     branches: [dev]
@@ -27,7 +26,6 @@ on:
       - "version.properties"
       - "gradle/**"
       - "signing/**"
-      - ".release-notes/current.md"
       - ".github/workflows/android.yml"
 
 concurrency:
@@ -41,81 +39,78 @@ jobs:
       contents: read
     outputs:
       version_name: ${{ steps.version.outputs.version_name }}
+      version_code: ${{ steps.version.outputs.version_code }}
+      should_publish: ${{ steps.release.outputs.should_publish }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Validate version and Chinese release notes
+      - name: Resolve app version
+        id: version
         shell: bash
-        env:
-          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          import os, re, subprocess
+          name="$(sed -n 's/^VERSION_NAME=//p' version.properties | tail -n1 | tr -d '[:space:]')"
+          code="$(sed -n 's/^VERSION_CODE=//p' version.properties | tail -n1 | tr -d '[:space:]')"
+          if ! [[ "$name" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "VERSION_NAME 必须使用 x.y.z 格式" >&2
+            exit 1
+          fi
+          if ! [[ "$code" =~ ^[1-9][0-9]*$ ]]; then
+            echo "VERSION_CODE 必须是正整数" >&2
+            exit 1
+          fi
+          echo "version_name=$name" >> "$GITHUB_OUTPUT"
+          echo "version_code=$code" >> "$GITHUB_OUTPUT"
 
-          version_file = Path('version.properties')
-          notes_file = Path('.release-notes/current.md')
-          semver = re.compile(r'^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$')
+      - name: Detect development release
+        id: release
+        shell: bash
+        env:
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          should_publish=false
+          version_changed=false
+          code_changed=false
 
-          def parse(text, source):
-              values = {}
-              for raw in text.splitlines():
-                  line = raw.strip()
-                  if not line or line.startswith('#'):
-                      continue
-                  if '=' not in line:
-                      raise SystemExit(f'{source} 含有无效行：{raw}')
-                  key, value = line.split('=', 1)
-                  values[key.strip()] = value.strip()
-              name = values.get('VERSION_NAME', '')
-              match = semver.fullmatch(name)
-              code = values.get('VERSION_CODE', '')
-              if not match or not code.isdigit() or int(code) <= 0:
-                  raise SystemExit(f'{source} 版本格式无效')
-              return tuple(map(int, match.groups())), int(code), name
+          if [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/dev" ]]; then
+            if [[ -n "${BEFORE_SHA:-}" && ! "$BEFORE_SHA" =~ ^0+$ ]] && git diff --name-only "$BEFORE_SHA" HEAD -- version.properties | grep -q '^version.properties$'; then
+              version_changed=true
+            fi
 
-          def bullets(text):
-              return [match.group(1).strip() for match in re.finditer(r'(?m)^-\s+(.+)$', text)]
+            git fetch --force origin "refs/tags/dev-latest:refs/tags/dev-latest" >/dev/null 2>&1 || true
+            if git rev-parse -q --verify refs/tags/dev-latest >/dev/null; then
+              previous_name="$(git show refs/tags/dev-latest:version.properties | sed -n 's/^VERSION_NAME=//p' | tail -n1 | tr -d '[:space:]')"
+              previous_code="$(git show refs/tags/dev-latest:version.properties | sed -n 's/^VERSION_CODE=//p' | tail -n1 | tr -d '[:space:]')"
+              if [[ "$VERSION_NAME" == "$previous_name" || "$VERSION_CODE" -le "$previous_code" ]]; then
+                version_changed=false
+              fi
 
-          current_semver, current_code, current_name = parse(version_file.read_text(encoding='utf-8'), str(version_file))
-          notes = notes_file.read_text(encoding='utf-8').strip() if notes_file.is_file() else ''
-          current_bullets = bullets(notes)
-          if '## 修改点' not in notes or '## 修复点' not in notes or not re.search(r'[\u4e00-\u9fff]', notes) or not current_bullets:
-              raise SystemExit('中文发布说明必须包含“修改点”“修复点”和至少一条中文列表项')
+              while IFS= read -r path; do
+                case "$path" in
+                  app/*|visualization/*|tools/check_visualization_isolation.py|build.gradle.kts|settings.gradle.kts|gradle.properties|gradle/*|signing/*)
+                    code_changed=true
+                    break
+                    ;;
+                esac
+              done < <(git diff --name-only refs/tags/dev-latest..HEAD)
+            else
+              code_changed=true
+            fi
 
-          base = os.environ.get('BASE_SHA', '').strip()
-          if not base or set(base) == {'0'}:
-              raise SystemExit('无法确定上一版提交，拒绝跳过版本和发布说明检查')
+            if [[ "$version_changed" == "true" && "$code_changed" == "true" ]]; then
+              should_publish=true
+            fi
+          fi
 
-          changed = subprocess.check_output(['git', 'diff', '--name-only', base, 'HEAD'], text=True).splitlines()
-          relevant = [p for p in changed if p.startswith(('app/', 'visualization/', 'gradle/', 'signing/')) or p in {
-              'tools/check_visualization_isolation.py', 'build.gradle.kts', 'settings.gradle.kts', 'gradle.properties', 'version.properties', '.github/workflows/android.yml'
-          }]
-          if relevant:
-              if 'version.properties' not in changed:
-                  raise SystemExit('APK/构建修改必须同步提升 version.properties')
-              if '.release-notes/current.md' not in changed:
-                  raise SystemExit('APK/构建修改必须清空并重新编写本次中文发布说明')
-              base_semver, base_code, base_name = parse(subprocess.check_output(['git', 'show', f'{base}:version.properties'], text=True), f'{base}:version.properties')
-              if current_semver <= base_semver or current_code <= base_code:
-                  raise SystemExit(f'版本必须递增：{base_name} ({base_code}) -> {current_name} ({current_code})')
-              print(f'版本检查通过：{base_name} ({base_code}) -> {current_name} ({current_code})')
-
-          try:
-              previous_notes = subprocess.check_output(['git', 'show', f'{base}:.release-notes/current.md'], text=True).strip()
-          except subprocess.CalledProcessError:
-              previous_notes = ''
-          if previous_notes and notes == previous_notes:
-              raise SystemExit('发布说明与上一版完全相同；每次发布必须清空后重新写本次修改')
-          inherited = sorted(set(current_bullets) & set(bullets(previous_notes)))
-          if inherited:
-              details = '\n'.join(f'- {item}' for item in inherited)
-              raise SystemExit(f'发布说明仍保留上一版条目；请清空后只写本次修改：\n{details}')
-          print(f'发布说明检查通过：本次 {len(current_bullets)} 条，未继承上一版条目')
-          PY
+          echo "should_publish=$should_publish" >> "$GITHUB_OUTPUT"
+          echo "version_changed=$version_changed" >> "$GITHUB_OUTPUT"
+          echo "code_changed=$code_changed" >> "$GITHUB_OUTPUT"
+          echo "发布检测：version_changed=$version_changed, code_changed=$code_changed, should_publish=$should_publish"
 
       - name: Enforce visualization isolation
         run: python3 tools/check_visualization_isolation.py
@@ -123,7 +118,7 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
       - uses: android-actions/setup-android@v4
 
@@ -133,17 +128,6 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: "9.4.1"
-
-      - name: Resolve app version
-        id: version
-        shell: bash
-        run: |
-          set -euo pipefail
-          name="$(sed -n 's/^VERSION_NAME=//p' version.properties | tail -n1 | tr -d '[:space:]')"
-          baseline="$(sed -n 's/^VERSION_CODE=//p' version.properties | tail -n1 | tr -d '[:space:]')"
-          code=$((baseline * 100000 + GITHUB_RUN_NUMBER))
-          echo "version_name=$name" >> "$GITHUB_OUTPUT"
-          echo "version_code=$code" >> "$GITHUB_OUTPUT"
 
       - name: Verify development signing key
         shell: bash
@@ -168,6 +152,7 @@ jobs:
         run: gradle :visualization:testDebugUnitTest :app:testDebugUnitTest :app:assembleDebug --stacktrace
 
       - name: Prepare development update package
+        if: steps.release.outputs.should_publish == 'true'
         shell: bash
         env:
           VERSION_CODE: ${{ steps.version.outputs.version_code }}
@@ -182,23 +167,22 @@ jobs:
           from datetime import datetime, timezone
           from pathlib import Path
           import hashlib, json, os
-          notes = Path('.release-notes/current.md').read_text(encoding='utf-8')
-          sections = {'修改点': [], '修复点': []}
-          current = None
-          for raw in notes.splitlines():
-              line = raw.strip()
-              if line == '## 修改点': current = '修改点'
-              elif line == '## 修复点': current = '修复点'
-              elif line.startswith('## '): current = None
-              elif current and line.startswith('- '): sections[current].append(line[2:].strip())
+
+          notes_file = Path('.release-notes/current.md')
+          notes = notes_file.read_text(encoding='utf-8') if notes_file.is_file() else ''
+          changes = [line.strip()[2:].strip() for line in notes.splitlines() if line.strip().startswith('- ') and line.strip()[2:].strip()]
           apk = Path('dist/school-debug.apk')
           cert = Path('signing/school-development.cert.sha256').read_text().strip().replace(':', '').lower()
           manifest = {
-              'schemaVersion': 1, 'channel': 'development',
-              'versionCode': int(os.environ['VERSION_CODE']), 'versionName': os.environ['VERSION_NAME'],
-              'minimumSupportedVersionCode': 0, 'mandatory': False,
+              'schemaVersion': 1,
+              'channel': 'development',
+              'versionCode': int(os.environ['VERSION_CODE']),
+              'versionName': os.environ['VERSION_NAME'],
+              'minimumSupportedVersionCode': 0,
+              'mandatory': False,
               'publishedAt': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
-              'changes': sections['修改点'], 'fixes': sections['修复点'],
+              'changes': changes,
+              'fixes': [],
               'apk': {
                   'fileName': 'school-debug.apk',
                   'downloadUrl': 'https://github.com/MajorTomMan/school/releases/download/dev-latest/school-debug.apk',
@@ -210,7 +194,7 @@ jobs:
           Path('dist/update-manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
           PY
           private_key="$RUNNER_TEMP/school-update-private.pem"
-          if [ -n "${SCHOOL_UPDATE_PRIVATE_KEY_B64:-}" ]; then
+          if [[ -n "${SCHOOL_UPDATE_PRIVATE_KEY_B64:-}" ]]; then
             printf '%s' "$SCHOOL_UPDATE_PRIVATE_KEY_B64" | base64 --decode > "$private_key"
           else
             base64 --decode signing/school-update-development-private.pem.b64 > "$private_key"
@@ -219,7 +203,8 @@ jobs:
           openssl dgst -sha256 -sign "$private_key" -out dist/update-manifest.sig dist/update-manifest.json
           openssl dgst -sha256 -verify signing/school-update-development-public.pem -signature dist/update-manifest.sig dist/update-manifest.json
 
-      - name: Upload debug build
+      - name: Upload development package
+        if: steps.release.outputs.should_publish == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: school-debug-apk
@@ -230,15 +215,13 @@ jobs:
             dist/update-manifest.sig
 
   publish-development:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.test-build.outputs.should_publish == 'true'
     needs: test-build
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
       - uses: actions/download-artifact@v8
         with:
@@ -253,7 +236,7 @@ jobs:
         run: |
           set -euo pipefail
           tag="dev-latest"
-          title="School ${VERSION_NAME} (${GITHUB_SHA::7})"
+          title="School ${VERSION_NAME}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag -f "$tag" "$GITHUB_SHA"
