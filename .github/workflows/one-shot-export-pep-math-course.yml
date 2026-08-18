@@ -1,8 +1,8 @@
 name: One-shot Export PEP Math Course
 
 on:
-  push:
-    branches: [course/rebuild-pep-math-7-1]
+  pull_request:
+    branches: [dev]
 
 permissions:
   contents: read
