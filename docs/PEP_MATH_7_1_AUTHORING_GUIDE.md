@@ -141,6 +141,19 @@
 
 课程只提交已注册 renderer 的数学/教学语义参数和显示文字。不得在课程中写 Canvas、像素、采样算法、类名、URL、文件路径、回调或任意可执行代码。
 
+## App CI/CD 与课程内容的边界
+
+本项目的 GitHub Actions 只服务 **App 自身**：Android/Kotlin 编译、单元测试、App 架构检查、APK/更新包构建和 App 发布。
+
+课程包属于独立的内容工程，不进入 App CI/CD：
+
+- `courses/**` 的内容变化不应触发 App CI/CD；
+- App CI/CD 不判断某一本教材的目录、页码、知识点、答案或语言风格；
+- App CI/CD 不负责课程包打包、上传或发布；
+- 教材专属 validator 不得作为 GitHub Actions 的质量门禁。
+
+课程审校由课程审校 Agent / 子代理、人工复核、本地 validator 或其他独立内容工程流程完成。工具可以复用 App 暴露的课程 contract / visualization contract，但内容是否正确由内容工程负责。
+
 ## 精校检查
 
 每次修改至少检查：
@@ -154,9 +167,9 @@
 - 是否出现“重新核对”“这里先这样”“待补”等编辑过程残留；
 - 是否出现长段教材原文复制；
 - 可视化是否服务当前概念，而不是为了装饰；
-- 课程契约和 visualization schema 是否通过 CI。
+- 课程契约和 visualization schema 是否由审校工具验证通过。
 
-`validate_pep_math_7_1_editorial.py` 负责锁定教材目录、关键内部小节、印刷页范围、前置课时完整性以及已经人工复核的确定性练习答案。修改这些内容时应先确认教材或重新计算，而不是通过放宽校验迁就课程数据。
+`validate_pep_math_7_1_editorial.py` 负责锁定教材目录、关键内部小节、印刷页范围、前置课时完整性以及已经人工复核的确定性练习答案。它由 Agent/人工内容流程按需调用；修改这些内容时应先确认教材或重新计算，而不是通过放宽校验迁就课程数据。
 
 ## 完成标准
 
@@ -168,5 +181,5 @@
 - 所有例题、检查题和练习完成数学正确性复核；
 - 不存在旧生成课程、旧分卷源码、旧临时标题或旧 scene 兼容；
 - 不存在一次性迁移脚本或 one-shot workflow；
-- `Course Contract CI` 全绿；
-- R2 构建能从新的可读 `course.json` 直接生成并发布不可变课程包。
+- authored course contract、教材结构和 visualization schema 已由 Agent/人工内容审校流程验证；
+- 课程发布独立于 App CI/CD，不要求重新构建 App。
