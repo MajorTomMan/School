@@ -1,6 +1,6 @@
 # AGENTS.md
 
-本文件是 School 仓库中 Agent / 子代理 / 自动化开发助手需要遵守的唯一项目约束文档。不要在 `docs/` 下重新建立架构、流程或课程规范文档；新的长期约束统一更新到本文件。
+本文件是 School 仓库中 Agent / 子代理 / 自动化开发助手需要遵守的唯一项目约束文档。不要重新建立 `docs/` 架构、流程或课程规范文档；新的长期约束统一更新到本文件。
 
 ## 1. Git 与交付
 
@@ -25,6 +25,8 @@
 - 课程包与 App 构建链路解耦。
 - 课程内容的准确性由 Agent / 子代理、人工复核或其他独立内容流程负责，不依赖 GitHub Actions validator。
 - 仓库不维护课程内容 validator、教材专属 validator、课程 schema 校验脚本或 Python 版 visualization contract 镜像。
+- 需要审校课程时，由 Agent / 子代理直接读取课程包和对应教材，按当前 App 真实运行契约检查结构、知识点、答案、语言和可视化调用；不要为了审校重新创建长期 validator 工具。
+- 仓库中的课程打包/发布脚本如果仍有实际用途可以保留，但不得承担教材内容正确性判断，也不得挂入 App CI/CD。
 - 课程包的 authored source 保持可读、可 diff；当前课程使用 `courses/<textbook-id>/course.json`。
 - 不恢复 gzip/base64 分卷 authored source，不恢复旧 page-generated course、scene 兼容层或迁移器。
 - 教材负责准确，App 负责理解。课程编排、概念边界、术语和教学顺序应以对应教材为基线，App 可以改善交互、步骤和可视化，但不能擅自改写知识体系。
@@ -106,5 +108,6 @@
 
 - 不恢复 `docs/` 文档体系。
 - 项目长期约束只写在根目录 `AGENTS.md`。
-- README 可以作为项目入口说明，但不能另建一套与 `AGENTS.md` 冲突的架构规则。
+- 不额外维护架构 README、课程规范 README 或 Foundation 文档。
+- `.release-notes/current.md` 是 App 发布元数据，不视为项目架构文档，继续由 App CI/CD 使用。
 - 代码应尽量自解释；实现细节优先通过类型、测试和清晰命名表达，而不是依赖大量旁路文档。
