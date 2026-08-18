@@ -4,11 +4,12 @@
 
 ## 1. Git 与交付
 
-- `dev` 是功能集成分支。
-- 所有功能、重构和课程内容修改都使用独立 feature branch，并通过 Pull Request 合入 `dev`。
-- 不直接向 `dev` 推送功能修改。
-- 未经用户明确要求，不主动合并 PR。
-- 合并前检查当前 PR head，避免基于过期状态作结论。
+- `dev` 是唯一日常开发与功能集成分支；功能、重构、课程内容、规则调整等日常提交都直接提交到 `dev`。
+- 不再为普通开发创建独立 feature branch，也不要求通过 feature PR 合入 `dev`。
+- `master` 是稳定主分支，不直接在 `master` 上进行日常开发或提交功能修改。
+- 阶段性工作完成并确认可交付后，将 `dev` 合并到 `master`；发布主线始终保持 `dev → master`。
+- 不允许绕过 `dev` 将其他开发分支直接合入 `master`。
+- 合并 `dev → master` 前检查两边最新 head、差异和 App CI 状态，避免基于过期状态作结论。
 - App 代码变化遵守当前版本号和中文 release notes 规则；课程内容变化不要求提升 App 版本。
 
 ## 2. CI/CD 边界
