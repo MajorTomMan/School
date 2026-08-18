@@ -98,7 +98,7 @@ internal fun AssessmentAiJudgeSection(
                         OpenAiCompatibleClient(settings).evaluateAnswer(
                             question = question.aiPrompt(),
                             learnerAnswer = buildString {
-                                appendLine("做题过程：")
+                                appendLine("过程：")
                                 appendLine(page.draftWorkProcess.ifBlank { "（未提供）" })
                                 appendLine("最终答案：")
                                 append(answerText)
@@ -138,7 +138,7 @@ internal fun AssessmentAiJudgeSection(
                 }
                 error != null -> Text(error.orEmpty(), color = InteractiveRed, fontSize = 13.sp, lineHeight = 21.sp)
                 page.progress.latestJudgeResult != null -> Text(localResultText(page), color = localResultColor(page), fontSize = 14.sp, lineHeight = 22.sp)
-                else -> Text("先写做题过程和最终答案，再选择本地判题或 AI 判题。做题过程独立保存；本地规则只判最终答案。", color = InteractiveMuted, fontSize = 13.sp, lineHeight = 21.sp)
+                else -> Text("先写过程和最终答案，再选择本地判题或 AI 判题。过程独立保存；本地规则只判最终答案。", color = InteractiveMuted, fontSize = 13.sp, lineHeight = 21.sp)
             }
 
             if (page.progress.latestJudgeResult != null || evaluation != null) {
@@ -156,7 +156,7 @@ internal fun AssessmentAiJudgeSection(
 private fun AssessmentWorkProcessField(page: AssessmentQuestionPageState, dispatch: (AssessmentIntent) -> Unit) {
     val enabled = !page.busy && !page.progress.answerLocked
     Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        Text("做题过程（可选）", color = InteractiveWhite, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Text("过程（可选）", color = InteractiveWhite, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         Text("计算、推导、论证或判断依据写在这里；它与最终答案分开记录。", color = InteractiveMuted, fontSize = 12.sp, lineHeight = 18.sp)
         BasicTextField(
             value = page.draftWorkProcess,
