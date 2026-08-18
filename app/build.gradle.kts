@@ -79,17 +79,10 @@ val firebaseProjectId = resolvedSetting("SCHOOL_FIREBASE_PROJECT_ID", "schoolFir
 val firebaseApplicationId = resolvedSetting("SCHOOL_FIREBASE_APPLICATION_ID", "schoolFirebaseApplicationId")
 val firebaseApiKey = resolvedSetting("SCHOOL_FIREBASE_API_KEY", "schoolFirebaseApiKey")
 val firebaseSenderId = resolvedSetting("SCHOOL_FIREBASE_SENDER_ID", "schoolFirebaseSenderId")
-val firebaseUpdateTopic = resolvedSetting("SCHOOL_FIREBASE_UPDATE_TOPIC", "schoolFirebaseUpdateTopic")
-    .ifBlank { "school_dev_update" }
-// Course distribution is independent from APK publication. Cloud synchronization is disabled unless
-// a manifest endpoint is explicitly injected by the selected distribution environment.
-val courseManifestUrl = resolvedSetting("SCHOOL_COURSE_MANIFEST_URL", "schoolCourseManifestUrl")
-val updatePushEnabled = listOf(
-    firebaseProjectId,
-    firebaseApplicationId,
-    firebaseApiKey,
-    firebaseSenderId,
-).all(String::isNotBlank)
+val firebaseUpdateTopic = resolvedSetting("SCHOOL_FIREBASE_UPDATE_TOPIC", "schoolFirebaseUpdateTopic").ifBlank { "school_dev_update" }
+val stableCourseManifestUrl = "https://course.flashnamesl.workers.dev/cloud/course/public/stable/manifest.json"
+val courseManifestUrl = resolvedSetting("SCHOOL_COURSE_MANIFEST_URL", "schoolCourseManifestUrl").ifBlank { stableCourseManifestUrl }
+val updatePushEnabled = listOf(firebaseProjectId, firebaseApplicationId, firebaseApiKey, firebaseSenderId).all(String::isNotBlank)
 
 android {
     namespace = "com.majortomman.school"
@@ -101,16 +94,8 @@ android {
         targetSdk = 36
         versionCode = resolvedVersionCode
         versionName = resolvedVersionName
-        buildConfigField(
-            "String",
-            "UPDATE_MANIFEST_URL",
-            "https://github.com/MajorTomMan/school/releases/download/dev-latest/update-manifest.json".asBuildConfigString(),
-        )
-        buildConfigField(
-            "String",
-            "UPDATE_SIGNATURE_URL",
-            "https://github.com/MajorTomMan/school/releases/download/dev-latest/update-manifest.sig".asBuildConfigString(),
-        )
+        buildConfigField("String", "UPDATE_MANIFEST_URL", "https://github.com/MajorTomMan/school/releases/download/dev-latest/update-manifest.json".asBuildConfigString())
+        buildConfigField("String", "UPDATE_SIGNATURE_URL", "https://github.com/MajorTomMan/school/releases/download/dev-latest/update-manifest.sig".asBuildConfigString())
         buildConfigField("String", "COURSE_MANIFEST_URL", courseManifestUrl.asBuildConfigString())
         buildConfigField("String", "UPDATE_PUBLIC_KEY_BASE64", updatePublicKey.asBuildConfigString())
         buildConfigField("String", "DEVELOPMENT_CERT_SHA256", developmentCertificate.asBuildConfigString())
@@ -122,8 +107,6 @@ android {
         buildConfigField("String", "FCM_UPDATE_TOPIC", firebaseUpdateTopic.asBuildConfigString())
 
         if (updatePushEnabled) {
-            // FirebaseInitProvider reads these resources when Google Play services starts the process
-            // for a background data message. No google-services.json is stored in the repository.
             resValue("string", "google_app_id", firebaseApplicationId)
             resValue("string", "google_api_key", firebaseApiKey)
             resValue("string", "gcm_defaultSenderId", firebaseSenderId)
@@ -133,7 +116,6 @@ android {
 
     signingConfigs {
         create("schoolDevelopment") {
-            // 仅用于公开开发版和预览版，保证本地、PR 与主分支 APK 可相互覆盖安装。
             storeFile = developmentKeystore
             storePassword = "android"
             keyAlias = "schooldev"
@@ -147,15 +129,11 @@ android {
         }
         release {
             isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
-            )
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 
     compileOptions {
-        // Gradle 与单元测试使用 Java 21；Android 产物继续保持 Java 17 字节码基线。
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -195,8 +173,6 @@ dependencies {
     implementation("androidx.room:room-ktx:$roomVersion")
     implementation("androidx.work:work-runtime-ktx:2.11.2")
     implementation("com.google.firebase:firebase-messaging")
-
-    // 最新 Lucene Kuromoji 负责日语形态素切分、词性、原形、读音和活用信息。
     implementation("org.apache.lucene:lucene-analysis-kuromoji:10.5.0")
 
     ksp("androidx.room:room-compiler:$roomVersion")
