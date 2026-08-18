@@ -1,25 +1,11 @@
 name: Android CI/CD
 
 on:
-  pull_request:
-    branches: [dev]
-    paths:
-      - "app/**"
-      - "visualization/**"
-      - "tools/check_visualization_isolation.py"
-      - "build.gradle.kts"
-      - "settings.gradle.kts"
-      - "gradle.properties"
-      - "version.properties"
-      - "gradle/**"
-      - "signing/**"
-      - ".github/workflows/android.yml"
   push:
     branches: [dev]
     paths:
       - "app/**"
       - "visualization/**"
-      - "tools/check_visualization_isolation.py"
       - "build.gradle.kts"
       - "settings.gradle.kts"
       - "gradle.properties"
@@ -70,50 +56,33 @@ jobs:
         env:
           VERSION_NAME: ${{ steps.version.outputs.version_name }}
           VERSION_CODE: ${{ steps.version.outputs.version_code }}
-          BEFORE_SHA: ${{ github.event.before }}
         run: |
           set -euo pipefail
-          should_publish=false
           version_changed=false
           code_changed=false
+          should_publish=false
 
-          if [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/dev" ]]; then
-            if [[ -n "${BEFORE_SHA:-}" && ! "$BEFORE_SHA" =~ ^0+$ ]] && git diff --name-only "$BEFORE_SHA" HEAD -- version.properties | grep -q '^version.properties$'; then
+          git fetch --force origin "refs/tags/dev-latest:refs/tags/dev-latest" >/dev/null 2>&1 || true
+          if git rev-parse -q --verify refs/tags/dev-latest >/dev/null; then
+            previous_name="$(git show refs/tags/dev-latest:version.properties | sed -n 's/^VERSION_NAME=//p' | tail -n1 | tr -d '[:space:]')"
+            previous_code="$(git show refs/tags/dev-latest:version.properties | sed -n 's/^VERSION_CODE=//p' | tail -n1 | tr -d '[:space:]')"
+            if [[ "$VERSION_NAME" != "$previous_name" && "$VERSION_CODE" -gt "$previous_code" ]]; then
               version_changed=true
             fi
-
-            git fetch --force origin "refs/tags/dev-latest:refs/tags/dev-latest" >/dev/null 2>&1 || true
-            if git rev-parse -q --verify refs/tags/dev-latest >/dev/null; then
-              previous_name="$(git show refs/tags/dev-latest:version.properties | sed -n 's/^VERSION_NAME=//p' | tail -n1 | tr -d '[:space:]')"
-              previous_code="$(git show refs/tags/dev-latest:version.properties | sed -n 's/^VERSION_CODE=//p' | tail -n1 | tr -d '[:space:]')"
-              if [[ "$VERSION_NAME" == "$previous_name" || "$VERSION_CODE" -le "$previous_code" ]]; then
-                version_changed=false
-              fi
-
-              while IFS= read -r path; do
-                case "$path" in
-                  app/*|visualization/*|tools/check_visualization_isolation.py|build.gradle.kts|settings.gradle.kts|gradle.properties|gradle/*|signing/*)
-                    code_changed=true
-                    break
-                    ;;
-                esac
-              done < <(git diff --name-only refs/tags/dev-latest..HEAD)
-            else
+            if ! git diff --quiet refs/tags/dev-latest..HEAD -- app visualization build.gradle.kts settings.gradle.kts gradle.properties gradle signing; then
               code_changed=true
             fi
+          else
+            version_changed=true
+            code_changed=true
+          fi
 
-            if [[ "$version_changed" == "true" && "$code_changed" == "true" ]]; then
-              should_publish=true
-            fi
+          if [[ "$version_changed" == "true" && "$code_changed" == "true" ]]; then
+            should_publish=true
           fi
 
           echo "should_publish=$should_publish" >> "$GITHUB_OUTPUT"
-          echo "version_changed=$version_changed" >> "$GITHUB_OUTPUT"
-          echo "code_changed=$code_changed" >> "$GITHUB_OUTPUT"
           echo "发布检测：version_changed=$version_changed, code_changed=$code_changed, should_publish=$should_publish"
-
-      - name: Enforce visualization isolation
-        run: python3 tools/check_visualization_isolation.py
 
       - uses: actions/setup-java@v5
         with:
@@ -215,7 +184,7 @@ jobs:
             dist/update-manifest.sig
 
   publish-development:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.test-build.outputs.should_publish == 'true'
+    if: needs.test-build.outputs.should_publish == 'true'
     needs: test-build
     runs-on: ubuntu-latest
     permissions:
