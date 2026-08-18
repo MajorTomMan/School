@@ -23,7 +23,7 @@ internal sealed interface LessonPresentationPage {
     data class Teaching(override val label: String, val steps: List<CourseStep>) : LessonPresentationPage
 
     data class Summary(val items: List<String>) : LessonPresentationPage {
-        override val label: String = "这一课记住"
+        override val label: String = "记住"
     }
 
     data class Practice(val number: Int, val total: Int, val practice: CoursePractice) : LessonPresentationPage {
@@ -75,7 +75,7 @@ private fun labelFor(step: CourseStep): String = when (step) {
     is CourseKeyIdea -> step.title ?: "关键理解"
     is CourseFormula -> "公式与规则"
     is CourseExample -> step.title
-    is CourseVisualizationStep -> "看一看"
+    is CourseVisualizationStep -> "观察"
     is CourseCheckpoint -> "检查一下"
     is CourseSummaryStep -> "阶段小结"
 }
