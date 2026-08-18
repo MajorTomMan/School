@@ -1,19 +1,38 @@
-name: One-shot Export PEP Math Course
+name: One-shot Final PEP Math Alignment
 
 on:
-  pull_request:
-    branches: [dev]
+  push:
+    branches: [course/rebuild-pep-math-7-1]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  export:
+  align:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/upload-artifact@v4
         with:
-          name: pep-math-7-1-course-source
-          path: courses/pep-math-7-1/course.json
-          if-no-files-found: error
+          ref: course/rebuild-pep-math-7-1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Apply final textbook alignment
+        run: python3 tools/course-content/refine_pep_math_7_1_once.py
+      - name: Validate authored course
+        run: python3 tools/course-content/validate_authored_course.py courses/pep-math-7-1/course.json
+      - name: Validate textbook editorial alignment
+        run: python3 tools/course-content/validate_pep_math_7_1_editorial.py courses/pep-math-7-1/course.json
+      - name: Commit aligned course
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- courses/pep-math-7-1/course.json; then
+            echo "Course already aligned."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add courses/pep-math-7-1/course.json
+          git commit -m "course: align internal lessons with textbook structure"
+          git push origin HEAD:course/rebuild-pep-math-7-1
