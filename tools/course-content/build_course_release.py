@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Build one immutable Cloudflare R2 release from an authored course.json."""
+"""Build one immutable course release from an authored course.json.
+
+This tool only packages already-reviewed course content. It does not validate
+textbook correctness, answers, editorial quality, or the App course contract.
+"""
 from __future__ import annotations
 
 import argparse
@@ -12,8 +16,8 @@ from course_release_bundle import collect_bundled_files, file_spec, public_relea
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--source", type=Path, required=True, help="Validated authored course.json")
-    parser.add_argument("--pdf", type=Path, required=True, help="Verified textbook PDF")
+    parser.add_argument("--source", type=Path, required=True, help="Reviewed authored course.json")
+    parser.add_argument("--pdf", type=Path, required=True, help="Reviewed textbook PDF")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--release-id", required=True)
     parser.add_argument("--public-base-url", default="https://course.flashnamesl.workers.dev/cloud/course/public")
@@ -30,8 +34,6 @@ def main() -> int:
         raise SystemExit("--pdf does not point to a PDF file")
 
     course = json.loads(source.read_text(encoding="utf-8"))
-    if set(course) != {"textbook", "knowledgePoints", "chapters"}:
-        raise SystemExit("course source is not the authored Lesson contract")
     textbook = course["textbook"]
     textbook_id = safe_identifier(str(textbook["id"]), "textbook id")
 
