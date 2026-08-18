@@ -893,9 +893,9 @@
               ],
               "references": [
                 {
-                  "label": "教材第10—11页",
-                  "pageStart": 10,
-                  "pageEnd": 11
+                  "label": "教材第11—12页",
+                  "pageStart": 11,
+                  "pageEnd": 12
                 }
               ],
               "steps": [
@@ -970,8 +970,8 @@
               ],
               "references": [
                 {
-                  "label": "教材第12—13页",
-                  "pageStart": 12,
+                  "label": "教材第13页",
+                  "pageStart": 13,
                   "pageEnd": 13
                 }
               ],
@@ -1369,9 +1369,9 @@
               ],
               "references": [
                 {
-                  "label": "教材第25—31页",
+                  "label": "教材第25—27页",
                   "pageStart": 25,
-                  "pageEnd": 31
+                  "pageEnd": 27
                 }
               ],
               "steps": [
@@ -1455,9 +1455,9 @@
               ],
               "references": [
                 {
-                  "label": "教材第31—33页",
-                  "pageStart": 31,
-                  "pageEnd": 33
+                  "label": "教材第28—29页",
+                  "pageStart": 28,
+                  "pageEnd": 29
                 }
               ],
               "steps": [
@@ -1520,9 +1520,9 @@
               ],
               "references": [
                 {
-                  "label": "教材第33—36页",
-                  "pageStart": 33,
-                  "pageEnd": 36
+                  "label": "教材第30—31页",
+                  "pageStart": 30,
+                  "pageEnd": 31
                 }
               ],
               "steps": [
@@ -1592,8 +1592,8 @@
               ],
               "references": [
                 {
-                  "label": "教材第34—36页",
-                  "pageStart": 34,
+                  "label": "教材第32—36页",
+                  "pageStart": 32,
                   "pageEnd": 36
                 }
               ],
@@ -1716,9 +1716,9 @@
               ],
               "references": [
                 {
-                  "label": "教材第38—43页",
+                  "label": "教材第38—40页",
                   "pageStart": 38,
-                  "pageEnd": 43
+                  "pageEnd": 40
                 }
               ],
               "steps": [
@@ -1797,9 +1797,9 @@
               ],
               "references": [
                 {
-                  "label": "教材第42—44页",
-                  "pageStart": 42,
-                  "pageEnd": 44
+                  "label": "教材第41—42页",
+                  "pageStart": 41,
+                  "pageEnd": 42
                 }
               ],
               "steps": [
@@ -1870,8 +1870,8 @@
               ],
               "references": [
                 {
-                  "label": "教材第44—49页",
-                  "pageStart": 44,
+                  "label": "教材第43—49页",
+                  "pageStart": 43,
                   "pageEnd": 49
                 }
               ],
@@ -2000,9 +2000,9 @@
               ],
               "references": [
                 {
-                  "label": "教材第51—54页",
+                  "label": "教材第51—52页",
                   "pageStart": 51,
-                  "pageEnd": 54
+                  "pageEnd": 52
                 }
               ],
               "steps": [
@@ -2080,9 +2080,9 @@
               ],
               "references": [
                 {
-                  "label": "教材第53—55页",
+                  "label": "教材第53—54页",
                   "pageStart": 53,
-                  "pageEnd": 55
+                  "pageEnd": 54
                 }
               ],
               "steps": [
@@ -2146,9 +2146,9 @@
               ],
               "references": [
                 {
-                  "label": "教材第55—56页",
-                  "pageStart": 55,
-                  "pageEnd": 56
+                  "label": "教材第54页",
+                  "pageStart": 54,
+                  "pageEnd": 54
                 }
               ],
               "steps": [
@@ -2213,8 +2213,8 @@
               ],
               "references": [
                 {
-                  "label": "教材第56—57页",
-                  "pageStart": 56,
+                  "label": "教材第55—57页",
+                  "pageStart": 55,
                   "pageEnd": 57
                 }
               ],
@@ -2535,9 +2535,9 @@
               ],
               "references": [
                 {
-                  "label": "教材第69—73页",
+                  "label": "教材第69—70页",
                   "pageStart": 69,
-                  "pageEnd": 73
+                  "pageEnd": 70
                 }
               ],
               "steps": [
@@ -2606,9 +2606,9 @@
               ],
               "references": [
                 {
-                  "label": "教材第70—74页",
-                  "pageStart": 70,
-                  "pageEnd": 74
+                  "label": "教材第69—70页",
+                  "pageStart": 69,
+                  "pageEnd": 70
                 }
               ],
               "steps": [
@@ -2672,9 +2672,9 @@
               ],
               "references": [
                 {
-                  "label": "教材第73—77页",
-                  "pageStart": 73,
-                  "pageEnd": 77
+                  "label": "教材第70—72页",
+                  "pageStart": 70,
+                  "pageEnd": 72
                 }
               ],
               "steps": [
@@ -2735,8 +2735,8 @@
               ],
               "references": [
                 {
-                  "label": "教材第72—73页",
-                  "pageStart": 72,
+                  "label": "教材第73页",
+                  "pageStart": 73,
                   "pageEnd": 73
                 }
               ],
@@ -2808,9 +2808,9 @@
               ],
               "references": [
                 {
-                  "label": "教材第73—75页",
+                  "label": "教材第73—77页",
                   "pageStart": 73,
-                  "pageEnd": 75
+                  "pageEnd": 77
                 }
               ],
               "steps": [
@@ -3444,9 +3444,9 @@
               ],
               "references": [
                 {
-                  "label": "教材第96—99页",
+                  "label": "教材第96—98页",
                   "pageStart": 96,
-                  "pageEnd": 99
+                  "pageEnd": 98
                 }
               ],
               "steps": [
@@ -3509,9 +3509,9 @@
               ],
               "references": [
                 {
-                  "label": "教材第99—101页",
-                  "pageStart": 99,
-                  "pageEnd": 101
+                  "label": "教材第98—100页",
+                  "pageStart": 98,
+                  "pageEnd": 100
                 }
               ],
               "steps": [
@@ -3855,18 +3855,23 @@
           "lessons": [
             {
               "id": "ch05-equation",
-              "title": "方程与方程的解",
+              "title": "5.1.1 从算式到方程",
               "aliases": [
                 "方程",
-                "方程的解"
+                "方程的解",
+                "从算式到方程",
+                "一元一次方程"
               ],
               "goals": [
                 "理解方程和方程的解",
-                "区分方程的解与解方程的过程"
+                "区分方程的解与解方程的过程",
+                "认识一元一次方程的结构特征",
+                "能从实际问题中列出简单一元一次方程"
               ],
               "knowledgePointIds": [
                 "equation",
-                "equation-solution"
+                "equation-solution",
+                "linear-equation"
               ],
               "prerequisiteLessonIds": [
                 "ch05-intro"
@@ -3902,6 +3907,27 @@
                   "prompt": "x=4是方程2x+3=11的解吗？",
                   "expectedAnswer": "是",
                   "explanation": "把x=4代入，左边2×4+3=11，与右边相等。"
+                },
+                {
+                  "type": "keyIdea",
+                  "title": "一元一次方程的特征",
+                  "text": "经过整理后，只含一个未知数，并且未知数的次数是1的整式方程，属于一元一次方程。识别时既要看未知数个数，也要看未知数的次数和式子结构。"
+                },
+                {
+                  "type": "example",
+                  "title": "例：判断方程类型",
+                  "prompt": "2x+3=7是不是一元一次方程？x^2=4呢？",
+                  "steps": [
+                    "2x+3=7只含x一个未知数，x的次数为1。",
+                    "x^2=4虽然只含一个未知数，但最高次数为2。"
+                  ],
+                  "answer": "前者是，后者不是"
+                },
+                {
+                  "type": "checkpoint",
+                  "prompt": "3x+2y=5是一元一次方程吗？",
+                  "expectedAnswer": "不是",
+                  "explanation": "它含有x、y两个未知数。"
                 }
               ],
               "practice": [
@@ -3920,7 +3946,8 @@
                 }
               ],
               "summary": [
-                "判断一个数是不是方程的解，可以直接代入方程检验。"
+                "判断一个数是不是方程的解，可以直接代入方程检验。",
+                "“一元”指一个未知数，“一次”指未知数次数为1。"
               ]
             },
             {
@@ -3941,9 +3968,9 @@
               ],
               "references": [
                 {
-                  "label": "教材第114—117页",
-                  "pageStart": 114,
-                  "pageEnd": 117
+                  "label": "教材第115—119页",
+                  "pageStart": 115,
+                  "pageEnd": 119
                 }
               ],
               "steps": [
@@ -3993,57 +4020,6 @@
               "summary": [
                 "解方程中的每一步变形都应有等式性质或运算律作为依据。"
               ]
-            },
-            {
-              "id": "ch05-linear-equation",
-              "title": "一元一次方程",
-              "aliases": [
-                "一元一次方程"
-              ],
-              "goals": [
-                "认识一元一次方程的结构特征",
-                "能从实际问题中列出简单一元一次方程"
-              ],
-              "knowledgePointIds": [
-                "linear-equation"
-              ],
-              "prerequisiteLessonIds": [
-                "ch05-equality-properties"
-              ],
-              "references": [
-                {
-                  "label": "教材第117—119页",
-                  "pageStart": 117,
-                  "pageEnd": 119
-                }
-              ],
-              "steps": [
-                {
-                  "type": "keyIdea",
-                  "title": "一元一次方程的特征",
-                  "text": "经过整理后，只含一个未知数，并且未知数的次数是1的整式方程，属于一元一次方程。识别时既要看未知数个数，也要看未知数的次数和式子结构。"
-                },
-                {
-                  "type": "example",
-                  "title": "例：判断方程类型",
-                  "prompt": "2x+3=7是不是一元一次方程？x^2=4呢？",
-                  "steps": [
-                    "2x+3=7只含x一个未知数，x的次数为1。",
-                    "x^2=4虽然只含一个未知数，但最高次数为2。"
-                  ],
-                  "answer": "前者是，后者不是"
-                },
-                {
-                  "type": "checkpoint",
-                  "prompt": "3x+2y=5是一元一次方程吗？",
-                  "expectedAnswer": "不是",
-                  "explanation": "它含有x、y两个未知数。"
-                }
-              ],
-              "practice": [],
-              "summary": [
-                "“一元”指一个未知数，“一次”指未知数次数为1。"
-              ]
             }
           ]
         },
@@ -4066,7 +4042,7 @@
                 "solve-linear-equation"
               ],
               "prerequisiteLessonIds": [
-                "ch05-linear-equation"
+                "ch05-equation"
               ],
               "references": [
                 {
@@ -4766,14 +4742,19 @@
               "id": "ch06-solid-plane",
               "title": "6.1.1 立体图形与平面图形",
               "aliases": [
-                "立体图形与平面图形"
+                "立体图形与平面图形",
+                "视图",
+                "展开图"
               ],
               "goals": [
                 "辨认常见立体图形和平面图形",
-                "理解立体图形的某些部分可以用平面图形描述"
+                "理解立体图形的某些部分可以用平面图形描述",
+                "由不同方向观察立体图形得到平面图形",
+                "通过展开与折叠建立平面图形和立体图形的联系"
               ],
               "knowledgePointIds": [
-                "solid-plane-figure"
+                "solid-plane-figure",
+                "views-unfolding"
               ],
               "prerequisiteLessonIds": [
                 "ch06-intro"
@@ -4809,52 +4790,7 @@
                   "prompt": "圆柱是平面图形还是立体图形？",
                   "expectedAnswer": "立体图形",
                   "explanation": "圆柱的各部分不都在同一平面内。"
-                }
-              ],
-              "practice": [
-                {
-                  "id": "ch06-p01",
-                  "prompt": "分别说出足球、易拉罐、三角尺可以抽象成的主要几何图形。",
-                  "answer": "球、圆柱、三角形",
-                  "analysis": [
-                    "只关注物体的主要外形。",
-                    "足球近似球，易拉罐近似圆柱，三角尺的主要平面外形是三角形。"
-                  ],
-                  "knowledgePointIds": [
-                    "solid-plane-figure"
-                  ],
-                  "difficulty": 1
-                }
-              ],
-              "summary": [
-                "实物与几何图形之间是“抽象”关系，不要求现实物体与理想图形完全相同。"
-              ]
-            },
-            {
-              "id": "ch06-views-unfolding",
-              "title": "从不同方向看立体图形与展开图",
-              "aliases": [
-                "视图",
-                "展开图"
-              ],
-              "goals": [
-                "由不同方向观察立体图形得到平面图形",
-                "通过展开与折叠建立平面图形和立体图形的联系"
-              ],
-              "knowledgePointIds": [
-                "views-unfolding"
-              ],
-              "prerequisiteLessonIds": [
-                "ch06-solid-plane"
-              ],
-              "references": [
-                {
-                  "label": "教材第152—157页",
-                  "pageStart": 152,
-                  "pageEnd": 157
-                }
-              ],
-              "steps": [
+                },
                 {
                   "type": "explanation",
                   "title": "立体图形的平面信息",
@@ -4880,8 +4816,23 @@
                   "explanation": "不同立体图形可能具有相同的一个方向视图。"
                 }
               ],
-              "practice": [],
+              "practice": [
+                {
+                  "id": "ch06-p01",
+                  "prompt": "分别说出足球、易拉罐、三角尺可以抽象成的主要几何图形。",
+                  "answer": "球、圆柱、三角形",
+                  "analysis": [
+                    "只关注物体的主要外形。",
+                    "足球近似球，易拉罐近似圆柱，三角尺的主要平面外形是三角形。"
+                  ],
+                  "knowledgePointIds": [
+                    "solid-plane-figure"
+                  ],
+                  "difficulty": 1
+                }
+              ],
               "summary": [
+                "实物与几何图形之间是“抽象”关系，不要求现实物体与理想图形完全相同。",
                 "视图和展开图帮助在二维与三维之间建立联系。"
               ]
             },
@@ -4899,12 +4850,12 @@
                 "point-line-surface-body"
               ],
               "prerequisiteLessonIds": [
-                "ch06-views-unfolding"
+                "ch06-solid-plane"
               ],
               "references": [
                 {
-                  "label": "教材第157—159页",
-                  "pageStart": 157,
+                  "label": "教材第155—159页",
+                  "pageStart": 155,
                   "pageEnd": 159
                 }
               ],
@@ -4989,7 +4940,7 @@
           "lessons": [
             {
               "id": "ch06-line-ray-segment",
-              "title": "直线、射线、线段",
+              "title": "6.2.1 直线、射线、线段",
               "aliases": [
                 "直线",
                 "射线",
@@ -5007,9 +4958,9 @@
               ],
               "references": [
                 {
-                  "label": "教材第162—165页",
+                  "label": "教材第162—163页",
                   "pageStart": 162,
-                  "pageEnd": 165
+                  "pageEnd": 163
                 }
               ],
               "steps": [
@@ -5034,8 +4985,8 @@
                 {
                   "type": "checkpoint",
                   "prompt": "射线AB与射线BA一定是同一条射线吗？",
-                  "expectedAnswer": "不一定，通常不是",
-                  "explanation": "射线的第一个字母表示端点，端点不同会得到不同射线。"
+                  "expectedAnswer": "不是（当A、B是不同点时，它们的端点不同，方向相反）",
+                  "explanation": "射线的表示先写端点；交换字母会改变端点和延伸方向。"
                 }
               ],
               "practice": [
@@ -5059,7 +5010,7 @@
             },
             {
               "id": "ch06-segment-comparison",
-              "title": "线段的比较与中点",
+              "title": "6.2.2 线段的比较与运算",
               "aliases": [
                 "比较线段",
                 "线段中点"
@@ -5077,8 +5028,8 @@
               ],
               "references": [
                 {
-                  "label": "教材第165—167页",
-                  "pageStart": 165,
+                  "label": "教材第164—167页",
+                  "pageStart": 164,
                   "pageEnd": 167
                 }
               ],
@@ -5101,7 +5052,7 @@
                 {
                   "type": "keyIdea",
                   "title": "两点之间线段最短",
-                  "text": "连接两点的所有路径中，线段最短。连接两点的线段的长度叫作这两点间的距离。"
+                  "text": "两点的所有连线中，线段最短。连接两点的线段的长度叫作这两点间的距离。"
                 },
                 {
                   "type": "checkpoint",
@@ -5200,16 +5151,21 @@
           "lessons": [
             {
               "id": "ch06-angle",
-              "title": "角与角的表示",
+              "title": "6.3.1 角的概念",
               "aliases": [
-                "角"
+                "角",
+                "度分秒",
+                "量角器"
               ],
               "goals": [
                 "理解角的组成",
-                "掌握角的常用表示方法并认识平角、周角"
+                "掌握角的常用表示方法并认识平角、周角",
+                "用度、分、秒表示角的大小",
+                "完成角度单位之间的换算"
               ],
               "knowledgePointIds": [
-                "angle"
+                "angle",
+                "angle-measure"
               ],
               "prerequisiteLessonIds": [
                 "ch06-length-measurement"
@@ -5245,52 +5201,7 @@
                   "prompt": "∠ABC的顶点是哪一个点？",
                   "expectedAnswer": "B",
                   "explanation": "三字母表示角时中间字母是顶点。"
-                }
-              ],
-              "practice": [
-                {
-                  "id": "ch06-p04",
-                  "prompt": "以O为顶点、OA和OB为两边的角可怎样表示？",
-                  "answer": "∠AOB或∠BOA",
-                  "analysis": [
-                    "顶点O必须写在中间。",
-                    "交换两边字母仍表示由OA、OB组成的同一个角。"
-                  ],
-                  "knowledgePointIds": [
-                    "angle"
-                  ],
-                  "difficulty": 1
-                }
-              ],
-              "summary": [
-                "角的表示首先要准确确定顶点和两条边。"
-              ]
-            },
-            {
-              "id": "ch06-angle-measure",
-              "title": "角的度量",
-              "aliases": [
-                "度分秒",
-                "量角器"
-              ],
-              "goals": [
-                "用度、分、秒表示角的大小",
-                "完成角度单位之间的换算"
-              ],
-              "knowledgePointIds": [
-                "angle-measure"
-              ],
-              "prerequisiteLessonIds": [
-                "ch06-angle"
-              ],
-              "references": [
-                {
-                  "label": "教材第172—175页",
-                  "pageStart": 172,
-                  "pageEnd": 175
-                }
-              ],
-              "steps": [
+                },
                 {
                   "type": "keyIdea",
                   "title": "六十进制角度单位",
@@ -5315,6 +5226,19 @@
               ],
               "practice": [
                 {
+                  "id": "ch06-p04",
+                  "prompt": "以O为顶点、OA和OB为两边的角可怎样表示？",
+                  "answer": "∠AOB或∠BOA",
+                  "analysis": [
+                    "顶点O必须写在中间。",
+                    "交换两边字母仍表示由OA、OB组成的同一个角。"
+                  ],
+                  "knowledgePointIds": [
+                    "angle"
+                  ],
+                  "difficulty": 1
+                },
+                {
                   "id": "ch06-p05",
                   "prompt": "把45°18′化成度数的小数形式。",
                   "answer": "45.3°",
@@ -5329,31 +5253,36 @@
                 }
               ],
               "summary": [
+                "角的表示首先要准确确定顶点和两条边。",
                 "度、分、秒的换算是60进制，不是十进制。"
               ]
             },
             {
               "id": "ch06-angle-operation",
-              "title": "角的比较与运算",
+              "title": "6.3.2 角的比较与运算",
               "aliases": [
                 "角的比较",
-                "角的和差"
+                "角的和差",
+                "角平分线"
               ],
               "goals": [
                 "用度量或叠合比较角的大小",
-                "完成角的和、差计算并处理度分秒进退位"
+                "完成角的和、差计算并处理度分秒进退位",
+                "理解角平分线的定义",
+                "利用角平分关系求角"
               ],
               "knowledgePointIds": [
-                "angle-operation"
+                "angle-operation",
+                "angle-bisector"
               ],
               "prerequisiteLessonIds": [
-                "ch06-angle-measure"
+                "ch06-angle"
               ],
               "references": [
                 {
-                  "label": "教材第175—178页",
-                  "pageStart": 175,
-                  "pageEnd": 178
+                  "label": "教材第173—175页",
+                  "pageStart": 173,
+                  "pageEnd": 175
                 }
               ],
               "steps": [
@@ -5378,51 +5307,7 @@
                   "prompt": "角的两边画得更长，角就更大吗？",
                   "expectedAnswer": "不是",
                   "explanation": "角的大小由两边张开的程度决定。"
-                }
-              ],
-              "practice": [
-                {
-                  "id": "ch06-p06",
-                  "prompt": "计算35°40′+28°35′。",
-                  "answer": "64°15′",
-                  "analysis": [
-                    "分相加40′+35′=75′=1°15′。",
-                    "度相加35°+28°+1°=64°。"
-                  ],
-                  "knowledgePointIds": [
-                    "angle-operation"
-                  ],
-                  "difficulty": 3
-                }
-              ],
-              "summary": [
-                "角的大小与边长无关，角度运算要遵守60进制。"
-              ]
-            },
-            {
-              "id": "ch06-angle-bisector",
-              "title": "角平分线",
-              "aliases": [
-                "角平分线"
-              ],
-              "goals": [
-                "理解角平分线的定义",
-                "利用角平分关系求角"
-              ],
-              "knowledgePointIds": [
-                "angle-bisector"
-              ],
-              "prerequisiteLessonIds": [
-                "ch06-angle-operation"
-              ],
-              "references": [
-                {
-                  "label": "教材第178—179页",
-                  "pageStart": 178,
-                  "pageEnd": 179
-                }
-              ],
-              "steps": [
+                },
                 {
                   "type": "keyIdea",
                   "title": "角平分线",
@@ -5447,6 +5332,19 @@
               ],
               "practice": [
                 {
+                  "id": "ch06-p06",
+                  "prompt": "计算35°40′+28°35′。",
+                  "answer": "64°15′",
+                  "analysis": [
+                    "分相加40′+35′=75′=1°15′。",
+                    "度相加35°+28°+1°=64°。"
+                  ],
+                  "knowledgePointIds": [
+                    "angle-operation"
+                  ],
+                  "difficulty": 3
+                },
+                {
                   "id": "ch06-p07",
                   "prompt": "OD平分∠AOC，∠AOD=22°30′，求∠AOC。",
                   "answer": "45°",
@@ -5461,6 +5359,7 @@
                 }
               ],
               "summary": [
+                "角的大小与边长无关，角度运算要遵守60进制。",
                 "角平分线把几何位置关系转化为两个角相等的数量关系。"
               ]
             },
@@ -5479,7 +5378,7 @@
                 "complementary-supplementary-angle"
               ],
               "prerequisiteLessonIds": [
-                "ch06-angle-bisector"
+                "ch06-angle-operation"
               ],
               "references": [
                 {
