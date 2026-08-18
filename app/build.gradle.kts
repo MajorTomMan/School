@@ -80,6 +80,7 @@ val firebaseApplicationId = resolvedSetting("SCHOOL_FIREBASE_APPLICATION_ID", "s
 val firebaseApiKey = resolvedSetting("SCHOOL_FIREBASE_API_KEY", "schoolFirebaseApiKey")
 val firebaseSenderId = resolvedSetting("SCHOOL_FIREBASE_SENDER_ID", "schoolFirebaseSenderId")
 val firebaseUpdateTopic = resolvedSetting("SCHOOL_FIREBASE_UPDATE_TOPIC", "schoolFirebaseUpdateTopic").ifBlank { "school_dev_update" }
+// Production course content is distributed outside Git and defaults to the stable public channel.
 val stableCourseManifestUrl = "https://course.flashnamesl.workers.dev/cloud/course/public/stable/manifest.json"
 val courseManifestUrl = resolvedSetting("SCHOOL_COURSE_MANIFEST_URL", "schoolCourseManifestUrl").ifBlank { stableCourseManifestUrl }
 val updatePushEnabled = listOf(firebaseProjectId, firebaseApplicationId, firebaseApiKey, firebaseSenderId).all(String::isNotBlank)
@@ -170,7 +171,7 @@ dependencies {
     implementation("com.github.rikkahub.jlatexmath-android:jlatexmath:1.5")
     implementation("androidx.datastore:datastore-preferences:1.1.7")
     implementation("androidx.room:room-runtime:$roomVersion")
-    implementation("androidx.room:room-ktx:$roomVersion")
+    implementation("androidx.room:room-ktx:2.8.4")
     implementation("androidx.work:work-runtime-ktx:2.11.2")
     implementation("com.google.firebase:firebase-messaging")
     implementation("org.apache.lucene:lucene-analysis-kuromoji:10.5.0")
