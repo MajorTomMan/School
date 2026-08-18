@@ -1,0 +1,19 @@
+name: One-shot Export PEP Math Course
+
+on:
+  push:
+    branches: [course/rebuild-pep-math-7-1]
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pep-math-7-1-course-source
+          path: courses/pep-math-7-1/course.json
+          if-no-files-found: error
