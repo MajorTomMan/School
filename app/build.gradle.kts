@@ -171,7 +171,7 @@ dependencies {
     implementation("com.github.rikkahub.jlatexmath-android:jlatexmath:1.5")
     implementation("androidx.datastore:datastore-preferences:1.1.7")
     implementation("androidx.room:room-runtime:$roomVersion")
-    implementation("androidx.room:room-ktx:2.8.4")
+    implementation("androidx.room:room-ktx:$roomVersion")
     implementation("androidx.work:work-runtime-ktx:2.11.2")
     implementation("com.google.firebase:firebase-messaging")
     implementation("org.apache.lucene:lucene-analysis-kuromoji:10.5.0")
