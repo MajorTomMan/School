@@ -75,7 +75,7 @@ internal class UpdateRepository(context: Context) {
     private fun resolveUpdateUrl(): String {
         val configUrl = BuildConfig.UPDATE_CONFIG_URL.trim()
         if (configUrl.isBlank()) return UpdateConfigCodec.normalize(BuildConfig.DEFAULT_UPDATE_URL)
-        val config = httpClient.get(configUrl, MAX_CONFIG_SIZE, "application/json").toString(Charsets.UTF_8)
+        val config = httpClient.get(UpdateConfigCodec.normalize(configUrl), MAX_CONFIG_SIZE, "application/json").toString(Charsets.UTF_8)
         return UpdateConfigCodec.decode(config)
     }
 

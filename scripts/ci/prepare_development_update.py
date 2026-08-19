@@ -9,24 +9,11 @@ import re
 import shutil
 import subprocess
 import tempfile
-from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[2]
 DIST = ROOT / "dist"
 APK_SOURCE = ROOT / "app/build/outputs/apk/debug/app-debug.apk"
 APK_OUTPUT = DIST / "school-debug.apk"
-
-
-def read_gradle_property(name):
-    properties = ROOT / "gradle.properties"
-    if not properties.is_file():
-        raise SystemExit(f"Gradle 配置不存在：{properties}")
-    prefix = f"{name}="
-    for line in properties.read_text(encoding="utf-8").splitlines():
-        stripped = line.strip()
-        if stripped.startswith(prefix):
-            return stripped[len(prefix):].strip()
-    return ""
 
 
 def require_version():
@@ -37,17 +24,6 @@ def require_version():
     if not version_code_text.isdigit() or int(version_code_text) <= 0:
         raise SystemExit("VERSION_CODE 必须是正整数")
     return version_name, int(version_code_text)
-
-
-def require_update_url():
-    update_url = os.environ.get("SCHOOL_UPDATE_URL", "").strip() or read_gradle_property("schoolUpdateUrl")
-    update_url = update_url.rstrip("/")
-    parsed = urlparse(update_url)
-    if parsed.scheme != "https" or parsed.hostname != "github.com":
-        raise SystemExit("默认更新地址必须是 GitHub HTTPS Release 地址")
-    if "/releases/download/" not in parsed.path or parsed.query or parsed.fragment:
-        raise SystemExit("schoolUpdateUrl 格式无效")
-    return update_url
 
 
 def sha256(path):
@@ -62,28 +38,35 @@ def read_changes():
     notes_file = ROOT / ".release-notes/current.md"
     if not notes_file.is_file():
         return []
-    return [line.strip()[2:].strip() for line in notes_file.read_text(encoding="utf-8").splitlines() if line.strip().startswith("- ") and line.strip()[2:].strip()]
+    changes = []
+    for line in notes_file.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- ") and stripped[2:].strip():
+            changes.append(stripped[2:].strip())
+    return changes
 
 
 def decode_private_key():
     encoded = os.environ.get("SCHOOL_UPDATE_PRIVATE_KEY_B64", "").strip()
     if not encoded:
         encoded = (ROOT / "signing/school-update-development-private.pem.b64").read_text(encoding="utf-8")
+    compact = "".join(encoded.split())
     try:
-        return base64.b64decode("".join(encoded.split()), validate=True)
+        return base64.b64decode(compact, validate=True)
     except ValueError as error:
         raise SystemExit("更新清单私钥不是有效的 Base64") from error
 
 
 def sign_manifest(manifest_path):
+    private_key_bytes = decode_private_key()
+    public_key = ROOT / "signing/school-update-development-public.pem"
+    signature = DIST / "update-manifest.sig"
     private_key_path = None
     try:
         with tempfile.NamedTemporaryFile(prefix="school-update-private-", suffix=".pem", delete=False) as file:
-            file.write(decode_private_key())
+            file.write(private_key_bytes)
             private_key_path = Path(file.name)
         private_key_path.chmod(0o600)
-        signature = DIST / "update-manifest.sig"
-        public_key = ROOT / "signing/school-update-development-public.pem"
         subprocess.run(["openssl", "dgst", "-sha256", "-sign", str(private_key_path), "-out", str(signature), str(manifest_path)], check=True)
         subprocess.run(["openssl", "dgst", "-sha256", "-verify", str(public_key), "-signature", str(signature), str(manifest_path)], check=True)
     finally:
@@ -93,7 +76,6 @@ def sign_manifest(manifest_path):
 
 def main():
     version_name, version_code = require_version()
-    update_url = require_update_url()
     if not APK_SOURCE.is_file():
         raise SystemExit(f"Debug APK 不存在：{APK_SOURCE}")
 
@@ -101,9 +83,10 @@ def main():
     shutil.copyfile(APK_SOURCE, APK_OUTPUT)
     apk_sha256 = sha256(APK_OUTPUT)
     (DIST / "school-debug.apk.sha256").write_text(f"{apk_sha256}  dist/school-debug.apk\n", encoding="utf-8")
+
     certificate_sha256 = (ROOT / "signing/school-development.cert.sha256").read_text(encoding="utf-8").strip().replace(":", "").lower()
     manifest = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "channel": "development",
         "versionCode": version_code,
         "versionName": version_name,
@@ -114,12 +97,12 @@ def main():
         "fixes": [],
         "apk": {
             "fileName": "school-debug.apk",
-            "downloadUrl": f"{update_url}/school-debug.apk",
             "size": APK_OUTPUT.stat().st_size,
             "sha256": apk_sha256,
             "certificateSha256": certificate_sha256,
         },
     }
+
     manifest_path = DIST / "update-manifest.json"
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     sign_manifest(manifest_path)

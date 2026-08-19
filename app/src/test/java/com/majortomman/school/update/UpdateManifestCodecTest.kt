@@ -9,17 +9,18 @@ class UpdateManifestCodecTest {
 
     @Test
     fun decodesReleaseManifestStructure() {
-        val manifest = UpdateManifestCodec.decode(manifestJson("$updateUrl/school-debug.apk"), updateUrl)
+        val manifest = UpdateManifestCodec.decode(manifestJson(), updateUrl)
+        assertEquals(2, manifest.schemaVersion)
         assertEquals(53L, manifest.versionCode)
+        assertEquals("school-debug.apk", manifest.apk.fileName)
+        assertEquals("$updateUrl/school-debug.apk", manifest.apk.downloadUrl)
         assertEquals(listOf("change"), manifest.changes)
         assertEquals(listOf("fix"), manifest.fixes)
     }
 
     @Test
-    fun rejectsDownloadOutsideCurrentUpdateUrl() {
-        val result = runCatching {
-            UpdateManifestCodec.decode(manifestJson("https://github.com/MajorTomMan/Other/releases/download/dev-latest/school-debug.apk"), updateUrl)
-        }
+    fun rejectsUnsafeApkFileName() {
+        val result = runCatching { UpdateManifestCodec.decode(manifestJson("../school-debug.apk"), updateUrl) }
         assertTrue(result.isFailure)
     }
 
@@ -34,9 +35,9 @@ class UpdateManifestCodecTest {
         assertTrue(result.isFailure)
     }
 
-    private fun manifestJson(downloadUrl: String): String = """
+    private fun manifestJson(fileName: String = "school-debug.apk"): String = """
         {
-          "schemaVersion":1,
+          "schemaVersion":2,
           "channel":"development",
           "versionCode":53,
           "versionName":"0.27.4",
@@ -46,8 +47,7 @@ class UpdateManifestCodecTest {
           "changes":["change"],
           "fixes":["fix"],
           "apk":{
-            "fileName":"school-debug.apk",
-            "downloadUrl":"$downloadUrl",
+            "fileName":"$fileName",
             "size":15212912,
             "sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             "certificateSha256":"7b816cf2873e5d45320015a80dacbf3e9d303f0513e174d8ddf0e69ef1c421b2"

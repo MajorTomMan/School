@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Send a data-only School update trigger through FCM HTTP v1.
 
-The message contains no trusted update metadata. Android clients use it only to fetch and verify the
-signed update-manifest.json from GitHub Release.
+The message carries no trusted update metadata. Android clients use it only to start a normal signed update check.
 """
 
 from __future__ import annotations
@@ -25,18 +24,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--project-id", required=True)
     parser.add_argument("--topic", required=True)
     parser.add_argument("--version-code", required=True)
-    parser.add_argument("--version-name", required=True)
-    parser.add_argument("--manifest-url", required=True)
-    parser.add_argument("--channel", default="development")
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    credentials = service_account.Credentials.from_service_account_file(
-        args.service_account,
-        scopes=[FCM_SCOPE],
-    )
+    credentials = service_account.Credentials.from_service_account_file(args.service_account, scopes=[FCM_SCOPE])
     credentials.refresh(Request())
     if not credentials.token:
         raise RuntimeError("FCM OAuth access token is empty")
@@ -47,9 +40,6 @@ def main() -> int:
             "data": {
                 "type": "school_update",
                 "versionCode": str(args.version_code),
-                "versionName": args.version_name,
-                "channel": args.channel,
-                "manifestUrl": args.manifest_url,
             },
             "android": {
                 "priority": "HIGH",

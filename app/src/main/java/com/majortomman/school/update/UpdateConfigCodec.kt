@@ -10,7 +10,7 @@ internal object UpdateConfigCodec {
         val normalized = value.trim().trimEnd('/')
         require(normalized.isNotEmpty()) { "更新地址为空。" }
         val uri = URI(normalized)
-        require(uri.scheme == "https" && !uri.host.isNullOrBlank()) { "更新地址必须使用 HTTPS。" }
+        require(uri.scheme.equals("https", ignoreCase = true) && !uri.host.isNullOrBlank()) { "更新地址必须使用 HTTPS。" }
         require(uri.userInfo == null && uri.rawQuery == null && uri.rawFragment == null) { "更新地址格式无效。" }
         return normalized
     }
