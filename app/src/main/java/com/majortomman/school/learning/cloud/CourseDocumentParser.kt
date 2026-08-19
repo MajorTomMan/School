@@ -1,6 +1,5 @@
 package com.majortomman.school.learning.cloud
 
-import android.content.Context
 import com.majortomman.school.learning.course.CourseChapter
 import com.majortomman.school.learning.course.CourseCheckpoint
 import com.majortomman.school.learning.course.CourseDocument
@@ -25,56 +24,8 @@ import com.majortomman.school.visualization.VisualizationKey
 import com.majortomman.school.visualization.VisualizationParameterValue
 import com.majortomman.school.visualization.VisualizationParameters
 import com.majortomman.school.visualization.VisualizationTexts
-import java.io.File
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
-
-object CloudCourseRepository {
-    private const val ACTIVE_DIRECTORY = "course-packs/active"
-    private const val COURSE_FILE_NAME = "course.json"
-    @Volatile private var appContext: Context? = null
-    private val mutableRevision = MutableStateFlow(0L)
-    val revision = mutableRevision.asStateFlow()
-    private val cacheLock = Any()
-    private val parsedCache = mutableMapOf<String, CachedCourseDocument>()
-
-    fun initialize(context: Context) { appContext = context.applicationContext }
-    fun hasInstalledCourseContent(): Boolean = courseDocuments().isNotEmpty()
-
-    fun lessonFor(id: String, title: String): CourseLesson? {
-        val normalizedTitle = normalize(title)
-        return courseDocuments().asSequence().flatMap { it.document.chapters.asSequence() }
-            .flatMap { it.sections.asSequence() }.flatMap { it.lessons.asSequence() }
-            .firstOrNull { lesson -> lesson.id == id || normalize(lesson.title) == normalizedTitle || lesson.aliases.any { normalize(it) == normalizedTitle } }
-    }
-
-    internal fun markContentChanged() {
-        synchronized(cacheLock) { parsedCache.clear() }
-        mutableRevision.value += 1L
-    }
-
-    private fun courseDocuments(): List<CachedCourseDocument> {
-        val context = appContext ?: return emptyList()
-        val activeRoot = File(context.filesDir, ACTIVE_DIRECTORY)
-        return activeRoot.listFiles().orEmpty().filter(File::isDirectory).map { File(it, COURSE_FILE_NAME) }.filter(File::isFile).mapNotNull { file ->
-            synchronized(cacheLock) {
-                val key = file.absolutePath
-                val cached = parsedCache[key]
-                if (cached != null && cached.lastModified == file.lastModified() && cached.length == file.length()) cached else runCatching {
-                    val document = CourseDocumentParser.decode(file.readText(Charsets.UTF_8))
-                    val root = file.parentFile ?: error("课程文件缺少安装目录")
-                    require(File(root, document.textbook.pdf.path).isFile) { "课程包缺少教材 PDF" }
-                    CachedCourseDocument(file.lastModified(), file.length(), document)
-                }.getOrNull()?.also { parsedCache[key] = it }
-            }
-        }
-    }
-
-    private data class CachedCourseDocument(val lastModified: Long, val length: Long, val document: CourseDocument)
-    private fun normalize(value: String): String = value.replace(" ", "").replace("　", "").trim()
-}
 
 internal object CourseDocumentParser {
     fun decode(raw: String): CourseDocument = decode(JSONObject(raw))
