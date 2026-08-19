@@ -37,66 +37,20 @@ fun NoActiveTextbookScreen(onOpenSubjects: () -> Unit) {
         modifier = Modifier.fillMaxSize().background(CenterBlack).systemBarsPadding().padding(26.dp),
         verticalArrangement = Arrangement.Center,
     ) {
-        Text("先选择教材", color = CenterWhite, fontSize = 42.sp, fontWeight = FontWeight.SemiBold)
+        Text("先选择课程", color = CenterWhite, fontSize = 42.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(14.dp))
-        Text("课程与教材 PDF 会从云端课程包生成。", color = CenterMuted, fontSize = 18.sp, lineHeight = 27.sp)
+        Text("课程内容与教材 PDF 直接使用已安装的云端课程。", color = CenterMuted, fontSize = 18.sp, lineHeight = 27.sp)
         Spacer(Modifier.height(30.dp))
-        CenterOutlinedButton("前往学科", CenterBlue, onClick = onOpenSubjects)
+        CenterOutlinedButton("前往课程", CenterBlue, onClick = onOpenSubjects)
     }
 }
 
 @Composable
 internal fun CenterScrollPage(content: @Composable ColumnScope.() -> Unit) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .systemBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 26.dp, vertical = 24.dp),
+        modifier = Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 26.dp, vertical = 24.dp),
         content = content,
     )
-}
-
-@Composable
-internal fun StatusText(installedCount: Int) {
-    Text(
-        if (installedCount > 0) "$installedCount 本教材" else "暂无缓存",
-        color = if (installedCount > 0) CenterBlue else CenterMuted,
-        fontSize = 13.sp,
-        maxLines = 1,
-        softWrap = false,
-    )
-}
-
-@Composable
-internal fun CenterBack(label: String, onClick: () -> Unit) {
-    Text(
-        text = "‹  $label",
-        modifier = Modifier.clickable(onClick = onClick),
-        color = CenterWhite.copy(alpha = 0.72f),
-        fontSize = 15.sp,
-    )
-}
-
-@Composable
-internal fun SlotButton(
-    label: String,
-    status: String,
-    color: Color,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    Column(
-        modifier = modifier
-            .heightIn(min = 82.dp)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 2.dp, vertical = 11.dp),
-        verticalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(label, color = CenterWhite, fontSize = 16.sp, fontWeight = FontWeight.Medium, lineHeight = 19.sp)
-        Text(status, color = color, fontSize = 12.sp)
-        Box(Modifier.fillMaxWidth().height(1.dp).background(color.copy(alpha = 0.58f)))
-    }
 }
 
 @Composable
@@ -106,25 +60,9 @@ internal fun CenterOutlinedButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    Box(
-        modifier = modifier
-            .heightIn(min = 48.dp)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = label,
-            color = color,
-            textAlign = TextAlign.Center,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Box(
-            Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(2.dp)
-                .background(color.copy(alpha = 0.76f)),
-        )
+    Box(modifier = modifier.heightIn(min = 48.dp).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
+        Text(text = label, color = color, textAlign = TextAlign.Center, fontWeight = FontWeight.SemiBold)
+        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(2.dp).background(color.copy(alpha = 0.76f)))
     }
 }
 
