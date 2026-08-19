@@ -36,7 +36,6 @@ object CourseStorageManager {
             if (!active.exists()) return@synchronized CourseTextbookRemovalResult.NotInstalled
             runCatching {
                 val removedBytes = CourseCacheFiles.removeTextbookAtomically(root, textbookId)
-                CloudCourseRepository.markContentChanged()
                 CourseLibraryRepository.refresh(appContext)
                 CourseTextbookRemovalResult.Removed(removedBytes)
             }.getOrElse { error -> CourseTextbookRemovalResult.Failed(error.message ?: error::class.java.simpleName) }
@@ -50,7 +49,6 @@ object CourseStorageManager {
             val root = File(appContext.filesDir, ROOT_DIRECTORY)
             runCatching {
                 val removed = CourseCacheFiles.clearAtomically(root)
-                CloudCourseRepository.markContentChanged()
                 CourseLibraryRepository.refresh(appContext)
                 CourseCacheClearResult.Cleared(removed.totalBytes, removed.installedTextbooks)
             }.getOrElse { error -> CourseCacheClearResult.Failed(error.message ?: error::class.java.simpleName) }
