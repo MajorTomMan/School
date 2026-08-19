@@ -11,8 +11,6 @@ tests=(
 )
 
 args=()
-for test_class in "${tests[@]}"; do
-  args+=(--tests "$test_class")
-done
-
-gradle :app:testDebugUnitTest :app:assembleDebug "${args[@]}" --stacktrace
+for test_class in "${tests[@]}"; do args+=(--tests "$test_class"); done
+if [[ -x "./gradlew" ]]; then gradle_cmd=(./gradlew); else gradle_cmd=(gradle); fi
+"${gradle_cmd[@]}" :app:testDebugUnitTest :app:assembleDebug "${args[@]}" --stacktrace

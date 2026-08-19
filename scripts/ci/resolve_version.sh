@@ -10,25 +10,26 @@ read_property() {
 
 if [[ ! -f "$version_file" ]]; then
   echo "版本文件不存在：$version_file" >&2
-  exit 1
+  return 1 2>/dev/null || exit 1
 fi
 
-name="$(read_property VERSION_NAME)"
-code="$(read_property VERSION_CODE)"
+VERSION_NAME="$(read_property VERSION_NAME)"
+VERSION_CODE="$(read_property VERSION_CODE)"
 
-if ! [[ "$name" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+if ! [[ "$VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "VERSION_NAME 必须使用 x.y.z 格式" >&2
-  exit 1
+  return 1 2>/dev/null || exit 1
 fi
 
-if ! [[ "$code" =~ ^[1-9][0-9]*$ ]]; then
+if ! [[ "$VERSION_CODE" =~ ^[1-9][0-9]*$ ]]; then
   echo "VERSION_CODE 必须是正整数" >&2
-  exit 1
+  return 1 2>/dev/null || exit 1
 fi
 
-if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
-  echo "version_name=$name" >> "$GITHUB_OUTPUT"
-  echo "version_code=$code" >> "$GITHUB_OUTPUT"
+export VERSION_NAME VERSION_CODE
+if [[ -n "${GITHUB_ENV:-}" ]]; then
+  echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
+  echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
 fi
 
-echo "App 版本：$name ($code)"
+echo "App 版本：$VERSION_NAME ($VERSION_CODE)"
