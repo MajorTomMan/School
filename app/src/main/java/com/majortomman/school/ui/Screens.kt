@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -129,13 +130,10 @@ private fun PathLessonNode(
     }
     val content: @Composable () -> Unit = {
         Surface(
-            modifier = Modifier
-                .size(if (isCurrent) 70.dp else 62.dp)
-                .graphicsLayer {
-                    scaleX = pulse
-                    scaleY = pulse
-                }
-                .clickable(onClick = onClick),
+            modifier = Modifier.size(if (isCurrent) 70.dp else 62.dp).graphicsLayer {
+                scaleX = pulse
+                scaleY = pulse
+            }.clickable(onClick = onClick),
             shape = CircleShape,
             color = nodeColor,
             contentColor = nodeForeground,
@@ -172,11 +170,7 @@ private fun PathLessonNode(
     }
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).clickable(onClick = onClick).padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (index % 2 == 0) {
