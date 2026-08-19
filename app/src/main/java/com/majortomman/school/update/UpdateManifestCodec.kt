@@ -1,10 +1,11 @@
 package com.majortomman.school.update
 
+import java.net.URI
 import org.json.JSONArray
 import org.json.JSONObject
 
 internal object UpdateManifestCodec {
-    fun decode(json: String): UpdateManifest {
+    fun decode(json: String, expectedReleaseBaseUrl: String? = null): UpdateManifest {
         val root = JSONObject(json)
         val apk = root.getJSONObject("apk")
         return UpdateManifest(
@@ -24,7 +25,7 @@ internal object UpdateManifestCodec {
                 sha256 = apk.getString("sha256").normalizedSha256(),
                 certificateSha256 = apk.getString("certificateSha256").normalizedSha256(),
             ),
-        ).also(::validate)
+        ).also { validate(it, expectedReleaseBaseUrl) }
     }
 
     fun encode(manifest: UpdateManifest): String = JSONObject()
@@ -48,7 +49,7 @@ internal object UpdateManifestCodec {
         )
         .toString()
 
-    private fun validate(manifest: UpdateManifest) {
+    private fun validate(manifest: UpdateManifest, expectedReleaseBaseUrl: String?) {
         require(manifest.schemaVersion == 1) { "不支持的更新清单版本。" }
         require(manifest.channel == UPDATE_CHANNEL) { "更新通道不匹配。" }
         require(manifest.versionCode > 0L) { "更新版本号无效。" }
@@ -57,11 +58,19 @@ internal object UpdateManifestCodec {
         require(manifest.apk.size > 0L) { "更新文件大小无效。" }
         require(SHA256_REGEX.matches(manifest.apk.sha256)) { "APK SHA-256 无效。" }
         require(SHA256_REGEX.matches(manifest.apk.certificateSha256)) { "APK 证书 SHA-256 无效。" }
-        val url = java.net.URI(manifest.apk.downloadUrl)
-        require(url.scheme == "https") { "更新地址必须使用 HTTPS。" }
-        require(url.host == "github.com") { "更新地址不是允许的 GitHub Release 地址。" }
-        require(url.path.contains("/MajorTomMan/school/releases/download/dev-latest/")) {
-            "更新地址不是 School 的 dev-latest Release。"
+
+        val url = URI(manifest.apk.downloadUrl)
+        require(url.scheme.equals("https", ignoreCase = true)) { "更新地址必须使用 HTTPS。" }
+        require(url.host?.equals("github.com", ignoreCase = true) == true) { "更新地址不是允许的 GitHub Release 地址。" }
+        require(url.rawQuery == null && url.rawFragment == null) { "更新地址不能包含 query 或 fragment。" }
+
+        if (!expectedReleaseBaseUrl.isNullOrBlank()) {
+            val expected = URI("${expectedReleaseBaseUrl.trimEnd('/')}/${manifest.apk.fileName}")
+            val sameRelease = url.scheme.equals(expected.scheme, ignoreCase = true) &&
+                url.host?.equals(expected.host, ignoreCase = true) == true &&
+                url.port == expected.port &&
+                url.path.equals(expected.path, ignoreCase = true)
+            require(sameRelease) { "更新地址不是当前配置的 Development Release。" }
         }
     }
 

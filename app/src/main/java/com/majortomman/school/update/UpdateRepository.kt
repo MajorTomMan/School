@@ -23,10 +23,10 @@ internal class UpdateRepository(context: Context) {
                 "更新清单签名校验失败。"
             }
             val rawJson = manifestBytes.toString(Charsets.UTF_8)
-            val manifest = UpdateManifestCodec.decode(rawJson)
-            require(
-                manifest.apk.certificateSha256 == BuildConfig.DEVELOPMENT_CERT_SHA256.normalizedSha256(),
-            ) { "更新清单声明了错误的 APK 证书。" }
+            val manifest = UpdateManifestCodec.decode(rawJson, BuildConfig.UPDATE_RELEASE_BASE_URL)
+            require(manifest.apk.certificateSha256 == BuildConfig.DEVELOPMENT_CERT_SHA256.normalizedSha256()) {
+                "更新清单声明了错误的 APK 证书。"
+            }
 
             val now = System.currentTimeMillis()
             preferences.setLastChecked(now)

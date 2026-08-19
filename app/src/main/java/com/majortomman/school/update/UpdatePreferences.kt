@@ -1,6 +1,7 @@
 package com.majortomman.school.update
 
 import android.content.Context
+import com.majortomman.school.BuildConfig
 
 internal class UpdatePreferences(context: Context) {
     private val preferences = context.getSharedPreferences("school_updates", Context.MODE_PRIVATE)
@@ -28,7 +29,7 @@ internal class UpdatePreferences(context: Context) {
     }
 
     fun cachedManifest(): UpdateManifest? = preferences.getString(KEY_MANIFEST, null)
-        ?.let { runCatching { UpdateManifestCodec.decode(it) }.getOrNull() }
+        ?.let { runCatching { UpdateManifestCodec.decode(it, BuildConfig.UPDATE_RELEASE_BASE_URL) }.getOrNull() }
 
     fun setSnoozeUntil(timestamp: Long) {
         preferences.edit().putLong(KEY_SNOOZE_UNTIL, timestamp).apply()

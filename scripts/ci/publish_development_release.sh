@@ -3,10 +3,12 @@ set -euo pipefail
 
 : "${GH_TOKEN:?缺少 GH_TOKEN}"
 : "${VERSION_NAME:?缺少 VERSION_NAME}"
+: "${GITHUB_REPOSITORY:?缺少 GITHUB_REPOSITORY}"
+: "${DEVELOPMENT_RELEASE_TAG:?缺少 DEVELOPMENT_RELEASE_TAG}"
 
-repo="${GITHUB_REPOSITORY:-MajorTomMan/School}"
+repo="$GITHUB_REPOSITORY"
 sha="${GITHUB_SHA:-$(git rev-parse HEAD)}"
-tag="${DEVELOPMENT_RELEASE_TAG:-dev-latest}"
+tag="$DEVELOPMENT_RELEASE_TAG"
 title="School ${VERSION_NAME}"
 notes_file=".release-notes/current.md"
 assets=(dist/school-debug.apk dist/school-debug.apk.sha256 dist/update-manifest.json dist/update-manifest.sig)

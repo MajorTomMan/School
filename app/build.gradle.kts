@@ -79,10 +79,15 @@ val firebaseProjectId = resolvedSetting("SCHOOL_FIREBASE_PROJECT_ID", "schoolFir
 val firebaseApplicationId = resolvedSetting("SCHOOL_FIREBASE_APPLICATION_ID", "schoolFirebaseApplicationId")
 val firebaseApiKey = resolvedSetting("SCHOOL_FIREBASE_API_KEY", "schoolFirebaseApiKey")
 val firebaseSenderId = resolvedSetting("SCHOOL_FIREBASE_SENDER_ID", "schoolFirebaseSenderId")
-val firebaseUpdateTopic = resolvedSetting("SCHOOL_FIREBASE_UPDATE_TOPIC", "schoolFirebaseUpdateTopic").ifBlank { "school_dev_update" }
-// Production course content is distributed outside Git and defaults to the stable public channel.
-val stableCourseManifestUrl = "https://course.flashnamesl.workers.dev/cloud/course/public/stable/manifest.json"
-val courseManifestUrl = resolvedSetting("SCHOOL_COURSE_MANIFEST_URL", "schoolCourseManifestUrl").ifBlank { stableCourseManifestUrl }
+val firebaseUpdateTopic = resolvedSetting("SCHOOL_FIREBASE_UPDATE_TOPIC", "schoolFirebaseUpdateTopic").ifBlank {
+    error("缺少 schoolFirebaseUpdateTopic")
+}
+val updateReleaseBaseUrl = resolvedSetting("SCHOOL_UPDATE_RELEASE_BASE_URL", "schoolUpdateReleaseBaseUrl").ifBlank {
+    error("缺少 schoolUpdateReleaseBaseUrl")
+}.trimEnd('/')
+val courseManifestUrl = resolvedSetting("SCHOOL_COURSE_MANIFEST_URL", "schoolCourseManifestUrl").ifBlank {
+    error("缺少 schoolCourseManifestUrl")
+}
 val updatePushEnabled = listOf(firebaseProjectId, firebaseApplicationId, firebaseApiKey, firebaseSenderId).all(String::isNotBlank)
 
 android {
@@ -95,8 +100,9 @@ android {
         targetSdk = 36
         versionCode = resolvedVersionCode
         versionName = resolvedVersionName
-        buildConfigField("String", "UPDATE_MANIFEST_URL", "https://github.com/MajorTomMan/school/releases/download/dev-latest/update-manifest.json".asBuildConfigString())
-        buildConfigField("String", "UPDATE_SIGNATURE_URL", "https://github.com/MajorTomMan/school/releases/download/dev-latest/update-manifest.sig".asBuildConfigString())
+        buildConfigField("String", "UPDATE_RELEASE_BASE_URL", updateReleaseBaseUrl.asBuildConfigString())
+        buildConfigField("String", "UPDATE_MANIFEST_URL", "$updateReleaseBaseUrl/update-manifest.json".asBuildConfigString())
+        buildConfigField("String", "UPDATE_SIGNATURE_URL", "$updateReleaseBaseUrl/update-manifest.sig".asBuildConfigString())
         buildConfigField("String", "COURSE_MANIFEST_URL", courseManifestUrl.asBuildConfigString())
         buildConfigField("String", "UPDATE_PUBLIC_KEY_BASE64", updatePublicKey.asBuildConfigString())
         buildConfigField("String", "DEVELOPMENT_CERT_SHA256", developmentCertificate.asBuildConfigString())

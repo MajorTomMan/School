@@ -2,34 +2,72 @@
 set -euo pipefail
 
 version_file="${1:-version.properties}"
+gradle_properties_file="gradle.properties"
 
 read_property() {
-  local key="$1"
-  sed -n "s/^${key}=//p" "$version_file" | tail -n1 | tr -d '[:space:]'
+  local file="$1"
+  local key="$2"
+  sed -n "s/^${key}=//p" "$file" | tail -n1 | tr -d '[:space:]'
 }
 
 if [[ ! -f "$version_file" ]]; then
   echo "版本文件不存在：$version_file" >&2
   return 1 2>/dev/null || exit 1
 fi
+if [[ ! -f "$gradle_properties_file" ]]; then
+  echo "Gradle 配置不存在：$gradle_properties_file" >&2
+  return 1 2>/dev/null || exit 1
+fi
 
-VERSION_NAME="$(read_property VERSION_NAME)"
-VERSION_CODE="$(read_property VERSION_CODE)"
+VERSION_NAME="$(read_property "$version_file" VERSION_NAME)"
+VERSION_CODE="$(read_property "$version_file" VERSION_CODE)"
+SCHOOL_UPDATE_RELEASE_BASE_URL="${SCHOOL_UPDATE_RELEASE_BASE_URL:-$(read_property "$gradle_properties_file" schoolUpdateReleaseBaseUrl)}"
 
 if ! [[ "$VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "VERSION_NAME 必须使用 x.y.z 格式" >&2
   return 1 2>/dev/null || exit 1
 fi
-
 if ! [[ "$VERSION_CODE" =~ ^[1-9][0-9]*$ ]]; then
   echo "VERSION_CODE 必须是正整数" >&2
   return 1 2>/dev/null || exit 1
 fi
+if [[ -z "$SCHOOL_UPDATE_RELEASE_BASE_URL" ]]; then
+  echo "缺少 schoolUpdateReleaseBaseUrl" >&2
+  return 1 2>/dev/null || exit 1
+fi
 
-export VERSION_NAME VERSION_CODE
+release_base="${SCHOOL_UPDATE_RELEASE_BASE_URL%/}"
+DEVELOPMENT_RELEASE_TAG="${DEVELOPMENT_RELEASE_TAG:-${release_base##*/}}"
+if ! [[ "$DEVELOPMENT_RELEASE_TAG" =~ ^[A-Za-z0-9._-]+$ ]]; then
+  echo "Development Release tag 无效：$DEVELOPMENT_RELEASE_TAG" >&2
+  return 1 2>/dev/null || exit 1
+fi
+
+ANDROID_VERSION_CODE="$VERSION_CODE"
+if [[ -n "${GITHUB_RUN_NUMBER:-}" ]]; then
+  if ! [[ "$GITHUB_RUN_NUMBER" =~ ^[1-9][0-9]*$ ]] || (( GITHUB_RUN_NUMBER >= 100000 )); then
+    echo "GITHUB_RUN_NUMBER 必须是 1..99999" >&2
+    return 1 2>/dev/null || exit 1
+  fi
+  ANDROID_VERSION_CODE=$((VERSION_CODE * 100000 + GITHUB_RUN_NUMBER))
+fi
+if (( ANDROID_VERSION_CODE > 2100000000 )); then
+  echo "Android versionCode 超出安全范围：$ANDROID_VERSION_CODE" >&2
+  return 1 2>/dev/null || exit 1
+fi
+
+SCHOOL_VERSION_NAME="$VERSION_NAME"
+SCHOOL_VERSION_CODE="$ANDROID_VERSION_CODE"
+export VERSION_NAME VERSION_CODE ANDROID_VERSION_CODE SCHOOL_VERSION_NAME SCHOOL_VERSION_CODE SCHOOL_UPDATE_RELEASE_BASE_URL DEVELOPMENT_RELEASE_TAG
+
 if [[ -n "${GITHUB_ENV:-}" ]]; then
   echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
   echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
+  echo "ANDROID_VERSION_CODE=$ANDROID_VERSION_CODE" >> "$GITHUB_ENV"
+  echo "SCHOOL_VERSION_NAME=$SCHOOL_VERSION_NAME" >> "$GITHUB_ENV"
+  echo "SCHOOL_VERSION_CODE=$SCHOOL_VERSION_CODE" >> "$GITHUB_ENV"
+  echo "SCHOOL_UPDATE_RELEASE_BASE_URL=$SCHOOL_UPDATE_RELEASE_BASE_URL" >> "$GITHUB_ENV"
+  echo "DEVELOPMENT_RELEASE_TAG=$DEVELOPMENT_RELEASE_TAG" >> "$GITHUB_ENV"
 fi
 
-echo "App 版本：$VERSION_NAME ($VERSION_CODE)"
+echo "App 版本：$VERSION_NAME (release=$VERSION_CODE, android=$ANDROID_VERSION_CODE)"

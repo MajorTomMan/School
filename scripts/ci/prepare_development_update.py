@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[2]
 DIST = ROOT / "dist"
@@ -16,14 +17,41 @@ APK_SOURCE = ROOT / "app/build/outputs/apk/debug/app-debug.apk"
 APK_OUTPUT = DIST / "school-debug.apk"
 
 
+def read_gradle_property(name):
+    properties = ROOT / "gradle.properties"
+    if not properties.is_file():
+        raise SystemExit(f"Gradle 配置不存在：{properties}")
+    prefix = f"{name}="
+    for line in properties.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if stripped.startswith(prefix):
+            return stripped[len(prefix):].strip()
+    return ""
+
+
 def require_version():
     version_name = os.environ.get("VERSION_NAME", "").strip()
-    version_code_text = os.environ.get("VERSION_CODE", "").strip()
+    version_code_text = (
+        os.environ.get("ANDROID_VERSION_CODE", "").strip()
+        or os.environ.get("SCHOOL_VERSION_CODE", "").strip()
+        or os.environ.get("VERSION_CODE", "").strip()
+    )
     if not re.fullmatch(r"\d+\.\d+\.\d+", version_name):
         raise SystemExit("VERSION_NAME 必须使用 x.y.z 格式")
     if not version_code_text.isdigit() or int(version_code_text) <= 0:
-        raise SystemExit("VERSION_CODE 必须是正整数")
+        raise SystemExit("Android versionCode 必须是正整数")
     return version_name, int(version_code_text)
+
+
+def require_release_base_url():
+    base_url = os.environ.get("SCHOOL_UPDATE_RELEASE_BASE_URL", "").strip() or read_gradle_property("schoolUpdateReleaseBaseUrl")
+    base_url = base_url.rstrip("/")
+    parsed = urlparse(base_url)
+    if parsed.scheme.lower() != "https" or parsed.hostname is None or parsed.hostname.lower() != "github.com":
+        raise SystemExit("schoolUpdateReleaseBaseUrl 必须是 GitHub HTTPS Release 地址")
+    if "/releases/download/" not in parsed.path or parsed.query or parsed.fragment:
+        raise SystemExit("schoolUpdateReleaseBaseUrl 格式无效")
+    return base_url
 
 
 def sha256(path):
@@ -76,6 +104,7 @@ def sign_manifest(manifest_path):
 
 def main():
     version_name, version_code = require_version()
+    release_base_url = require_release_base_url()
     if not APK_SOURCE.is_file():
         raise SystemExit(f"Debug APK 不存在：{APK_SOURCE}")
 
@@ -85,8 +114,6 @@ def main():
     (DIST / "school-debug.apk.sha256").write_text(f"{apk_sha256}  dist/school-debug.apk\n", encoding="utf-8")
 
     certificate_sha256 = (ROOT / "signing/school-development.cert.sha256").read_text(encoding="utf-8").strip().replace(":", "").lower()
-    repository = os.environ.get("GITHUB_REPOSITORY", "MajorTomMan/School")
-    tag = os.environ.get("DEVELOPMENT_RELEASE_TAG", "dev-latest")
     manifest = {
         "schemaVersion": 1,
         "channel": "development",
@@ -99,7 +126,7 @@ def main():
         "fixes": [],
         "apk": {
             "fileName": "school-debug.apk",
-            "downloadUrl": f"https://github.com/{repository}/releases/download/{tag}/school-debug.apk",
+            "downloadUrl": f"{release_base_url}/school-debug.apk",
             "size": APK_OUTPUT.stat().st_size,
             "sha256": apk_sha256,
             "certificateSha256": certificate_sha256,

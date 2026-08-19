@@ -3,8 +3,9 @@ set -euo pipefail
 
 : "${VERSION_NAME:?缺少 VERSION_NAME}"
 : "${VERSION_CODE:?缺少 VERSION_CODE}"
+: "${DEVELOPMENT_RELEASE_TAG:?缺少 DEVELOPMENT_RELEASE_TAG}"
 
-tag="${DEVELOPMENT_RELEASE_TAG:-dev-latest}"
+tag="$DEVELOPMENT_RELEASE_TAG"
 version_changed=false
 code_changed=false
 should_publish=false
