@@ -1,7 +1,6 @@
 package com.majortomman.school.update
 
 import android.content.Context
-import com.majortomman.school.BuildConfig
 
 internal class UpdatePreferences(context: Context) {
     private val preferences = context.getSharedPreferences("school_updates", Context.MODE_PRIVATE)
@@ -24,12 +23,15 @@ internal class UpdatePreferences(context: Context) {
         preferences.edit().putLong(KEY_LAST_CHECKED, timestamp).apply()
     }
 
-    fun cacheManifest(rawJson: String) {
-        preferences.edit().putString(KEY_MANIFEST, rawJson).apply()
+    fun cacheManifest(rawJson: String, releaseBaseUrl: String) {
+        preferences.edit().putString(KEY_MANIFEST, rawJson).putString(KEY_MANIFEST_RELEASE_BASE_URL, releaseBaseUrl).apply()
     }
 
-    fun cachedManifest(): UpdateManifest? = preferences.getString(KEY_MANIFEST, null)
-        ?.let { runCatching { UpdateManifestCodec.decode(it, BuildConfig.UPDATE_RELEASE_BASE_URL) }.getOrNull() }
+    fun cachedManifest(): UpdateManifest? {
+        val rawJson = preferences.getString(KEY_MANIFEST, null) ?: return null
+        val releaseBaseUrl = preferences.getString(KEY_MANIFEST_RELEASE_BASE_URL, null) ?: return null
+        return runCatching { UpdateManifestCodec.decode(rawJson, releaseBaseUrl) }.getOrNull()
+    }
 
     fun setSnoozeUntil(timestamp: Long) {
         preferences.edit().putLong(KEY_SNOOZE_UNTIL, timestamp).apply()
@@ -44,10 +46,7 @@ internal class UpdatePreferences(context: Context) {
     fun ignoredVersion(): Long = preferences.getLong(KEY_IGNORED_VERSION, 0L)
 
     fun saveDownloadedApk(versionCode: Long, path: String) {
-        preferences.edit()
-            .putLong(KEY_DOWNLOADED_VERSION, versionCode)
-            .putString(KEY_DOWNLOADED_PATH, path)
-            .apply()
+        preferences.edit().putLong(KEY_DOWNLOADED_VERSION, versionCode).putString(KEY_DOWNLOADED_PATH, path).apply()
     }
 
     fun downloadedApk(versionCode: Long): String? {
@@ -70,6 +69,7 @@ internal class UpdatePreferences(context: Context) {
         const val KEY_WIFI_ONLY = "wifi_only"
         const val KEY_LAST_CHECKED = "last_checked"
         const val KEY_MANIFEST = "manifest"
+        const val KEY_MANIFEST_RELEASE_BASE_URL = "manifest_release_base_url"
         const val KEY_SNOOZE_UNTIL = "snooze_until"
         const val KEY_IGNORED_VERSION = "ignored_version"
         const val KEY_DOWNLOADED_VERSION = "downloaded_version"

@@ -59,32 +59,19 @@ if (!developmentKeystore.isFile || developmentKeystore.length() == 0L) {
     developmentKeystore.writeBytes(Base64.getDecoder().decode(encoded))
 }
 
-val resolvedVersionCode = providers.environmentVariable("SCHOOL_VERSION_CODE")
-    .orNull
-    ?.toIntOrNull()
-    ?: declaredVersionCode
-val resolvedVersionName = providers.environmentVariable("SCHOOL_VERSION_NAME")
-    .orNull
-    ?.takeIf(String::isNotBlank)
-    ?: declaredVersionName
+val resolvedVersionCode = providers.environmentVariable("SCHOOL_VERSION_CODE").orNull?.toIntOrNull() ?: declaredVersionCode
+val resolvedVersionName = providers.environmentVariable("SCHOOL_VERSION_NAME").orNull?.takeIf(String::isNotBlank) ?: declaredVersionName
 val updatePublicKey = updatePublicKeySource.readText(Charsets.UTF_8).filterNot(Char::isWhitespace)
-val developmentCertificate = developmentCertificateSource.readText(Charsets.UTF_8)
-    .lowercase()
-    .filter(Char::isLetterOrDigit)
+val developmentCertificate = developmentCertificateSource.readText(Charsets.UTF_8).lowercase().filter(Char::isLetterOrDigit)
 
 val firebaseProjectId = resolvedSetting("SCHOOL_FIREBASE_PROJECT_ID", "schoolFirebaseProjectId")
 val firebaseApplicationId = resolvedSetting("SCHOOL_FIREBASE_APPLICATION_ID", "schoolFirebaseApplicationId")
 val firebaseApiKey = resolvedSetting("SCHOOL_FIREBASE_API_KEY", "schoolFirebaseApiKey")
 val firebaseSenderId = resolvedSetting("SCHOOL_FIREBASE_SENDER_ID", "schoolFirebaseSenderId")
-val firebaseUpdateTopic = resolvedSetting("SCHOOL_FIREBASE_UPDATE_TOPIC", "schoolFirebaseUpdateTopic").ifBlank {
-    error("缺少 schoolFirebaseUpdateTopic")
-}
-val updateReleaseBaseUrl = resolvedSetting("SCHOOL_UPDATE_RELEASE_BASE_URL", "schoolUpdateReleaseBaseUrl").ifBlank {
-    error("缺少 schoolUpdateReleaseBaseUrl")
-}.trimEnd('/')
-val courseManifestUrl = resolvedSetting("SCHOOL_COURSE_MANIFEST_URL", "schoolCourseManifestUrl").ifBlank {
-    error("缺少 schoolCourseManifestUrl")
-}
+val firebaseUpdateTopic = resolvedSetting("SCHOOL_FIREBASE_UPDATE_TOPIC", "schoolFirebaseUpdateTopic").ifBlank { error("缺少 schoolFirebaseUpdateTopic") }
+val updateDiscoveryUrl = resolvedSetting("SCHOOL_UPDATE_DISCOVERY_URL", "schoolUpdateDiscoveryUrl")
+val defaultUpdateReleaseBaseUrl = resolvedSetting("SCHOOL_UPDATE_RELEASE_BASE_URL", "schoolUpdateReleaseBaseUrl").ifBlank { error("缺少 schoolUpdateReleaseBaseUrl") }.trimEnd('/')
+val courseManifestUrl = resolvedSetting("SCHOOL_COURSE_MANIFEST_URL", "schoolCourseManifestUrl").ifBlank { error("缺少 schoolCourseManifestUrl") }
 val updatePushEnabled = listOf(firebaseProjectId, firebaseApplicationId, firebaseApiKey, firebaseSenderId).all(String::isNotBlank)
 
 android {
@@ -97,9 +84,8 @@ android {
         targetSdk = 36
         versionCode = resolvedVersionCode
         versionName = resolvedVersionName
-        buildConfigField("String", "UPDATE_RELEASE_BASE_URL", updateReleaseBaseUrl.asBuildConfigString())
-        buildConfigField("String", "UPDATE_MANIFEST_URL", "$updateReleaseBaseUrl/update-manifest.json".asBuildConfigString())
-        buildConfigField("String", "UPDATE_SIGNATURE_URL", "$updateReleaseBaseUrl/update-manifest.sig".asBuildConfigString())
+        buildConfigField("String", "UPDATE_DISCOVERY_URL", updateDiscoveryUrl.asBuildConfigString())
+        buildConfigField("String", "DEFAULT_UPDATE_RELEASE_BASE_URL", defaultUpdateReleaseBaseUrl.asBuildConfigString())
         buildConfigField("String", "COURSE_MANIFEST_URL", courseManifestUrl.asBuildConfigString())
         buildConfigField("String", "UPDATE_PUBLIC_KEY_BASE64", updatePublicKey.asBuildConfigString())
         buildConfigField("String", "DEVELOPMENT_CERT_SHA256", developmentCertificate.asBuildConfigString())

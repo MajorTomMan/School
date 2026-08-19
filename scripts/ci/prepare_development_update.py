@@ -31,15 +31,11 @@ def read_gradle_property(name):
 
 def require_version():
     version_name = os.environ.get("VERSION_NAME", "").strip()
-    version_code_text = (
-        os.environ.get("ANDROID_VERSION_CODE", "").strip()
-        or os.environ.get("SCHOOL_VERSION_CODE", "").strip()
-        or os.environ.get("VERSION_CODE", "").strip()
-    )
+    version_code_text = os.environ.get("VERSION_CODE", "").strip()
     if not re.fullmatch(r"\d+\.\d+\.\d+", version_name):
         raise SystemExit("VERSION_NAME 必须使用 x.y.z 格式")
     if not version_code_text.isdigit() or int(version_code_text) <= 0:
-        raise SystemExit("Android versionCode 必须是正整数")
+        raise SystemExit("VERSION_CODE 必须是正整数")
     return version_name, int(version_code_text)
 
 
@@ -47,8 +43,8 @@ def require_release_base_url():
     base_url = os.environ.get("SCHOOL_UPDATE_RELEASE_BASE_URL", "").strip() or read_gradle_property("schoolUpdateReleaseBaseUrl")
     base_url = base_url.rstrip("/")
     parsed = urlparse(base_url)
-    if parsed.scheme.lower() != "https" or parsed.hostname is None or parsed.hostname.lower() != "github.com":
-        raise SystemExit("schoolUpdateReleaseBaseUrl 必须是 GitHub HTTPS Release 地址")
+    if parsed.scheme != "https" or parsed.hostname != "github.com":
+        raise SystemExit("默认更新 Release 必须是 GitHub HTTPS 地址")
     if "/releases/download/" not in parsed.path or parsed.query or parsed.fragment:
         raise SystemExit("schoolUpdateReleaseBaseUrl 格式无效")
     return base_url
