@@ -18,7 +18,7 @@ data class InstalledCourse(
     val grade: String get() = document.textbook.grade
     val semester: String get() = document.textbook.semester
     val pdfFile: File get() = File(rootPath, document.textbook.pdf.path)
-    val lessons: List<CourseLesson> get() = document.lessons()
+    val lessons: List<CourseLesson> get() = document.chapters.flatMap { chapter -> chapter.sections.flatMap { section -> section.lessons } }
 
     fun printedPageToPdfIndex(printedPage: Int): Int = printedPage - document.textbook.pdf.pageIndexOffset
 
