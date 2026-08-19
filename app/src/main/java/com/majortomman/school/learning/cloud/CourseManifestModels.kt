@@ -49,9 +49,7 @@ internal data class LocalCourseFileState(
 
 internal sealed interface CourseUpdatePlan {
     data object None : CourseUpdatePlan
-
     data class Full(val reason: String) : CourseUpdatePlan
-
     data class Incremental(
         val changedFiles: List<CourseFileSpec>,
         val deletedFiles: List<String>,
@@ -98,12 +96,8 @@ internal object CourseManifestCodec {
             val files = textbook.getJSONArray("files").manifestObjects().map(::decodeFile)
             require(files.isNotEmpty()) { "课程 $id 不包含文件" }
             require(files.map(CourseFileSpec::path).distinct().size == files.size) { "课程 $id 包含重复文件路径" }
-            require(files.any { it.path == COURSE_FILE_NAME && it.bundled }) {
-                "课程 $id 必须在完整包中包含 $COURSE_FILE_NAME"
-            }
-            require(files.filterNot(CourseFileSpec::bundled).all { it.url.isNotBlank() }) {
-                "课程 $id 的外部文件缺少下载地址"
-            }
+            require(files.any { it.path == COURSE_FILE_NAME && it.bundled }) { "课程 $id 必须在完整包中包含 $COURSE_FILE_NAME" }
+            require(files.filterNot(CourseFileSpec::bundled).all { it.url.isNotBlank() }) { "课程 $id 的外部文件缺少下载地址" }
             CourseTextbookManifest(
                 id = id,
                 packageFile = decodeArchive(textbook.getJSONObject("package")).also {
@@ -113,9 +107,7 @@ internal object CourseManifestCodec {
                 files = files,
             )
         }
-        require(textbooks.map(CourseTextbookManifest::id).distinct().size == textbooks.size) {
-            "课程清单包含重复教材 ID"
-        }
+        require(textbooks.map(CourseTextbookManifest::id).distinct().size == textbooks.size) { "课程清单包含重复教材 ID" }
         return CourseManifest(textbooks)
     }
 
@@ -147,7 +139,6 @@ internal object CourseManifestCodec {
         return JSONObject().put("files", files).toString(2)
     }
 
-
     private fun decodeArchive(json: JSONObject): CourseArchiveSpec {
         json.requireManifestKeys("path", "url", "size", "sha256")
         return CourseArchiveSpec(
@@ -161,9 +152,7 @@ internal object CourseManifestCodec {
     private fun decodeFile(json: JSONObject): CourseFileSpec {
         json.requireManifestKeys("path", "url", "size", "sha256", "bundled")
         val path = validateRelativePath(json.getString("path"))
-        require(path !in RESERVED_COURSE_PATHS && RESERVED_COURSE_PREFIXES.none(path::startsWith)) {
-            "课程文件占用了 APK 保留路径：$path"
-        }
+        require(path !in RESERVED_COURSE_PATHS) { "课程文件占用了 APK 保留路径：$path" }
         return CourseFileSpec(
             path = path,
             url = json.optString("url").trim(),
@@ -175,16 +164,13 @@ internal object CourseManifestCodec {
 
     private const val COURSE_FILE_NAME = "course.json"
     private val RESERVED_COURSE_PATHS = setOf(".course-state.json")
-    private val RESERVED_COURSE_PREFIXES = setOf("generated/")
 }
 
 internal fun validateRelativePath(value: String): String {
     val normalized = value.trim().replace('\\', '/')
     require(normalized.isNotBlank()) { "课程文件路径不能为空" }
     require(!normalized.startsWith('/')) { "课程文件路径不能是绝对路径：$normalized" }
-    require(normalized.split('/').none { it.isBlank() || it == "." || it == ".." }) {
-        "课程文件路径不安全：$normalized"
-    }
+    require(normalized.split('/').none { it.isBlank() || it == "." || it == ".." }) { "课程文件路径不安全：$normalized" }
     return normalized
 }
 
