@@ -21,7 +21,6 @@ import kotlinx.coroutines.withContext
 
 object CourseSyncManager {
     const val LOG_TAG = "SchoolCourseSync"
-
     private val syncMutex = Mutex()
 
     suspend fun checkForUpdates(
@@ -67,9 +66,6 @@ object CourseSyncManager {
         }
     }
 
-    suspend fun syncOnStartup(context: Context): CourseSyncResult =
-        syncAfterConfirmation(context, onProgress = {})
-
     suspend fun syncAfterConfirmation(
         context: Context,
         textbookIds: Set<String> = emptySet(),
@@ -111,8 +107,7 @@ object CourseSyncManager {
                         is CourseUpdatePlan.Incremental -> {
                             Log.i(
                                 LOG_TAG,
-                                "incremental update ${remote.id}: ${plan.changedFiles.size} changed, " +
-                                    "${plan.deletedFiles.size} deleted",
+                                "incremental update ${remote.id}: ${plan.changedFiles.size} changed, ${plan.deletedFiles.size} deleted",
                             )
                             runCatching {
                                 store.installIncremental(remote, plan) { file, destination ->
@@ -130,7 +125,7 @@ object CourseSyncManager {
                 }
 
                 tracker.complete("正在校验并启用课程")
-                if (updatedCount > 0) CloudCourseRepository.markContentChanged()
+                if (updatedCount > 0) CourseLibraryRepository.refresh(appContext)
                 CourseSyncResult.Success(updatedCount)
             }.getOrElse { error ->
                 error.rethrowCancellation()
@@ -162,9 +157,7 @@ object CourseSyncManager {
             .mapNotNull { remote ->
                 val local = store.readLocalState(remote.id)
                 val plan = CourseUpdatePlanner.plan(remote, local)
-                plan.takeUnless { it == CourseUpdatePlan.None }?.let {
-                    PlannedCourseUpdate(remote, local, it)
-                }
+                plan.takeUnless { it == CourseUpdatePlan.None }?.let { PlannedCourseUpdate(remote, local, it) }
             }
             .toList()
     }
@@ -195,17 +188,10 @@ object CourseSyncManager {
         )
     }
 
-    private fun estimatedFullTransferBytes(
-        remote: CourseTextbookManifest,
-        local: LocalCourseState?,
-    ): Long {
+    private fun estimatedFullTransferBytes(remote: CourseTextbookManifest, local: LocalCourseState?): Long {
         val externalBytes = remote.files
             .filterNot(CourseFileSpec::bundled)
-            .filter { file ->
-                local?.files?.get(file.path)?.let { state ->
-                    state.size == file.size && state.sha256 == file.sha256
-                } != true
-            }
+            .filter { file -> local?.files?.get(file.path)?.let { state -> state.size == file.size && state.sha256 == file.sha256 } != true }
             .sumOf(CourseFileSpec::size)
         return remote.packageFile.size + externalBytes
     }
@@ -220,9 +206,7 @@ object CourseSyncManager {
         var installed = false
         try {
             downloadToFile(context, remote.packageFile, packageFile, tracker)
-            store.installFull(remote, packageFile) { file, destination ->
-                downloadToFile(context, file, destination, tracker)
-            }
+            store.installFull(remote, packageFile) { file, destination -> downloadToFile(context, file, destination, tracker) }
             installed = true
         } finally {
             if (installed) packageFile.delete()
@@ -238,9 +222,7 @@ object CourseSyncManager {
     ) {
         require(spec.url.isNotBlank()) { "课程文件 ${spec.path} 缺少下载地址" }
         destination.parentFile?.mkdirs()
-        if (!destination.isFile || destination.length() > spec.size || !allowResume) {
-            destination.delete()
-        }
+        if (!destination.isFile || destination.length() > spec.size || !allowResume) destination.delete()
 
         var existingBytes = destination.takeIf(File::isFile)?.length() ?: 0L
         if (existingBytes == spec.size) {
@@ -326,21 +308,15 @@ object CourseSyncManager {
     }
 
     private fun validateContentRange(header: String?, expectedStart: Long, expectedTotal: Long) {
-        val match = header?.let { CONTENT_RANGE_PATTERN.matchEntire(it.trim()) }
-            ?: error("课程服务器返回了无效的 Content-Range")
+        val match = header?.let { CONTENT_RANGE_PATTERN.matchEntire(it.trim()) } ?: error("课程服务器返回了无效的 Content-Range")
         require(match.groupValues[1].toLong() == expectedStart) { "课程断点续传起点不一致" }
         val total = match.groupValues[3]
         require(total == "*" || total.toLong() == expectedTotal) { "课程断点续传总大小不一致" }
     }
 
-    private fun downloadManifest(context: Context, url: String): CourseManifest =
-        CourseManifestCodec.decode(
-            downloadBytes(
-                context = context,
-                url = url,
-                maximumBytes = MAX_MANIFEST_BYTES,
-            ).toString(Charsets.UTF_8),
-        )
+    private fun downloadManifest(context: Context, url: String): CourseManifest = CourseManifestCodec.decode(
+        downloadBytes(context = context, url = url, maximumBytes = MAX_MANIFEST_BYTES).toString(Charsets.UTF_8),
+    )
 
     private fun downloadBytes(context: Context, url: String, maximumBytes: Int): ByteArray {
         val connection = AppProxy.openConnection(
