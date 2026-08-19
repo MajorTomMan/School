@@ -16,11 +16,8 @@ java {
 fun String.asBuildConfigString(): String = "\"" + replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 fun resolvedSetting(environmentName: String, propertyName: String): String =
-    providers.environmentVariable(environmentName)
-        .orElse(providers.gradleProperty(propertyName))
-        .orNull
-        ?.trim()
-        .orEmpty()
+    providers.environmentVariable(environmentName).orNull?.trim()?.takeIf(String::isNotEmpty)
+        ?: providers.gradleProperty(propertyName).orNull?.trim().orEmpty()
 
 val versionPropertiesFile = rootProject.file("version.properties")
 check(versionPropertiesFile.isFile) {
