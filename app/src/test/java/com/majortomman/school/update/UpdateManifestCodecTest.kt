@@ -6,19 +6,19 @@ import org.junit.Test
 
 class UpdateManifestCodecTest {
     @Test
-    fun decodesSignedReleaseManifestShape() {
+    fun decodesReleaseManifestStructure() {
         val manifest = UpdateManifestCodec.decode(
             """
             {
               "schemaVersion":1,
               "channel":"development",
               "versionCode":100208,
-              "versionName":"0.21.0+dev.208",
+              "versionName":"0.21.0",
               "minimumSupportedVersionCode":0,
               "mandatory":false,
               "publishedAt":"2026-07-17T12:00:00Z",
-              "changes":["新增应用内升级"],
-              "fixes":["修复签名冲突"],
+              "changes":["change"],
+              "fixes":["fix"],
               "apk":{
                 "fileName":"school-debug.apk",
                 "downloadUrl":"https://github.com/MajorTomMan/school/releases/download/dev-latest/school-debug.apk",
@@ -31,8 +31,8 @@ class UpdateManifestCodecTest {
         )
 
         assertEquals(100208L, manifest.versionCode)
-        assertEquals(listOf("新增应用内升级"), manifest.changes)
-        assertEquals(listOf("修复签名冲突"), manifest.fixes)
+        assertEquals(listOf("change"), manifest.changes)
+        assertEquals(listOf("fix"), manifest.fixes)
     }
 
     @Test
@@ -44,7 +44,7 @@ class UpdateManifestCodecTest {
                   "schemaVersion":1,
                   "channel":"development",
                   "versionCode":2,
-                  "versionName":"2",
+                  "versionName":"0.0.2",
                   "apk":{
                     "fileName":"school.apk",
                     "downloadUrl":"https://example.com/school.apk",
