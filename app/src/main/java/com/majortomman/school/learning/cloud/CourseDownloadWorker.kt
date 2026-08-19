@@ -57,7 +57,6 @@ class CourseDownloadWorker(
                 Result.failure(resultData(error = message))
             }
             is CourseSyncResult.Success -> {
-                CloudCourseRepository.markContentChanged()
                 CourseLibraryRepository.refresh(applicationContext)
                 CourseDownloadCoordinator.reportSuccess(operationId, result.updatedTextbooks)
                 val message = if (result.updatedTextbooks > 0) {
