@@ -138,7 +138,290 @@ https://course.flashnamesl.workers.dev/cloud/course/public/releases/<release-id>
 
 如果当前 Agent 执行环境没有 R2/Worker 写权限或缺少 `R2_SECRET_ACCESS_KEY` / `COURSE_API_TOKEN`，不得创建新的发布 CI、替代脚本或把 Secret 降级存入 Repository Variables 来绕过限制；应继续使用 `scripts/course_r2_manager.py` 并明确报告缺少的授权，由具备授权的环境执行。
 
-## 7. 数字课本编写原则
+## 7. 课程包格式规范
+
+本节是 authored course 与远端 release artifact 的长期标准模板。真实约束仍以 App 当前 parser、staging validator 和下载器代码为最终事实源；修改课程运行契约时必须同步更新本节，禁止让长期说明与运行时代码分叉。
+
+### 7.1 Release 目录与文件职责
+
+课程制作和发布产物只存在于仓库外临时工作区以及 R2 immutable release 中。推荐 release artifact 结构：
+
+```text
+<release-root>/
+├── manifest.json
+└── courses/
+    └── <course-id>/
+        ├── package/
+        │   └── <course-id>.zip
+        └── assets/
+            ├── textbook.pdf
+            └── ...
+```
+
+职责固定为：
+
+- `manifest.json`：整个 release 的远端索引，描述教材 ID、完整 ZIP、最终安装文件集合、URL、文件大小、SHA-256 和 `bundled` 状态。
+- `<course-id>.zip`：只携带 `manifest.json` 中该教材 `bundled=true` 的文件，不能多文件也不能少文件。
+- `course.json`：课程主体，必须位于最终教材安装目录根部，且必须声明为 `bundled=true`。
+- `assets/textbook.pdf`：教材 PDF。推荐作为 `bundled=false` 的独立对象，避免仅修改课程正文时重复传输大 PDF。
+- `assessments.json`、`knowledge-points.json`：可选正式题库契约；两者必须同时存在或同时不存在。
+- `assets/...`：题目图片等静态资源。大资源推荐 `bundled=false` 独立存储。
+- `.course-state.json`：App 安装后自行生成的本地状态文件，课程 release 和 ZIP 中禁止提供。
+
+最终安装目录由 App 组合 ZIP 和外部文件得到，而不是要求 ZIP 自己包含全部资源：
+
+```text
+course-packs/active/<course-id>/
+├── course.json
+├── assets/
+│   └── textbook.pdf
+├── assessments.json          # 可选
+├── knowledge-points.json     # 可选
+└── .course-state.json        # App 生成
+```
+
+### 7.2 `manifest.json` 契约
+
+顶层只允许 `textbooks`，每本教材只允许 `id`、`package`、`files`。不要加入未被 App parser 接受的描述字段。
+
+结构模板：
+
+```json
+{
+  "textbooks": [
+    {
+      "id": "pep-math-7-1",
+      "package": {
+        "path": "courses/pep-math-7-1/package/pep-math-7-1.zip",
+        "url": "https://course.flashnamesl.workers.dev/cloud/course/public/releases/example-release/courses/pep-math-7-1/package/pep-math-7-1.zip",
+        "size": 12345,
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "files": [
+        {
+          "path": "course.json",
+          "url": "",
+          "size": 2345,
+          "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+          "bundled": true
+        },
+        {
+          "path": "assets/textbook.pdf",
+          "url": "https://course.flashnamesl.workers.dev/cloud/course/public/releases/example-release/courses/pep-math-7-1/assets/textbook.pdf",
+          "size": 12345678,
+          "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+          "bundled": false
+        }
+      ]
+    }
+  ]
+}
+```
+
+上例的大小和 SHA-256 只展示字段形状，不是可发布值。发布前必须根据实际对象重新计算。
+
+硬约束：
+
+- `textbooks` 必须非空，教材 `id` 不能重复。
+- manifest 教材 ID 使用 `[A-Za-z0-9._-]+`；为了同时兼容可选 Assessment 契约，实际 authored course ID 优先使用小写字母开头的 `[a-z][a-z0-9_-]{0,95}`。
+- `package.path` 必须是安全相对路径并以 `.zip` 结尾；`package.url` 不能为空；`package.size > 0`。
+- 所有 SHA-256 都必须是 64 位十六进制字符串。
+- `files` 必须非空，路径不得重复；每项必须完整声明 `path`、`url`、`size`、`sha256`、`bundled`，且 `size > 0`。
+- `course.json` 必须出现在 `files` 中且 `bundled=true`。
+- `bundled=false` 的文件必须提供非空下载 URL。
+- 文件路径必须使用正斜杠相对路径，不允许绝对路径、空路径段、`.` 或 `..`。
+- `.course-state.json` 是 APK 保留路径，课程不得占用。
+
+### 7.3 ZIP 与 `bundled` 规则
+
+`bundled` 表示文件是否物理存在于完整 ZIP 中。完整安装时 App 解压 ZIP 后会比较：
+
+```text
+ZIP 实际文件集合 == manifest.files 中 bundled=true 的文件集合
+```
+
+因此：
+
+- ZIP 中不能额外加入 `README`、缩略图、临时文件或其他未声明内容。
+- `bundled=true` 的文件缺失会导致完整包安装失败。
+- `bundled=false` 文件不应出现在 ZIP 中，由 App 独立下载、校验后组合到 staging。
+- 推荐把 `course.json` 以及体积较小的结构化 JSON 放 ZIP，把 PDF、题目图片、未来的大型音视频资源作为独立文件。
+- 若 `bundled=true` 文件后续变化但自身没有可用 URL，增量计划会退回完整 ZIP 更新；这是允许且符合当前设计的行为。
+- ZIP 解压后的总文件体积不得超过 App 当前限制 2 GiB。
+
+### 7.4 `course.json` 主体契约
+
+顶层固定包含：
+
+```text
+textbook
+knowledgePoints
+chapters
+```
+
+最小结构模板：
+
+```json
+{
+  "textbook": {
+    "id": "pep-math-7-1",
+    "title": "数学七年级上册",
+    "publisher": "人民教育出版社",
+    "edition": "2024",
+    "grade": "七年级",
+    "semester": "上册",
+    "subject": "数学",
+    "pdf": {
+      "path": "assets/textbook.pdf",
+      "pageCount": 202,
+      "pageIndexOffset": 7
+    }
+  },
+  "knowledgePoints": [
+    {
+      "id": "positive-negative",
+      "name": "正数和负数",
+      "description": "表示相反意义的量",
+      "prerequisiteIds": []
+    }
+  ],
+  "chapters": [
+    {
+      "id": "chapter-01",
+      "title": "有理数",
+      "sections": [
+        {
+          "id": "section-01",
+          "title": "正数和负数",
+          "lessons": [
+            {
+              "id": "positive-negative-intro",
+              "title": "为什么需要负数",
+              "aliases": ["正数和负数"],
+              "goals": ["理解相反意义的量"],
+              "knowledgePointIds": ["positive-negative"],
+              "prerequisiteLessonIds": [],
+              "references": [
+                {
+                  "label": "教材1—2页",
+                  "pageStart": 1,
+                  "pageEnd": 2
+                }
+              ],
+              "steps": [
+                {
+                  "type": "question",
+                  "prompt": "低于0℃怎么表示？",
+                  "hint": "想想方向"
+                }
+              ],
+              "practice": [
+                {
+                  "id": "practice-01",
+                  "prompt": "向西8米怎么表示？",
+                  "answer": "-8米",
+                  "analysis": ["方向相反使用负号"],
+                  "knowledgePointIds": ["positive-negative"],
+                  "difficulty": 1
+                }
+              ],
+              "summary": ["正负号用于区分相反方向"]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+结构和引用规则：
+
+- `textbook.id` 必须与对应 manifest 教材 `id` 完全一致。
+- `knowledgePoints` 至少一个，ID 不得重复；所有 `prerequisiteIds` 必须存在且知识点依赖图不能成环。
+- `chapters` 至少一个；每个 chapter 至少一个 section；每个 section 至少一个 lesson。
+- lesson ID 在整本教材内唯一；`prerequisiteLessonIds` 必须引用存在课时且不能形成循环。
+- 每个 lesson 的 `goals`、`knowledgePointIds`、`steps`、`summary` 必须非空；知识点绑定必须真实存在。
+- `references` 页码使用正整数，必须满足 `pageStart <= pageEnd <= textbook.pdf.pageCount`。
+- `practice.id` 在整本教材内唯一；`analysis`、`knowledgePointIds` 必须非空；`difficulty` 必须是 JSON 整数 `1..5`。
+- integer 字段必须是真正的 JSON 整数；字符串 `"1"` 和小数 `1.0` 不作为整数兼容处理。
+- parser 使用严格字段白名单；不要自行增加 `remoteUrl`、`scene` 或其他历史/临时字段。
+
+### 7.5 教学步骤类型
+
+`steps` 当前只接受：
+
+```text
+explanation
+question
+keyIdea
+formula
+example
+visualization
+checkpoint
+summary
+```
+
+字段形状以 App 当前 `CourseDocumentParser` 为准。特别规则：
+
+- `formula.expression` 保存不带 `$...$`、`\(...\)`、`\[...\]` 定界符的纯 LaTeX。
+- 数学表达式不要混入中文说明，也不要用 `²`、`×`、`÷`、`≤`、`π` 等 Unicode 数学符号替代 LaTeX 命令。
+- `visualization` 只允许调用 App 已注册 renderer；结构固定为 `type`、`renderer`、`parameters`、`texts`。
+- renderer、参数名、参数类型和文本槽位必须通过 `SchoolVisualizationCatalog` 校验；课程不能声明任意执行代码。
+- 旧 `scene` 步骤不作为兼容格式保留。
+
+### 7.6 PDF 契约
+
+`textbook.pdf` 固定声明：
+
+```json
+{
+  "path": "assets/textbook.pdf",
+  "pageCount": 202,
+  "pageIndexOffset": 7
+}
+```
+
+发布时必须保证：
+
+- `path` 指向 manifest `files` 中真实存在的 PDF 文件。
+- PDF 文件大小和 SHA-256 与 manifest 完全一致。
+- 文件必须具有合法 PDF 头并能被 Android `PdfRenderer` 打开。
+- `PdfRenderer.pageCount` 必须与 `pageCount` 完全一致。
+- `pageIndexOffset` 用于印刷页码与 PDF index 的换算；制作 references 时必须按 authored course 采用的印刷页口径统一核对。
+
+### 7.7 可选 Assessment Package
+
+需要正式题库时，在最终课程目录同时加入：
+
+```text
+assessments.json
+knowledge-points.json
+assets/<question-assets>
+```
+
+规则：
+
+- `assessments.json` 与 `knowledge-points.json` 必须同时存在或同时不存在。
+- 两个文件的 `courseId` 必须与 `course.json.textbook.id` 一致。
+- Assessment knowledge point 引用的 section 必须存在于 `course.json`。
+- 所有 question set 都必须且只能放置到一个有效 section；不能存在未放置题组。
+- 题目引用的 knowledge point 必须存在。
+- 题目引用的 asset 必须声明；声明的 asset 也必须实际被题目使用。
+- asset path 必须位于 `assets/` 下，使用安全正斜杠相对路径。
+- 当前图片媒体类型只接受 PNG、WEBP、JPEG；声明的扩展名、MIME、宽度、高度必须与实际图片一致。
+- 图片单边最大 16384 像素，总像素数不得超过 40000000。
+
+### 7.8 完整性、更新与发布建议
+
+- App 以 `size + SHA-256` 判断本地文件是否与远端一致；内容变化必须产生新的真实 size/hash。
+- 更新时只下载变化文件；若增量传输体积达到当前全量阈值或增量文件缺少 URL，则使用完整 ZIP。
+- 完整安装和增量安装都先进入 staging，所有文件、课程 JSON、题库和 PDF 验证通过后再原子替换 active；失败时保留上一份已验证课程。
+- 大 PDF、图片和未来大型媒体优先使用 `bundled=false`，让正文小改动不触发大资源重复下载。
+- 同一 immutable `release-id` 的对象内容禁止覆写；任何修复生成新 release，先 Testing，再提升同一 release 到 Stable。
+- 不把本节模板复制成仓库中的课程示例目录；需要制作课程时在临时工作区按本节生成真实 artifact。
+
+## 8. 数字课本编写原则
 
 课程目标不是教材摘要、知识卡片或教材旁边的 App 解说，而是基于教材知识体系重新编写一套可以独立阅读和学习的严肃数字课本。
 
@@ -151,7 +434,7 @@ https://course.flashnamesl.workers.dev/cloud/course/public/releases/<release-id>
 - 教材静态数学图、示意图、数轴、关系图和可交互模型，只要能够准确语义化，就优先使用 App Renderer 重建；保留教学意义、关键标注和信息层次，不复制出版社版式或截图。
 - 教材例题和情境可以作为教学路径基线，但正文、问题和解析应重新组织，不能为了“原创”擅自改变知识难度。
 
-## 8. 课程与 App 运行边界
+## 9. 课程与 App 运行边界
 
 - APK 提供课程运行能力；课程包只描述教学内容和受限语义调用。
 - 课程包不得携带或执行 Kotlin、JavaScript、Python、Shell 或其他任意代码。
@@ -159,7 +442,7 @@ https://course.flashnamesl.workers.dev/cloud/course/public/releases/<release-id>
 - App 对远端课程执行必要的运行时格式、安全、完整性和哈希校验；这是 App 产品能力，不是课程 CI。
 - 课程更新和 App 发布完全解耦；课程 Stable manifest 更新后，已有 App 应可直接获取新课程。
 
-## 9. Visualization 架构
+## 10. Visualization 架构
 
 - Visualization 是独立基础设施，不是课程业务逻辑。
 - 课程只通过语义 invocation 调用：
@@ -180,7 +463,7 @@ https://course.flashnamesl.workers.dev/cloud/course/public/releases/<release-id>
 - `:visualization` 不访问网络、文件、数据库、DataStore、AI、Repository、ViewModel 或课程下载器。
 - 课程层不直接实现 Canvas 或像素算法；缺能力时补充可复用的语义 Renderer。
 
-## 10. Verification 与学科引擎
+## 11. Verification 与学科引擎
 
 - Verification 共享输入、结果、结构化步骤、问题/警告和可视化请求，但不实现万能 Solver。
 - `VerificationStep` 表示结构化规则变换，不退化成不可验证的字符串列表。
@@ -191,7 +474,7 @@ https://course.flashnamesl.workers.dev/cloud/course/public/releases/<release-id>
 - 当前 Math Engine 范围是初高中基础数学，不把极限、导数、积分、微分方程、Taylor 展开等高等数学混入当前本地验证。
 - 英语、日语的语言验证需要形态、语法、句法、语义槽位和上下文模型；语文最后设计，开放写作和文学评价不伪装成确定性规则验证。
 
-## 11. 代码与工具规则
+## 12. 代码与工具规则
 
 - 优先删除旧实现，不长期保留无业务价值的兼容壳、alias、历史命名、退役 wrapper 和墓碑测试。
 - 新架构稳定后不要为了旧调用继续增加兼容分支。
@@ -205,7 +488,7 @@ https://course.flashnamesl.workers.dev/cloud/course/public/releases/<release-id>
 - `scripts/` 也不是杂物目录：通常只有与 App 构建、运行、签名、更新或发布直接相关且长期需要的脚本才能提交；`scripts/course_r2_manager.py` 是课程分发基础设施的唯一长期例外。
 - 涉及 Cloudflare R2 的文件/目录 CRUD、课程 release 上传、Testing/Stable 发布时必须优先复用 `scripts/course_r2_manager.py`；除非用户明确要求替换该实现，否则不得新增功能重叠的 R2 脚本。
 
-## 12. 文档规则
+## 13. 文档规则
 
 - 不恢复 `docs/`。
 - 不新增架构 README、课程规范 README、Foundation 文档或平行规则文件。
