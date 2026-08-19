@@ -68,7 +68,8 @@ def config(explicit: str | None, name: str, repo: str, *, variable: bool = True,
     value = (explicit or "").strip() or os.environ.get(name, "").strip()
     if value:
         return value
-    return repo_var(name, repo) if variable else default
+    value = repo_var(name, repo) if variable else ""
+    return value or default
 
 
 def require_id(value: str) -> str:
