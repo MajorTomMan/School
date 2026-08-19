@@ -35,12 +35,10 @@ import androidx.core.content.ContextCompat
 import com.majortomman.school.data.DisplayPreferences
 import com.majortomman.school.data.DisplaySettings
 import com.majortomman.school.data.PreferencesRepository
-import com.majortomman.school.data.curriculum.CurriculumRepository
-import com.majortomman.school.data.material.MaterialPackRepository
 import com.majortomman.school.data.math.MathQuestionBankRepository
-import com.majortomman.school.learning.cloud.CloudCourseRepository
 import com.majortomman.school.learning.cloud.CourseDownloadCoordinator
 import com.majortomman.school.learning.cloud.CourseDownloadUiState
+import com.majortomman.school.learning.cloud.CourseLibraryRepository
 import com.majortomman.school.learning.cloud.CourseUpdateKind
 import com.majortomman.school.learning.cloud.CourseUpdateOffer
 import com.majortomman.school.network.AppProxy
@@ -52,58 +50,39 @@ import com.majortomman.school.update.UpdateCoordinator
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
-    private val curriculumRepository by lazy {
-        CurriculumRepository(applicationContext)
-    }
-    private val preferencesRepository by lazy {
-        PreferencesRepository(applicationContext, curriculumRepository)
-    }
-    private val materialPackRepository by lazy {
-        MaterialPackRepository(applicationContext)
-    }
-    private val mathQuestionBankRepository by lazy {
-        MathQuestionBankRepository(applicationContext, curriculumRepository)
-    }
-    private val updateCoordinatorDelegate = lazy {
-        UpdateCoordinator.get(applicationContext)
-    }
-    private val updateCoordinator: UpdateCoordinator
-        get() = updateCoordinatorDelegate.value
+    private val preferencesRepository by lazy { PreferencesRepository(applicationContext) }
+    private val mathQuestionBankRepository by lazy { MathQuestionBankRepository(applicationContext) }
+    private val updateCoordinatorDelegate = lazy { UpdateCoordinator.get(applicationContext) }
+    private val updateCoordinator: UpdateCoordinator get() = updateCoordinatorDelegate.value
     private val pendingCourseUpdate = MutableStateFlow<CourseUpdateOffer?>(null)
-
     private var firstFrameReady = false
-    private val notificationPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { }
+
+    private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val activityStartedAt = SystemClock.elapsedRealtime()
         super.onCreate(savedInstanceState)
         DisplayPreferences.initialize(applicationContext)
         AppProxy.initialize(applicationContext)
-        CloudCourseRepository.initialize(applicationContext)
+        CourseLibraryRepository.initialize(applicationContext)
         CourseDownloadCoordinator.initialize(applicationContext)
         enableEdgeToEdge()
-        val initialTextbookKey = intent.getStringExtra("open_textbook_slot")
-        val courseContentInstalled = CloudCourseRepository.hasInstalledCourseContent()
+        val initialCourseId = intent.getStringExtra("open_course_id")
+        val courseContentInstalled = CourseLibraryRepository.hasInstalledCourseContent()
         val courseSyncConfigured = BuildConfig.COURSE_MANIFEST_URL.isNotBlank()
+
         setContent {
             val displaySettings by DisplayPreferences.state.collectAsState(initial = DisplaySettings())
             val courseUpdateOffer by pendingCourseUpdate.collectAsState()
             val courseDownloadState by CourseDownloadCoordinator.state.collectAsState()
-            var showInitialCoursePrompt by rememberSaveable {
-                mutableStateOf(!courseContentInstalled && courseSyncConfigured)
-            }
+            var showInitialCoursePrompt by rememberSaveable { mutableStateOf(!courseContentInstalled && courseSyncConfigured) }
             var hiddenProgressOperationId by rememberSaveable { mutableStateOf<Long?>(null) }
 
             LaunchedEffect(courseDownloadState) {
-                when (courseDownloadState) {
-                    is CourseDownloadUiState.Success -> {
-                        showInitialCoursePrompt = false
-                        pendingCourseUpdate.value = null
-                        materialPackRepository.refreshCurrent()
-                    }
-                    else -> Unit
+                if (courseDownloadState is CourseDownloadUiState.Success) {
+                    showInitialCoursePrompt = false
+                    pendingCourseUpdate.value = null
+                    CourseLibraryRepository.refresh(applicationContext)
                 }
             }
 
@@ -111,27 +90,21 @@ class MainActivity : ComponentActivity() {
                 Box(modifier = Modifier.fillMaxSize()) {
                     SchoolApp(
                         repository = preferencesRepository,
-                        materialRepository = materialPackRepository,
-                        curriculumRepository = curriculumRepository,
                         mathQuestionRepository = mathQuestionBankRepository,
-                        initialTextbookKey = initialTextbookKey,
+                        initialCourseId = initialCourseId,
                     )
                     UpdateOverlayHost { updateCoordinator }
 
-                    val downloadActive = courseDownloadState is CourseDownloadUiState.Queued ||
-                        courseDownloadState is CourseDownloadUiState.Running
+                    val downloadActive = courseDownloadState is CourseDownloadUiState.Queued || courseDownloadState is CourseDownloadUiState.Running
                     val downloadBusy = courseDownloadState is CourseDownloadUiState.Restoring || downloadActive
                     when {
-                        showInitialCoursePrompt && !downloadBusy -> {
-                            CourseDownloadConfirmationDialog(
-                                title = "选择教材下载",
-                                message = "学习内容尚未下载。请在“设置 → 课程”中选择需要的教材单独下载；" +
-                                    "如果希望全部离线使用，也可以在那里选择“全部下载 / 更新”。",
-                                confirmLabel = "知道了",
-                                onConfirm = { showInitialCoursePrompt = false },
-                                onLater = { showInitialCoursePrompt = false },
-                            )
-                        }
+                        showInitialCoursePrompt && !downloadBusy -> CourseDownloadConfirmationDialog(
+                            title = "选择教材下载",
+                            message = "学习内容尚未下载。请在“设置 → 课程”中选择需要的课程；如果希望全部离线使用，也可以选择“全部下载 / 更新”。",
+                            confirmLabel = "知道了",
+                            onConfirm = { showInitialCoursePrompt = false },
+                            onLater = { showInitialCoursePrompt = false },
+                        )
                         courseUpdateOffer != null && !downloadBusy -> {
                             val offer = requireNotNull(courseUpdateOffer)
                             CourseDownloadConfirmationDialog(
@@ -145,10 +118,7 @@ class MainActivity : ComponentActivity() {
                                 onConfirm = {
                                     pendingCourseUpdate.value = null
                                     hiddenProgressOperationId = null
-                                    CourseDownloadCoordinator.enqueue(
-                                        applicationContext,
-                                        offer.textbooks.map { it.id }.toSet(),
-                                    )
+                                    CourseDownloadCoordinator.enqueue(applicationContext, offer.textbooks.map { it.id }.toSet())
                                 },
                                 onLater = { pendingCourseUpdate.value = null },
                             )
@@ -156,15 +126,8 @@ class MainActivity : ComponentActivity() {
                     }
 
                     val activeOperationId = courseDownloadState.operationIdOrNull()
-                    if (
-                        downloadActive &&
-                        activeOperationId != null &&
-                        hiddenProgressOperationId != activeOperationId
-                    ) {
-                        CourseDownloadProgressDialog(
-                            state = courseDownloadState,
-                            onBackground = { hiddenProgressOperationId = activeOperationId },
-                        )
+                    if (downloadActive && activeOperationId != null && hiddenProgressOperationId != activeOperationId) {
+                        CourseDownloadProgressDialog(courseDownloadState) { hiddenProgressOperationId = activeOperationId }
                     }
                 }
             }
@@ -174,8 +137,7 @@ class MainActivity : ComponentActivity() {
             firstFrameReady = true
             Log.i(
                 StartupInitializationCoordinator.LOG_TAG,
-                "launcher frame callback: activity=${SystemClock.elapsedRealtime() - activityStartedAt} ms, " +
-                    "process=${SystemClock.elapsedRealtime() - Process.getStartElapsedRealtime()} ms",
+                "launcher frame callback: activity=${SystemClock.elapsedRealtime() - activityStartedAt} ms, process=${SystemClock.elapsedRealtime() - Process.getStartElapsedRealtime()} ms",
             )
             requestNotificationPermissionOnce()
             updateCoordinator.onAppForeground()
@@ -183,12 +145,7 @@ class MainActivity : ComponentActivity() {
         StartupInitializationCoordinator.start(
             context = applicationContext,
             checkCourseUpdatesOnStartup = courseContentInstalled && courseSyncConfigured,
-            onCourseCatalogChanged = {
-                materialPackRepository.refreshCurrent()
-            },
-            onCourseUpdateAvailable = { offer ->
-                pendingCourseUpdate.value = offer
-            },
+            onCourseUpdateAvailable = { offer -> pendingCourseUpdate.value = offer },
         )
     }
 
@@ -205,16 +162,12 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (intent.getBooleanExtra("open_update_dialog", false)) {
-            updateCoordinator.showDialog()
-        }
+        if (intent.getBooleanExtra("open_update_dialog", false)) updateCoordinator.showDialog()
     }
 
     private fun requestNotificationPermissionOnce() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
-            return
-        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return
         val preferences = getSharedPreferences("school_updates", MODE_PRIVATE)
         if (preferences.getBoolean("notification_permission_requested", false)) return
         preferences.edit().putBoolean("notification_permission_requested", true).apply()
@@ -234,33 +187,17 @@ private fun CourseDownloadConfirmationDialog(
         onDismissRequest = onLater,
         title = { Text(title) },
         text = { Text(message) },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(confirmLabel)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onLater) {
-                Text("稍后")
-            }
-        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel) } },
+        dismissButton = { TextButton(onClick = onLater) { Text("稍后") } },
     )
 }
 
 @Composable
-private fun CourseDownloadProgressDialog(
-    state: CourseDownloadUiState,
-    onBackground: () -> Unit,
-) {
+private fun CourseDownloadProgressDialog(state: CourseDownloadUiState, onBackground: () -> Unit) {
     val running = state as? CourseDownloadUiState.Running
     val downloaded = running?.downloadedBytes ?: 0L
     val total = running?.totalBytes ?: 0L
-    val fraction = if (total > 0L) {
-        (downloaded.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-    } else {
-        0f
-    }
-
+    val fraction = if (total > 0L) (downloaded.toFloat() / total.toFloat()).coerceIn(0f, 1f) else 0f
     AlertDialog(
         onDismissRequest = onBackground,
         title = { Text("正在下载课程内容") },
@@ -273,10 +210,7 @@ private fun CourseDownloadProgressDialog(
                 }
                 Spacer(modifier = Modifier.height(14.dp))
                 if (total > 0L) {
-                    LinearProgressIndicator(
-                        progress = { fraction },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("${formatBytes(downloaded)} / ${formatBytes(total)}  ${(fraction * 100).toInt()}%")
                 } else {
@@ -284,11 +218,7 @@ private fun CourseDownloadProgressDialog(
                 }
             }
         },
-        confirmButton = {
-            TextButton(onClick = onBackground) {
-                Text("后台下载")
-            }
-        },
+        confirmButton = { TextButton(onClick = onBackground) { Text("后台下载") } },
     )
 }
 
@@ -298,8 +228,7 @@ private fun updateOfferMessage(offer: CourseUpdateOffer): String {
         CourseUpdateKind.FULL -> "完整课程更新"
         CourseUpdateKind.INCREMENTAL -> "增量课程更新"
     }
-    return "$kindText 已准备好，涉及 ${offer.textbookCount} 册教材，预计下载 ${formatBytes(offer.estimatedBytes)}。" +
-        "确认后将在后台下载；切换应用或界面重建不会重新创建任务。"
+    return "$kindText 已准备好，涉及 ${offer.textbookCount} 册教材，预计下载 ${formatBytes(offer.estimatedBytes)}。确认后将在后台下载；切换应用或界面重建不会重新创建任务。"
 }
 
 internal fun formatBytes(bytes: Long): String = when {
@@ -310,9 +239,7 @@ internal fun formatBytes(bytes: Long): String = when {
 }
 
 private fun CourseDownloadUiState.operationIdOrNull(): Long? = when (this) {
-    CourseDownloadUiState.Restoring,
-    CourseDownloadUiState.Idle,
-    -> null
+    CourseDownloadUiState.Restoring, CourseDownloadUiState.Idle -> null
     is CourseDownloadUiState.Queued -> operationId
     is CourseDownloadUiState.Running -> operationId
     is CourseDownloadUiState.Success -> operationId

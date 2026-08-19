@@ -42,12 +42,14 @@ import com.majortomman.school.data.DailyPlan
 import com.majortomman.school.data.DisplayPreferences
 import com.majortomman.school.data.DisplaySettings
 import com.majortomman.school.data.LearningProgress
+import com.majortomman.school.data.Lesson
 import com.majortomman.school.data.MasteryStatus
 import com.majortomman.school.data.PreferencesRepository
 import com.majortomman.school.data.ScheduledReview
-import com.majortomman.school.data.curriculum.CurriculumRepository
-import com.majortomman.school.data.material.MaterialPackRepository
 import com.majortomman.school.data.math.MathQuestionBankRepository
+import com.majortomman.school.learning.cloud.CourseLibraryRepository
+import com.majortomman.school.learning.cloud.InstalledCourse
+import com.majortomman.school.learning.course.CourseLesson
 import kotlinx.coroutines.launch
 
 private val NavigationBlack = Color.Transparent
@@ -55,7 +57,7 @@ private val NavigationWhite = Color(0xFFF5F5F7)
 private val NavigationBlue = Color(0xFF0A84FF)
 
 private enum class MainTab(val label: String) {
-    SUBJECTS("学科"),
+    SUBJECTS("课程"),
     TODAY("今天"),
     PATH("路径"),
     BANK("题库"),
@@ -67,78 +69,60 @@ private enum class MainTab(val label: String) {
 @Composable
 fun SchoolApp(
     repository: PreferencesRepository,
-    materialRepository: MaterialPackRepository,
-    curriculumRepository: CurriculumRepository,
     mathQuestionRepository: MathQuestionBankRepository,
-    initialTextbookKey: String? = null,
+    initialCourseId: String? = null,
 ) {
     var selectedTabName by rememberSaveable { mutableStateOf(MainTab.SUBJECTS.name) }
-    var activeTextbookKey by rememberSaveable { mutableStateOf(initialTextbookKey) }
+    var activeCourseId by rememberSaveable { mutableStateOf(initialCourseId) }
     var openedLessonId by rememberSaveable { mutableStateOf<String?>(null) }
-    var openedTextbookKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var openedCourseId by rememberSaveable { mutableStateOf<String?>(null) }
     var openedTextbookPage by rememberSaveable { mutableStateOf<Int?>(null) }
+    var readingRangeStart by rememberSaveable { mutableStateOf<Int?>(null) }
+    var readingRangeEnd by rememberSaveable { mutableStateOf<Int?>(null) }
     val scope = rememberCoroutineScope()
     val progress by repository.learningProgress.collectAsState(initial = LearningProgress())
     val aiSettings by repository.aiSettings.collectAsState(initial = AiSettings())
     val recentAttempts by repository.recentAttempts.collectAsState(initial = emptyList<AttemptRecord>())
     val reviewQueue by repository.reviewQueue.collectAsState(initial = emptyList<ScheduledReview>())
     val displaySettings by DisplayPreferences.state.collectAsState(initial = DisplaySettings())
-    val libraryState by materialRepository.state.collectAsState()
-    val curriculumState by curriculumRepository.state.collectAsState()
-    val curriculumProgress by curriculumRepository.nodeProgress.collectAsState()
+    val libraryState by CourseLibraryRepository.state.collectAsState()
     val bottomBarBackground = when (displaySettings.backgroundMode) {
         BackgroundMode.PRESET -> Color(displaySettings.backgroundPreset.argb)
         BackgroundMode.CUSTOM -> Color.Black.copy(alpha = 0.18f)
     }
 
-    val activeTextbook = libraryState.installedTextbooks.firstOrNull { it.key == activeTextbookKey }
-    val activeCurriculumId = activeTextbook?.let(curriculumRepository::curriculumIdFor)
-    val lessons = activeTextbook?.lessons.orEmpty().mapIndexed { index, generated ->
-        val stored = progress.lessonStatuses[generated.id]
-        val nodeStatus = curriculumState.nodeForLesson(generated.id)
-            ?.let { curriculumProgress[it.id]?.status }
-            ?.let { runCatching { MasteryStatus.valueOf(it.name) }.getOrNull() }
-        val fallback = if (index == 0) MasteryStatus.LEARNING else MasteryStatus.NOT_STARTED
-        generated.toLesson(stored ?: nodeStatus ?: fallback)
+    val activeCourse = libraryState.course(activeCourseId)
+    val lessons = activeCourse?.lessons.orEmpty().mapIndexed { index, lesson ->
+        lesson.toUiLesson(progress.lessonStatuses[lesson.id] ?: if (index == 0) MasteryStatus.LEARNING else MasteryStatus.NOT_STARTED)
     }
     val currentLesson = lessons.firstOrNull { it.status == MasteryStatus.LEARNING }
         ?: lessons.firstOrNull { it.status == MasteryStatus.NEEDS_REVIEW }
         ?: lessons.firstOrNull { it.status == MasteryStatus.NOT_STARTED }
         ?: lessons.firstOrNull()
-    val dailyPlan = currentLesson?.let {
-        DailyPlan(
-            newLessonId = it.id,
-            reviewItems = emptyList(),
-            estimatedMinutes = it.estimatedMinutes,
-        )
-    }
+    val dailyPlan = currentLesson?.let { DailyPlan(it.id, emptyList(), it.estimatedMinutes) }
     val selectedTab = MainTab.valueOf(selectedTabName)
-    val openedLesson = lessons.firstOrNull { it.id == openedLessonId }
-    val openedLessonIndex = lessons.indexOfFirst { it.id == openedLessonId }
-    val nextLesson = openedLessonIndex.takeIf { it >= 0 }?.let { lessons.getOrNull(it + 1) }
-    val openedTextbook = libraryState.installedTextbooks.firstOrNull { it.key == openedTextbookKey }
+    val openedCourseLesson = activeCourse?.lessons?.firstOrNull { it.id == openedLessonId }
+    val openedLessonIndex = activeCourse?.lessons?.indexOfFirst { it.id == openedLessonId } ?: -1
+    val nextCourseLesson = activeCourse?.lessons?.getOrNull(openedLessonIndex + 1).takeIf { openedLessonIndex >= 0 }
+    val openedTextbook = libraryState.course(openedCourseId)
+    val readingRange = if (readingRangeStart != null && readingRangeEnd != null) readingRangeStart!!..readingRangeEnd!! else null
 
-    LaunchedEffect(libraryState.installedTextbooks.map { textbook ->
-        "${textbook.key}:${textbook.pack.manifest.version}:${textbook.pack.pdfFile.isFile}:${textbook.lessons.size}"
-    }) {
-        runCatching { curriculumRepository.synchronizeInstalledTextbooks(libraryState.installedTextbooks) }
-    }
-
-    LaunchedEffect(libraryState.installedTextbooks.map { it.key }) {
-        if (activeTextbookKey != null && activeTextbook == null) {
-            activeTextbookKey = null
+    LaunchedEffect(libraryState.courses.map { it.id }) {
+        if (activeCourseId != null && activeCourse == null) {
+            activeCourseId = null
             openedLessonId = null
         }
-        if (openedTextbookKey != null && openedTextbook == null) {
-            openedTextbookKey = null
-            openedTextbookPage = null
-        }
+        if (openedCourseId != null && openedTextbook == null) closeTextbook(
+            onCourse = { openedCourseId = it },
+            onPage = { openedTextbookPage = it },
+            onRangeStart = { readingRangeStart = it },
+            onRangeEnd = { readingRangeEnd = it },
+        )
     }
 
-    val textbookPage = openedTextbookPage
     Box(modifier = Modifier.fillMaxSize()) {
         AnimatedContent(
-            targetState = openedLesson,
+            targetState = openedCourseLesson,
             transitionSpec = {
                 if (targetState != null) {
                     (fadeIn(tween(300)) + slideInHorizontally(tween(420)) { it / 7 }) togetherWith
@@ -150,49 +134,35 @@ fun SchoolApp(
             },
             label = "appNavigation",
         ) { lesson ->
-            if (lesson != null && activeTextbook != null) {
-                val openTextbook: (Int) -> Unit = { printedPage ->
-                    openedTextbookKey = activeTextbook.key
-                    openedTextbookPage = printedPage
-                }
-                val completeLesson: () -> Unit = {
-                    val nextId = nextLesson?.id
-                    scope.launch {
-                        repository.finishLessonAndStartNext(lesson.id, nextId)
-                    }
-                    if (nextLesson != null) {
-                        openedLessonId = nextLesson.id
-                    } else {
-                        openedLessonId = null
-                        selectedTabName = MainTab.PATH.name
-                    }
-                }
-                val interactiveSpec = InteractiveLessonCatalog.resolve(activeTextbook.slot.subjectId, lesson)
-                if (interactiveSpec != null) {
-                    InteractiveLessonScreen(
-                        lesson = lesson,
-                        spec = interactiveSpec,
-                        installedMaterial = activeTextbook.pack,
-                        nextLessonTitle = nextLesson?.title,
-                        onOpenTextbook = openTextbook,
-                        onBack = { openedLessonId = null },
-                        onComplete = completeLesson,
-                    )
-                } else {
-                    CourseDataUnavailableScreen(
-                        lessonTitle = lesson.title,
-                        onBack = { openedLessonId = null },
-                    )
-                }
+            if (lesson != null && activeCourse != null) {
+                InteractiveLessonScreen(
+                    course = activeCourse,
+                    lesson = lesson,
+                    nextLessonTitle = nextCourseLesson?.title,
+                    onOpenTextbook = { printedPage ->
+                        openedCourseId = activeCourse.id
+                        openedTextbookPage = printedPage
+                        val range = activeCourse.readingRange(lesson)
+                        readingRangeStart = range?.first
+                        readingRangeEnd = range?.last
+                    },
+                    onBack = { openedLessonId = null },
+                    onComplete = {
+                        val nextId = nextCourseLesson?.id
+                        scope.launch { repository.finishLessonAndStartNext(lesson.id, nextId) }
+                        if (nextCourseLesson != null) {
+                            openedLessonId = nextCourseLesson.id
+                        } else {
+                            openedLessonId = null
+                            selectedTabName = MainTab.PATH.name
+                        }
+                    },
+                )
             } else {
                 Scaffold(
                     containerColor = NavigationBlack,
                     bottomBar = {
-                        MinimalBottomBar(
-                            selected = selectedTab,
-                            backgroundColor = bottomBarBackground,
-                            onSelect = { selectedTabName = it.name },
-                        )
+                        MinimalBottomBar(selectedTab, bottomBarBackground) { selectedTabName = it.name }
                     },
                 ) { innerPadding ->
                     Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
@@ -207,77 +177,53 @@ fun SchoolApp(
                             when (tab) {
                                 MainTab.SUBJECTS -> SubjectTextbookCenterScreen(
                                     libraryState = libraryState,
-                                    onEnterCourse = { textbook ->
-                                        activeTextbookKey = textbook.key
+                                    onEnterCourse = { course ->
+                                        activeCourseId = course.id
                                         openedLessonId = null
                                         selectedTabName = MainTab.TODAY.name
                                     },
-                                    onOpenTextbook = { textbook, page ->
-                                        openedTextbookKey = textbook.key
+                                    onOpenTextbook = { course, page ->
+                                        openedCourseId = course.id
                                         openedTextbookPage = page
+                                        readingRangeStart = null
+                                        readingRangeEnd = null
                                     },
                                 )
-
                                 MainTab.TODAY -> {
-                                    if (activeTextbook == null || dailyPlan == null || lessons.isEmpty()) {
+                                    if (activeCourse == null || dailyPlan == null || lessons.isEmpty()) {
                                         NoActiveTextbookScreen { selectedTabName = MainTab.SUBJECTS.name }
                                     } else {
-                                        TodayScreen(
-                                            plan = dailyPlan,
-                                            lessons = lessons,
-                                            onStartLesson = { openedLessonId = it },
-                                            onOpenPath = { selectedTabName = MainTab.PATH.name },
-                                        )
+                                        TodayScreen(plan = dailyPlan, lessons = lessons, onStartLesson = { openedLessonId = it }, onOpenPath = { selectedTabName = MainTab.PATH.name })
                                     }
                                 }
-
                                 MainTab.PATH -> {
-                                    when {
-                                        activeTextbook == null || lessons.isEmpty() -> {
-                                            NoActiveTextbookScreen { selectedTabName = MainTab.SUBJECTS.name }
-                                        }
-                                        activeCurriculumId != null && activeCurriculumId in curriculumState.curriculumById -> {
-                                            CurriculumTreeScreen(
-                                                snapshot = curriculumState,
-                                                curriculumId = activeCurriculumId,
-                                                progress = curriculumProgress,
-                                                activeLessonId = currentLesson?.id,
-                                                onOpenLesson = { openedLessonId = it },
-                                            )
-                                        }
-                                        else -> {
-                                            CoursePathScreen(
-                                                lessons = lessons,
-                                                onOpenLesson = { openedLessonId = it },
-                                            )
-                                        }
+                                    if (activeCourse == null || lessons.isEmpty()) {
+                                        NoActiveTextbookScreen { selectedTabName = MainTab.SUBJECTS.name }
+                                    } else {
+                                        CoursePathScreen(lessons = lessons, onOpenLesson = { openedLessonId = it })
                                     }
                                 }
-
                                 MainTab.BANK -> MathQuestionBankScreen(
                                     repository = mathQuestionRepository,
-                                    textbook = activeTextbook,
+                                    textbook = activeCourse,
                                     onOpenSubjects = { selectedTabName = MainTab.SUBJECTS.name },
                                     onOpenTextbook = { page ->
-                                        activeTextbook?.let { textbook ->
-                                            openedTextbookKey = textbook.key
+                                        activeCourse?.let { course ->
+                                            openedCourseId = course.id
                                             openedTextbookPage = page
+                                            readingRangeStart = null
+                                            readingRangeEnd = null
                                         }
                                     },
                                 )
-
                                 MainTab.REVIEW -> MinimalRoomReviewScreen(
                                     fallbackItems = emptyList(),
                                     progress = progress,
                                     scheduledReviews = reviewQueue,
                                     recentAttempts = recentAttempts,
-                                    onOpenLesson = { lessonId ->
-                                        if (lessons.any { it.id == lessonId }) openedLessonId = lessonId
-                                    },
+                                    onOpenLesson = { lessonId -> if (activeCourse?.lessons?.any { it.id == lessonId } == true) openedLessonId = lessonId },
                                 )
-
                                 MainTab.LAB -> VerificationHubScreen()
-
                                 MainTab.SETTINGS -> MaterialSettingsScreen(
                                     settings = aiSettings,
                                     onSave = { updated -> scope.launch { repository.saveAiSettings(updated) } },
@@ -291,79 +237,62 @@ fun SchoolApp(
             }
         }
 
+        val textbookPage = openedTextbookPage
         if (textbookPage != null && openedTextbook != null) {
             PdfTextbookScreen(
-                pack = openedTextbook.pack,
+                course = openedTextbook,
                 initialPrintedPage = textbookPage,
+                readingRange = readingRange,
                 onBack = {
-                    openedTextbookKey = null
+                    openedCourseId = null
                     openedTextbookPage = null
+                    readingRangeStart = null
+                    readingRangeEnd = null
                 },
             )
         }
     }
 }
 
-@Composable
-private fun CourseDataUnavailableScreen(
-    lessonTitle: String,
-    onBack: () -> Unit,
+private fun CourseLesson.toUiLesson(status: MasteryStatus): Lesson {
+    val start = references.minOfOrNull { it.pageStart } ?: 1
+    val end = references.maxOfOrNull { it.pageEnd } ?: start
+    return Lesson(
+        id = id,
+        title = title,
+        subtitle = goals.firstOrNull().orEmpty(),
+        estimatedMinutes = 18,
+        textbookPages = start..end,
+        status = status,
+        objectives = goals,
+        explanation = "",
+        commonMistake = "",
+    )
+}
+
+private fun closeTextbook(
+    onCourse: (String?) -> Unit,
+    onPage: (Int?) -> Unit,
+    onRangeStart: (Int?) -> Unit,
+    onRangeEnd: (Int?) -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(NavigationBlack)
-            .padding(horizontal = 28.dp, vertical = 44.dp),
-        verticalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(
-            text = "返回",
-            modifier = Modifier.clickable(onClick = onBack).padding(vertical = 8.dp),
-            color = NavigationWhite.copy(alpha = 0.56f),
-            fontSize = 14.sp,
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(
-                text = lessonTitle,
-                color = NavigationWhite,
-                fontSize = 36.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = "课程数据不可用",
-                color = NavigationBlue,
-                fontSize = 15.sp,
-            )
-        }
-        Text(
-            text = "请重新同步云端课程包。",
-            color = NavigationWhite.copy(alpha = 0.34f),
-            fontSize = 13.sp,
-        )
-    }
+    onCourse(null)
+    onPage(null)
+    onRangeStart(null)
+    onRangeEnd(null)
 }
 
 @Composable
-private fun MinimalBottomBar(
-    selected: MainTab,
-    backgroundColor: Color,
-    onSelect: (MainTab) -> Unit,
-) {
+private fun MinimalBottomBar(selected: MainTab, backgroundColor: Color, onSelect: (MainTab) -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(backgroundColor)
-            .padding(horizontal = 7.dp, vertical = 13.dp),
+        modifier = Modifier.fillMaxWidth().background(backgroundColor).padding(horizontal = 7.dp, vertical = 13.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         MainTab.entries.forEach { tab ->
             val isSelected = tab == selected
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { onSelect(tab) }
-                    .padding(horizontal = 1.dp, vertical = 4.dp),
+                modifier = Modifier.weight(1f).clickable { onSelect(tab) }.padding(horizontal = 1.dp, vertical = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(7.dp),
             ) {
@@ -375,12 +304,7 @@ private fun MinimalBottomBar(
                     maxLines = 1,
                     softWrap = false,
                 )
-                Box(
-                    modifier = Modifier
-                        .size(4.dp)
-                        .clip(CircleShape)
-                        .background(if (isSelected) NavigationBlue else Color.Transparent),
-                )
+                Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(if (isSelected) NavigationBlue else Color.Transparent))
             }
         }
     }

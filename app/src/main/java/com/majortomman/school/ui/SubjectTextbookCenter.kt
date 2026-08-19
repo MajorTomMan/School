@@ -1,108 +1,75 @@
 package com.majortomman.school.ui
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import com.majortomman.school.data.material.EducationStage
-import com.majortomman.school.data.material.InstalledTextbook
-import com.majortomman.school.data.material.MaterialLibraryState
-import com.majortomman.school.data.material.SubjectTemplates
-import com.majortomman.school.data.material.TextbookSlot
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.majortomman.school.learning.cloud.CourseLibraryState
+import com.majortomman.school.learning.cloud.InstalledCourse
 
-private val CenterBlack = Color.Transparent
-
-private enum class CenterPage {
-    STAGES,
-    SUBJECTS,
-    GRADES,
-    SLOT,
-}
+private val CenterWhite = Color(0xFFF5F7FA)
+private val CenterBlue = Color(0xFF2D7BFF)
+private val CenterMuted = CenterWhite.copy(alpha = 0.46f)
 
 @Composable
 fun SubjectTextbookCenterScreen(
-    libraryState: MaterialLibraryState,
-    onEnterCourse: (InstalledTextbook) -> Unit,
-    onOpenTextbook: (InstalledTextbook, Int) -> Unit,
+    libraryState: CourseLibraryState,
+    onEnterCourse: (InstalledCourse) -> Unit,
+    onOpenTextbook: (InstalledCourse, Int) -> Unit,
 ) {
-    var pageName by rememberSaveable { mutableStateOf(CenterPage.STAGES.name) }
-    var selectedStageId by rememberSaveable { mutableStateOf<String?>(null) }
-    var selectedSubjectId by rememberSaveable { mutableStateOf<String?>(null) }
-    var selectedSlotKey by rememberSaveable { mutableStateOf<String?>(null) }
+    CenterScrollPage {
+        Text("课程", color = CenterWhite, fontSize = 46.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(10.dp))
+        Text("已安装课程直接来自云端 course.json，不再维护 APK 内置教材目录。", color = CenterMuted, fontSize = 15.sp, lineHeight = 23.sp)
+        Spacer(Modifier.height(30.dp))
 
-    val selectedStage = selectedStageId?.let(EducationStage::fromId)
-    val selectedSubject = selectedSubjectId?.let(SubjectTemplates::find)
-    val selectedSlot = selectedSlotKey?.let(TextbookSlot::fromKey)
+        if (libraryState.courses.isEmpty()) {
+            Text("暂无已安装课程", color = CenterMuted, fontSize = 18.sp)
+            Spacer(Modifier.height(10.dp))
+            Text("请在设置的课程页下载需要的课程。", color = CenterMuted, fontSize = 14.sp)
+            return@CenterScrollPage
+        }
 
-    AnimatedContent(
-        targetState = CenterPage.valueOf(pageName),
-        modifier = Modifier.fillMaxSize().background(CenterBlack),
-        transitionSpec = {
-            (fadeIn(tween(260)) + slideInHorizontally(tween(360)) { it / 8 }) togetherWith
-                (fadeOut(tween(150)) + slideOutHorizontally(tween(260)) { -it / 10 })
-        },
-        label = "subjectCenterNavigation",
-    ) { page ->
-        when (page) {
-            CenterPage.STAGES -> StageListPage(libraryState) { stage ->
-                selectedStageId = stage.id
-                selectedSubjectId = null
-                selectedSlotKey = null
-                pageName = CenterPage.SUBJECTS.name
+        libraryState.courses.groupBy(InstalledCourse::subject).forEach { (subject, courses) ->
+            Text(subject, color = CenterBlue, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            courses.forEach { course ->
+                CourseRow(course, onEnterCourse, onOpenTextbook)
+                ThinDivider()
             }
+            Spacer(Modifier.height(28.dp))
+        }
+    }
+}
 
-            CenterPage.SUBJECTS -> if (selectedStage == null) {
-                pageName = CenterPage.STAGES.name
-            } else {
-                SubjectListPage(
-                    stage = selectedStage,
-                    libraryState = libraryState,
-                    onBack = { pageName = CenterPage.STAGES.name },
-                    onSelect = { subject ->
-                        selectedSubjectId = subject.id
-                        selectedSlotKey = null
-                        pageName = CenterPage.GRADES.name
-                    },
-                )
-            }
-
-            CenterPage.GRADES -> if (selectedStage == null || selectedSubject == null) {
-                pageName = CenterPage.SUBJECTS.name
-            } else {
-                GradeListPage(
-                    stage = selectedStage,
-                    subject = selectedSubject,
-                    libraryState = libraryState,
-                    onBack = { pageName = CenterPage.SUBJECTS.name },
-                    onSelect = { slot ->
-                        selectedSlotKey = slot.key
-                        pageName = CenterPage.SLOT.name
-                    },
-                )
-            }
-
-            CenterPage.SLOT -> if (selectedSlot == null) {
-                pageName = CenterPage.GRADES.name
-            } else {
-                SlotPage(
-                    slot = selectedSlot,
-                    installed = libraryState.installed(selectedSlot),
-                    onBack = { pageName = CenterPage.GRADES.name },
-                    onEnterCourse = onEnterCourse,
-                    onOpenTextbook = onOpenTextbook,
-                )
+@Composable
+private fun CourseRow(
+    course: InstalledCourse,
+    onEnterCourse: (InstalledCourse) -> Unit,
+    onOpenTextbook: (InstalledCourse, Int) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Text(course.title, color = CenterWhite, fontSize = 21.sp, fontWeight = FontWeight.Medium)
+        Text(
+            listOf(course.grade, course.semester, course.document.textbook.publisher, course.document.textbook.edition)
+                .map(String::trim).filter(String::isNotBlank).joinToString(" · "),
+            color = CenterMuted,
+            fontSize = 13.sp,
+        )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+            CenterOutlinedButton("进入课程", CenterBlue, modifier = Modifier.weight(1f)) { onEnterCourse(course) }
+            CenterOutlinedButton("打开教材", CenterWhite.copy(alpha = 0.72f), modifier = Modifier.weight(1f)) {
+                onOpenTextbook(course, course.document.textbook.pdf.pageIndexOffset.coerceAtLeast(1))
             }
         }
     }

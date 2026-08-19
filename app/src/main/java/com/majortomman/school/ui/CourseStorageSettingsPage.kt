@@ -36,6 +36,7 @@ import com.majortomman.school.formatBytes
 import com.majortomman.school.learning.cloud.CourseCacheClearResult
 import com.majortomman.school.learning.cloud.CourseDownloadCoordinator
 import com.majortomman.school.learning.cloud.CourseDownloadUiState
+import com.majortomman.school.learning.cloud.CourseLibraryRepository
 import com.majortomman.school.learning.cloud.CourseStorageManager
 import com.majortomman.school.learning.cloud.CourseStorageSnapshot
 import com.majortomman.school.learning.cloud.CourseTextbookRemovalResult
@@ -43,6 +44,7 @@ import com.majortomman.school.learning.cloud.CourseTextbookUpdate
 import com.majortomman.school.learning.cloud.CourseUpdateCheckResult
 import com.majortomman.school.learning.cloud.CourseUpdateKind
 import com.majortomman.school.learning.cloud.CourseUpdateOffer
+import com.majortomman.school.learning.cloud.InstalledCourse
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.launch
@@ -54,15 +56,10 @@ private val CourseSettingsYellow = Color(0xFFFFCC00)
 private val CourseSettingsMuted = CourseSettingsWhite.copy(alpha = 0.46f)
 private val CourseSettingsLine = CourseSettingsWhite.copy(alpha = 0.13f)
 
-private data class CourseBookOption(val id: String, val label: String)
-
-private val CourseBookOptions = listOf(
-    CourseBookOption("pep-math-7-1", "数学 · 七年级上册"),
-    CourseBookOption("pep-math-7-2", "数学 · 七年级下册"),
-    CourseBookOption("pep-math-8-1", "数学 · 八年级上册"),
-    CourseBookOption("pep-math-8-2", "数学 · 八年级下册"),
-    CourseBookOption("pep-math-9-1", "数学 · 九年级上册"),
-    CourseBookOption("pep-math-9-2", "数学 · 九年级下册"),
+private data class CourseResourceRow(
+    val id: String,
+    val course: InstalledCourse?,
+    val update: CourseTextbookUpdate?,
 )
 
 @Composable
@@ -70,6 +67,7 @@ internal fun CourseStorageSettingsPage() {
     val context = LocalContext.current.applicationContext
     val scope = rememberCoroutineScope()
     val downloadState by CourseDownloadCoordinator.state.collectAsState()
+    val libraryState by CourseLibraryRepository.state.collectAsState()
     var snapshot by remember { mutableStateOf<CourseStorageSnapshot?>(null) }
     var checking by rememberSaveable { mutableStateOf(false) }
     var updateOffer by remember { mutableStateOf<CourseUpdateOffer?>(null) }
@@ -79,23 +77,24 @@ internal fun CourseStorageSettingsPage() {
     var clearing by rememberSaveable { mutableStateOf(false) }
     var clearStatus by rememberSaveable { mutableStateOf<String?>(null) }
 
+    suspend fun refreshState() {
+        CourseLibraryRepository.refresh(context)
+        snapshot = CourseStorageManager.inspect(context)
+    }
+
     LaunchedEffect(Unit) {
         CourseDownloadCoordinator.initialize(context)
-        snapshot = CourseStorageManager.inspect(context)
+        refreshState()
     }
     LaunchedEffect(downloadState) {
         when (val state = downloadState) {
             is CourseDownloadUiState.Success -> {
-                updateStatus = if (state.updatedTextbooks > 0) {
-                    "教材资源下载完成，已启用 ${state.updatedTextbooks} 册。"
-                } else {
-                    "所选教材已经是最新版本。"
-                }
+                updateStatus = if (state.updatedTextbooks > 0) "课程资源下载完成，已更新 ${state.updatedTextbooks} 个课程。" else "所选课程已经是最新版本。"
                 updateOffer = null
-                snapshot = CourseStorageManager.inspect(context)
+                refreshState()
             }
             is CourseDownloadUiState.NotPublished -> {
-                updateStatus = "新版课程包尚未发布。发布后即可按册下载。"
+                updateStatus = "新版课程尚未发布。"
                 updateOffer = null
             }
             is CourseDownloadUiState.Failed -> updateStatus = "下载失败：${state.message}"
@@ -103,55 +102,55 @@ internal fun CourseStorageSettingsPage() {
         }
     }
 
-    val downloadBusy = downloadState is CourseDownloadUiState.Restoring ||
-        downloadState is CourseDownloadUiState.Queued ||
-        downloadState is CourseDownloadUiState.Running
-    val updateById = updateOffer?.textbooks.orEmpty().associateBy(CourseTextbookUpdate::id)
+    val downloadBusy = downloadState is CourseDownloadUiState.Restoring || downloadState is CourseDownloadUiState.Queued || downloadState is CourseDownloadUiState.Running
+    val updates = updateOffer?.textbooks.orEmpty().associateBy(CourseTextbookUpdate::id)
+    val local = libraryState.courses.associateBy(InstalledCourse::id)
+    val rows = (local.keys + updates.keys).sorted().map { id -> CourseResourceRow(id, local[id], updates[id]) }
 
     Column {
-        CourseSettingsSectionTitle("教材资源")
+        CourseSettingsSectionTitle("课程资源")
         TextLine(
-            if (BuildConfig.COURSE_MANIFEST_URL.isBlank()) {
-                "当前 APK 未配置课程源。"
-            } else {
-                "每册教材可独立下载、更新和删除；“全部下载”只是可选操作。"
-            },
+            if (BuildConfig.COURSE_MANIFEST_URL.isBlank()) "当前 APK 未配置课程源。" else "课程列表完全来自远端清单与已安装的 course.json，不再维护 APK 内置教材目录。",
             if (BuildConfig.COURSE_MANIFEST_URL.isBlank()) CourseSettingsRed else CourseSettingsMuted,
         )
         Spacer(Modifier.height(10.dp))
         snapshot?.let {
-            TextLine("已安装 ${it.installedTextbooks} 册 · ${formatBytes(it.activeBytes)}", CourseSettingsWhite.copy(alpha = 0.72f), 12.sp)
+            TextLine("已安装 ${it.installedTextbooks} 个课程 · ${formatBytes(it.activeBytes)}", CourseSettingsWhite.copy(alpha = 0.72f), 12.sp)
             TextLine("上次检查：${formatCheckTime(it.lastCheckedAt)}", CourseSettingsMuted, 12.sp)
         }
         Spacer(Modifier.height(18.dp))
 
-        CourseBookOptions.forEach { book ->
-            CourseBookResourceItem(
-                book = book,
-                installedBytes = snapshot?.textbookBytes?.get(book.id),
-                update = updateById[book.id],
-                downloadBusy = downloadBusy,
-                confirmingDelete = confirmDeleteId == book.id,
-                onDownload = {
-                    confirmDeleteId = null
-                    updateStatus = "${book.label} 已交给后台下载任务。"
-                    CourseDownloadCoordinator.enqueue(context, setOf(book.id))
-                },
-                onBeginDelete = { confirmDeleteId = book.id },
-                onCancelDelete = { confirmDeleteId = null },
-                onConfirmDelete = {
-                    confirmDeleteId = null
-                    scope.launch {
-                        updateStatus = when (val result = CourseStorageManager.removeTextbook(context, book.id)) {
-                            CourseTextbookRemovalResult.Busy -> "后台下载尚未结束，暂时不能删除教材。"
-                            CourseTextbookRemovalResult.NotInstalled -> "${book.label} 当前没有本地资源。"
-                            is CourseTextbookRemovalResult.Removed -> "已删除 ${book.label}，释放 ${formatBytes(result.removedBytes)}；学习记录保持不变。"
-                            is CourseTextbookRemovalResult.Failed -> "删除失败：${result.message}"
+        if (rows.isEmpty()) {
+            TextLine("本地暂无课程。先检查课程源或选择全部下载。", CourseSettingsMuted)
+            Spacer(Modifier.height(12.dp))
+        } else {
+            rows.forEach { row ->
+                CourseResourceItem(
+                    row = row,
+                    installedBytes = snapshot?.textbookBytes?.get(row.id),
+                    downloadBusy = downloadBusy,
+                    confirmingDelete = confirmDeleteId == row.id,
+                    onDownload = {
+                        confirmDeleteId = null
+                        updateStatus = "${row.displayTitle()} 已交给后台下载任务。"
+                        CourseDownloadCoordinator.enqueue(context, setOf(row.id))
+                    },
+                    onBeginDelete = { confirmDeleteId = row.id },
+                    onCancelDelete = { confirmDeleteId = null },
+                    onConfirmDelete = {
+                        confirmDeleteId = null
+                        scope.launch {
+                            updateStatus = when (val result = CourseStorageManager.removeTextbook(context, row.id)) {
+                                CourseTextbookRemovalResult.Busy -> "后台下载尚未结束，暂时不能删除课程。"
+                                CourseTextbookRemovalResult.NotInstalled -> "${row.displayTitle()} 当前没有本地资源。"
+                                is CourseTextbookRemovalResult.Removed -> "已删除 ${row.displayTitle()}，释放 ${formatBytes(result.removedBytes)}；学习记录保持不变。"
+                                is CourseTextbookRemovalResult.Failed -> "删除失败：${result.message}"
+                            }
+                            refreshState()
                         }
-                        snapshot = CourseStorageManager.inspect(context)
-                    }
-                },
-            )
+                    },
+                )
+            }
         }
 
         Spacer(Modifier.height(18.dp))
@@ -160,24 +159,22 @@ internal fun CourseStorageSettingsPage() {
                 when {
                     checking -> "正在检查…"
                     downloadBusy -> "下载任务运行中"
-                    else -> "检查全部教材更新"
+                    else -> "检查课程更新"
                 },
-                modifier = Modifier.weight(1f).padding(end = 12.dp).clickable(
-                    enabled = !checking && !downloadBusy && BuildConfig.COURSE_MANIFEST_URL.isNotBlank(),
-                ) {
+                modifier = Modifier.weight(1f).padding(end = 12.dp).clickable(enabled = !checking && !downloadBusy && BuildConfig.COURSE_MANIFEST_URL.isNotBlank()) {
                     checking = true
-                    updateStatus = "正在获取并验证稳定清单…"
+                    updateStatus = "正在获取并验证课程清单…"
                     updateOffer = null
                     scope.launch {
                         val checked = CourseStorageManager.checkForUpdates(context)
-                        snapshot = CourseStorageManager.inspect(context)
+                        refreshState()
                         when (val result = checked.result) {
                             CourseUpdateCheckResult.Disabled -> updateStatus = "当前 APK 未配置课程源。"
-                            CourseUpdateCheckResult.NotPublished -> updateStatus = "新版课程包尚未发布。发布后即可按册下载。"
-                            CourseUpdateCheckResult.NoUpdate -> updateStatus = "已下载教材均为最新版本；未下载教材仍可按册下载。"
+                            CourseUpdateCheckResult.NotPublished -> updateStatus = "新版课程尚未发布。"
+                            CourseUpdateCheckResult.NoUpdate -> updateStatus = "已安装课程均为最新版本。"
                             is CourseUpdateCheckResult.Available -> {
                                 updateOffer = result.offer
-                                updateStatus = "发现 ${result.offer.textbookCount} 册教材可下载或更新，共 ${formatBytes(result.offer.estimatedBytes)}。"
+                                updateStatus = "发现 ${result.offer.textbookCount} 个课程可下载或更新，共 ${formatBytes(result.offer.estimatedBytes)}。"
                             }
                             is CourseUpdateCheckResult.Failed -> updateStatus = "检查失败：${result.message}"
                         }
@@ -192,10 +189,8 @@ internal fun CourseStorageSettingsPage() {
         Spacer(Modifier.height(16.dp))
         Text(
             "全部下载 / 更新",
-            modifier = Modifier.clickable(
-                enabled = !downloadBusy && BuildConfig.COURSE_MANIFEST_URL.isNotBlank(),
-            ) {
-                updateStatus = "全部教材已交给后台任务；只会下载缺失或发生变化的文件。"
+            modifier = Modifier.clickable(enabled = !downloadBusy && BuildConfig.COURSE_MANIFEST_URL.isNotBlank()) {
+                updateStatus = "课程已交给后台任务；只会下载缺失或发生变化的文件。"
                 CourseDownloadCoordinator.enqueue(context)
             },
             color = if (downloadBusy) CourseSettingsMuted else CourseSettingsWhite.copy(alpha = 0.68f),
@@ -204,12 +199,8 @@ internal fun CourseStorageSettingsPage() {
 
         AnimatedVisibility(visible = updateStatus != null) {
             CourseSettingsNotice(
-                color = if (updateStatus.orEmpty().contains("失败") || updateStatus.orEmpty().contains("未配置")) {
-                    CourseSettingsRed
-                } else {
-                    CourseSettingsBlue
-                },
-                label = "教材状态",
+                color = if (updateStatus.orEmpty().contains("失败") || updateStatus.orEmpty().contains("未配置")) CourseSettingsRed else CourseSettingsBlue,
+                label = "课程状态",
                 body = updateStatus.orEmpty(),
             )
         }
@@ -219,25 +210,13 @@ internal fun CourseStorageSettingsPage() {
         snapshot?.let { state ->
             TextLine("课程资源共 ${formatBytes(state.totalBytes)}", CourseSettingsWhite.copy(alpha = 0.78f))
             Spacer(Modifier.height(7.dp))
-            TextLine(
-                "可离线教材 ${formatBytes(state.activeBytes)} · 下载与暂存 ${formatBytes(state.temporaryBytes)}",
-                CourseSettingsMuted,
-                12.sp,
-            )
+            TextLine("已安装 ${formatBytes(state.activeBytes)} · 下载与暂存 ${formatBytes(state.temporaryBytes)}", CourseSettingsMuted, 12.sp)
         } ?: TextLine("正在统计本地课程…", CourseSettingsMuted)
         Spacer(Modifier.height(12.dp))
-        TextLine(
-            "单册删除和全量清理都只影响课程包、教材 PDF、图片与缓存；答题记录、错误次数、复习计划与掌握度不会删除。",
-            CourseSettingsMuted,
-            12.sp,
-        )
+        TextLine("清理只删除 course-packs 下的课程、PDF、图片和下载缓存；答题与复习记录单独保存。", CourseSettingsMuted, 12.sp)
         Spacer(Modifier.height(20.dp))
 
-        AnimatedContent(
-            targetState = confirmClear,
-            transitionSpec = { fadeIn() togetherWith fadeOut() },
-            label = "clearCourseCache",
-        ) { confirming ->
+        AnimatedContent(targetState = confirmClear, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "clearCourseCache") { confirming ->
             if (!confirming) {
                 Text(
                     when {
@@ -253,7 +232,7 @@ internal fun CourseStorageSettingsPage() {
                 )
             } else {
                 Column {
-                    TextLine("这会删除所有已下载教材；学习记录仍会保留。", CourseSettingsWhite.copy(alpha = 0.72f), 13.sp)
+                    TextLine("这会删除所有已下载课程；学习记录仍会保留。", CourseSettingsWhite.copy(alpha = 0.72f), 13.sp)
                     Spacer(Modifier.height(16.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("取消", modifier = Modifier.clickable { confirmClear = false }, color = CourseSettingsMuted)
@@ -265,11 +244,10 @@ internal fun CourseStorageSettingsPage() {
                                 scope.launch {
                                     clearStatus = when (val result = CourseStorageManager.clearCache(context)) {
                                         CourseCacheClearResult.Busy -> "后台下载尚未结束，课程缓存没有被修改。"
-                                        is CourseCacheClearResult.Cleared ->
-                                            "已清理 ${formatBytes(result.removedBytes)}，移除 ${result.removedTextbooks} 册本地课程；学习记录保持不变。"
+                                        is CourseCacheClearResult.Cleared -> "已清理 ${formatBytes(result.removedBytes)}，移除 ${result.removedTextbooks} 个本地课程；学习记录保持不变。"
                                         is CourseCacheClearResult.Failed -> "清理失败：${result.message}"
                                     }
-                                    snapshot = CourseStorageManager.inspect(context)
+                                    refreshState()
                                     clearing = false
                                 }
                             },
@@ -292,10 +270,9 @@ internal fun CourseStorageSettingsPage() {
 }
 
 @Composable
-private fun CourseBookResourceItem(
-    book: CourseBookOption,
+private fun CourseResourceItem(
+    row: CourseResourceRow,
     installedBytes: Long?,
-    update: CourseTextbookUpdate?,
     downloadBusy: Boolean,
     confirmingDelete: Boolean,
     onDownload: () -> Unit,
@@ -303,29 +280,21 @@ private fun CourseBookResourceItem(
     onCancelDelete: () -> Unit,
     onConfirmDelete: () -> Unit,
 ) {
-    val installed = installedBytes != null
+    val installed = row.course != null
+    val update = row.update
     val stateText = when {
         update != null && update.kind == CourseUpdateKind.INITIAL -> "未下载 · ${formatBytes(update.estimatedBytes)}"
         update != null -> "有更新 · ${formatBytes(update.estimatedBytes)}"
         installed -> "已下载 · ${formatBytes(installedBytes ?: 0L)}"
         else -> "未下载"
     }
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 11.dp),
-        verticalArrangement = Arrangement.spacedBy(7.dp),
-    ) {
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 11.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Column(modifier = Modifier.weight(1f).padding(end = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(book.label, color = CourseSettingsWhite, fontWeight = FontWeight.Medium)
-                Text(book.id, color = CourseSettingsMuted, fontSize = 11.sp)
+                Text(row.displayTitle(), color = CourseSettingsWhite, fontWeight = FontWeight.Medium)
+                Text(row.displayMetadata(), color = CourseSettingsMuted, fontSize = 11.sp)
             }
-            Text(
-                stateText,
-                color = if (update != null) CourseSettingsBlue else CourseSettingsMuted,
-                fontSize = 12.sp,
-                maxLines = 1,
-                softWrap = false,
-            )
+            Text(stateText, color = if (update != null) CourseSettingsBlue else CourseSettingsMuted, fontSize = 12.sp, maxLines = 1, softWrap = false)
         }
         if (confirmingDelete) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -343,7 +312,7 @@ private fun CourseBookResourceItem(
                     )
                 } else {
                     Text(
-                        "删除本册",
+                        "删除本地课程",
                         modifier = Modifier.clickable(enabled = !downloadBusy, onClick = onBeginDelete).padding(vertical = 4.dp),
                         color = if (downloadBusy) CourseSettingsMuted else CourseSettingsRed.copy(alpha = 0.82f),
                     )
@@ -354,24 +323,21 @@ private fun CourseBookResourceItem(
     }
 }
 
+private fun CourseResourceRow.displayTitle(): String = course?.title ?: id
+
+private fun CourseResourceRow.displayMetadata(): String {
+    val local = course ?: return id
+    return listOf(local.subject, local.grade, local.semester).map(String::trim).filter(String::isNotBlank).joinToString(" · ")
+}
+
 @Composable
 private fun CourseSettingsSectionTitle(text: String) {
-    Text(
-        text,
-        modifier = Modifier.padding(bottom = 18.dp),
-        color = CourseSettingsYellow,
-        fontSize = 13.sp,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = 1.2.sp,
-    )
+    Text(text, modifier = Modifier.padding(bottom = 18.dp), color = CourseSettingsYellow, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
 }
 
 @Composable
 private fun CourseSettingsNotice(color: Color, label: String, body: String) {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(9.dp),
-    ) {
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 24.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
         Box(Modifier.fillMaxWidth().height(2.dp).background(color))
         Text(label, color = color, fontWeight = FontWeight.Bold)
         Text(body, color = CourseSettingsWhite.copy(alpha = 0.72f), lineHeight = 23.sp)
@@ -387,11 +353,7 @@ private fun CourseDownloadUiState.downloadLabel(): String? = when (this) {
     CourseDownloadUiState.Restoring -> "恢复任务状态"
     CourseDownloadUiState.Idle -> null
     is CourseDownloadUiState.Queued -> "等待网络"
-    is CourseDownloadUiState.Running -> if (totalBytes > 0L) {
-        "${(downloadedBytes * 100L / totalBytes).coerceIn(0L, 100L)}%"
-    } else {
-        stage
-    }
+    is CourseDownloadUiState.Running -> if (totalBytes > 0L) "${(downloadedBytes * 100L / totalBytes).coerceIn(0L, 100L)}%" else stage
     is CourseDownloadUiState.Success -> "下载完成"
     is CourseDownloadUiState.NotPublished -> "尚未发布"
     is CourseDownloadUiState.Failed -> "下载失败"

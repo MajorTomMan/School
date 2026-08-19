@@ -14,7 +14,6 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.majortomman.school.MainActivity
-import com.majortomman.school.data.material.MaterialLibraryStore
 import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -23,17 +22,9 @@ class CourseDownloadWorker(
     appContext: Context,
     workerParameters: WorkerParameters,
 ) : CoroutineWorker(appContext, workerParameters) {
-
-    private val operationId: Long = inputData
-        .getLong(CourseDownloadCoordinator.KEY_OPERATION_ID, 0L)
-        .takeIf { it != 0L }
-        ?: id.stableLong()
-    private val textbookIds: Set<String> = inputData
-        .getStringArray(CourseDownloadCoordinator.KEY_TEXTBOOK_IDS)
-        .orEmpty()
-        .map(String::trim)
-        .filter(String::isNotBlank)
-        .toSet()
+    private val operationId: Long = inputData.getLong(CourseDownloadCoordinator.KEY_OPERATION_ID, 0L).takeIf { it != 0L } ?: id.stableLong()
+    private val textbookIds: Set<String> = inputData.getStringArray(CourseDownloadCoordinator.KEY_TEXTBOOK_IDS).orEmpty()
+        .map(String::trim).filter(String::isNotBlank).toSet()
 
     override suspend fun getForegroundInfo(): ForegroundInfo {
         createNotificationChannels()
@@ -44,17 +35,9 @@ class CourseDownloadWorker(
         CourseDownloadCoordinator.initialize(applicationContext)
         createNotificationChannels()
         setForeground(foregroundInfo(0, "正在检查课程资源", indeterminate = true))
-        CourseDownloadCoordinator.reportRunning(
-            operationId,
-            CourseSyncProgress(0L, 0L, "课程清单", "正在检查更新"),
-        )
+        CourseDownloadCoordinator.reportRunning(operationId, CourseSyncProgress(0L, 0L, "课程清单", "正在检查更新"))
 
-        return when (
-            val result = CourseSyncManager.syncAfterConfirmation(
-                context = applicationContext,
-                textbookIds = textbookIds,
-            ) { progress -> publishProgress(progress) }
-        ) {
+        return when (val result = CourseSyncManager.syncAfterConfirmation(applicationContext, textbookIds) { progress -> publishProgress(progress) }) {
             CourseSyncResult.Disabled -> {
                 val message = "课程下载地址尚未配置"
                 CourseDownloadCoordinator.reportFailure(operationId, message)
@@ -74,8 +57,8 @@ class CourseDownloadWorker(
                 Result.failure(resultData(error = message))
             }
             is CourseSyncResult.Success -> {
-                CloudCourseCatalogInstaller.refreshFromCache(applicationContext)
-                MaterialLibraryStore.read(applicationContext)
+                CloudCourseRepository.markContentChanged()
+                CourseLibraryRepository.refresh(applicationContext)
                 CourseDownloadCoordinator.reportSuccess(operationId, result.updatedTextbooks)
                 val message = if (result.updatedTextbooks > 0) {
                     if (textbookIds.size == 1) "所选教材已下载完成，可以离线学习" else "课程内容已下载完成，可以离线学习"
@@ -103,11 +86,7 @@ class CourseDownloadWorker(
         )
         notifySafely(
             PROGRESS_NOTIFICATION_ID,
-            progressNotification(
-                percent = percent,
-                text = progress.currentItem.ifBlank { progress.stage },
-                indeterminate = progress.totalBytes <= 0L,
-            ),
+            progressNotification(percent, progress.currentItem.ifBlank { progress.stage }, progress.totalBytes <= 0L),
         )
     }
 
@@ -117,14 +96,11 @@ class CourseDownloadWorker(
         KEY_ERROR to error.orEmpty(),
     )
 
-    private fun foregroundInfo(percent: Int, text: String, indeterminate: Boolean): ForegroundInfo {
-        val notification = progressNotification(percent, text, indeterminate)
-        return ForegroundInfo(
-            PROGRESS_NOTIFICATION_ID,
-            notification,
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
-        )
-    }
+    private fun foregroundInfo(percent: Int, text: String, indeterminate: Boolean): ForegroundInfo = ForegroundInfo(
+        PROGRESS_NOTIFICATION_ID,
+        progressNotification(percent, text, indeterminate),
+        ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+    )
 
     private fun progressNotification(percent: Int, text: String, indeterminate: Boolean): android.app.Notification {
         val displayedPercent = percent.coerceIn(0, 100)
@@ -171,32 +147,19 @@ class CourseDownloadWorker(
         val intent = Intent(applicationContext, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
-        return PendingIntent.getActivity(
-            applicationContext,
-            0,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
+        return PendingIntent.getActivity(applicationContext, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
     private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = applicationContext.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
-            NotificationChannel(
-                DOWNLOAD_CHANNEL_ID,
-                "课程下载进度",
-                NotificationManager.IMPORTANCE_LOW,
-            ).apply {
+            NotificationChannel(DOWNLOAD_CHANNEL_ID, "课程下载进度", NotificationManager.IMPORTANCE_LOW).apply {
                 description = "显示课程包和教材的后台下载进度"
             },
         )
         manager.createNotificationChannel(
-            NotificationChannel(
-                RESULT_CHANNEL_ID,
-                "课程下载结果",
-                NotificationManager.IMPORTANCE_DEFAULT,
-            ).apply {
+            NotificationChannel(RESULT_CHANNEL_ID, "课程下载结果", NotificationManager.IMPORTANCE_DEFAULT).apply {
                 description = "通知课程下载完成、尚未发布或失败"
             },
         )
@@ -208,15 +171,12 @@ class CourseDownloadWorker(
 
     private fun userFacingFailure(message: String): String = when {
         message.contains("课程文件下载不完整") && message.contains("textbook.pdf") ->
-            "教材 PDF 下载地址返回的内容不完整。Google Drive 文件可能未开放公开访问；" +
-                "请将共享权限设置为“知道链接的任何人可查看”后重试。"
+            "教材 PDF 下载地址返回的内容不完整。Google Drive 文件可能未开放公开访问；请将共享权限设置为“知道链接的任何人可查看”后重试。"
         else -> message
     }
 
     private val CourseSyncProgress.percent: Int
-        get() = if (totalBytes <= 0L) 0 else {
-            (downloadedBytes.toDouble() * 100.0 / totalBytes.toDouble()).roundToInt().coerceIn(0, 100)
-        }
+        get() = if (totalBytes <= 0L) 0 else (downloadedBytes.toDouble() * 100.0 / totalBytes.toDouble()).roundToInt().coerceIn(0, 100)
 
     private fun UUID.stableLong(): Long = (mostSignificantBits xor leastSignificantBits).let {
         if (it == Long.MIN_VALUE) 1L else abs(it).coerceAtLeast(1L)
@@ -230,7 +190,6 @@ class CourseDownloadWorker(
         const val KEY_PERCENT = "percent"
         const val KEY_ERROR = "error"
         const val KEY_UPDATED_TEXTBOOKS = "updated_textbooks"
-
         private const val DOWNLOAD_CHANNEL_ID = "school_course_downloads"
         private const val RESULT_CHANNEL_ID = "school_course_download_results"
         private const val PROGRESS_NOTIFICATION_ID = 42021

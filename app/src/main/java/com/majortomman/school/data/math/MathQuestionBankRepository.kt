@@ -1,37 +1,29 @@
 package com.majortomman.school.data.math
 
 import android.content.Context
-import com.majortomman.school.data.curriculum.CurriculumRepository
-import com.majortomman.school.data.curriculum.KnowledgeMastery
+import com.majortomman.school.data.local.MathKnowledgeMasteryEntity
 import com.majortomman.school.data.local.MathMistakeEntity
 import com.majortomman.school.data.local.MathPracticeAttemptEntity
 import com.majortomman.school.data.local.PracticeAttemptEntity
 import com.majortomman.school.data.local.SchoolDatabase
-import com.majortomman.school.data.material.InstalledTextbook
-import com.majortomman.school.data.material.TextbookQuestionDraft
-import com.majortomman.school.data.material.TextbookQuestionDraftStore
-import java.io.File
+import com.majortomman.school.learning.cloud.InstalledCourse
 import kotlin.math.roundToInt
 import kotlin.random.Random
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
-class MathQuestionBankRepository(
-    context: Context,
-    private val curriculumRepository: CurriculumRepository = CurriculumRepository(context),
-) {
+class MathQuestionBankRepository(context: Context) {
     private val learningDao = SchoolDatabase.getInstance(context).learningDao()
 
-    fun observeMastery(textbook: InstalledTextbook): Flow<List<MathMasterySnapshot>> =
-        curriculumRepository.observeMastery(MATH_SUBJECT_ID).map { entities ->
-            val titleById = MathKnowledgeCatalog.all.associateBy { it.id }
+    fun observeMastery(course: InstalledCourse): Flow<List<MathMasterySnapshot>> =
+        learningDao.observeMathMastery(course.id).map { entities ->
             val existing = entities.associateBy { it.knowledgePointId }
-            MathKnowledgeCatalog.forTextbook(textbook).map { point ->
+            MathKnowledgeCatalog.forCourse(course).map { point ->
                 val entity = existing[point.id]
                 MathMasterySnapshot(
                     knowledgePointId = point.id,
-                    title = titleById[point.id]?.title ?: point.title,
+                    title = point.title,
                     score = entity?.score ?: INITIAL_SCORE,
                     attempts = entity?.attempts ?: 0,
                     correctStreak = entity?.correctStreak ?: 0,
@@ -40,8 +32,8 @@ class MathQuestionBankRepository(
             }.sortedWith(compareBy({ it.score }, { it.dueAt }))
         }
 
-    fun observeMistakes(textbook: InstalledTextbook): Flow<List<MathMistakeSnapshot>> =
-        learningDao.observeMathMistakes(textbook.key).map { entities ->
+    fun observeMistakes(course: InstalledCourse): Flow<List<MathMistakeSnapshot>> =
+        learningDao.observeMathMistakes(course.id).map { entities ->
             entities.mapNotNull { entity ->
                 runCatching {
                     MathMistakeSnapshot(
@@ -57,63 +49,60 @@ class MathQuestionBankRepository(
             }
         }
 
-    fun observeRecentAttempts(textbook: InstalledTextbook): Flow<List<MathAttemptSummary>> =
-        learningDao.observeMathAttempts(textbook.key).map { attempts ->
+    fun observeRecentAttempts(course: InstalledCourse): Flow<List<MathAttemptSummary>> =
+        learningDao.observeMathAttempts(course.id).map { attempts ->
             attempts.map { entity ->
-                MathAttemptSummary(
-                    questionId = entity.questionId,
-                    knowledgePointId = entity.knowledgePointId,
-                    correct = entity.correct,
-                    mistakeType = entity.mistakeType,
-                    createdAt = entity.createdAt,
-                )
+                MathAttemptSummary(entity.questionId, entity.knowledgePointId, entity.correct, entity.mistakeType, entity.createdAt)
             }
         }
 
     suspend fun nextQuestion(
-        textbook: InstalledTextbook,
+        course: InstalledCourse,
         mode: MathPracticeMode,
         seed: Long = System.nanoTime(),
     ): MathQuestion {
-        require(textbook.slot.subjectId == MATH_SUBJECT_ID) { "当前教材不是数学教材" }
-        val points = MathKnowledgeCatalog.forTextbook(textbook)
-        require(points.isNotEmpty()) { "当前教材没有可用的数学知识点" }
-        val masteryEntities = curriculumRepository.observeMastery(MATH_SUBJECT_ID).first()
-        val mastery = masteryEntities.associateBy { it.knowledgePointId }
-        val recentTemplates = learningDao.recentMathTemplateIds(textbook.key).toSet()
+        require(course.isMath()) { "当前课程不是数学课程" }
+        val points = MathKnowledgeCatalog.forCourse(course)
+        require(points.isNotEmpty()) { "当前课程没有 APK 支持的数学题型" }
+        val mastery = learningDao.observeMathMastery(course.id).first().associateBy { it.knowledgePointId }
+        val recentTemplates = learningDao.recentMathTemplateIds(course.id).toSet()
         val random = Random(seed)
 
         if (mode == MathPracticeMode.MISTAKES) {
-            val mistakes = learningDao.observeMathMistakes(textbook.key).first()
-            val candidate = mistakes
-                .filter { it.dueAt <= System.currentTimeMillis() }
-                .ifEmpty { mistakes }
+            val mistakes = learningDao.observeMathMistakes(course.id).first()
+            val candidate = mistakes.filter { it.dueAt <= System.currentTimeMillis() }.ifEmpty { mistakes }
                 .maxWithOrNull(compareBy<MathMistakeEntity> { it.wrongCount }.thenByDescending { it.updatedAt })
             if (candidate != null) {
                 val original = runCatching { MathQuestion.fromJson(org.json.JSONObject(candidate.questionJson)) }.getOrNull()
-                val pointId = candidate.knowledgePointId
                 return MathQuestionTemplateCatalog.generate(
-                    textbookKey = textbook.key,
+                    textbookKey = course.id,
                     lessonId = candidate.lessonId,
-                    knowledgePointId = pointId,
-                    difficulty = difficultyFor(mastery[pointId]?.score ?: INITIAL_SCORE),
+                    knowledgePointId = candidate.knowledgePointId,
+                    difficulty = difficultyFor(mastery[candidate.knowledgePointId]?.score ?: INITIAL_SCORE),
                     seed = seed + candidate.wrongCount * 997L,
                     source = MathQuestionSource.MISTAKE_VARIANT,
-                    sourceContext = original?.let {
-                        MathSourceContext(it.lessonId, it.sourcePage, it.sourceExcerpt)
-                    },
-                    excludedTemplateIds = emptySet(),
+                    sourceContext = original?.let { MathSourceContext(it.lessonId, it.sourcePage, it.sourceExcerpt) },
                 )
             }
         }
 
         if (mode == MathPracticeMode.TEXTBOOK) {
-            val drafts = TextbookQuestionDraftStore.read(File(textbook.pack.rootPath))
-                .filter { draft -> draft.knowledgePointId != null }
-            if (drafts.isNotEmpty()) {
-                val draft = drafts[random.nextInt(drafts.size)]
-                val pointId = draft.knowledgePointId ?: points.first().id
-                return generateForDraft(textbook, draft, pointId, mastery, seed, recentTemplates)
+            val supportedIds = points.map(MathKnowledgePoint::id).toSet()
+            val lessons = course.lessons.filter { lesson -> lesson.knowledgePointIds.any(supportedIds::contains) }
+            if (lessons.isNotEmpty()) {
+                val lesson = lessons[random.nextInt(lessons.size)]
+                val pointId = lesson.knowledgePointIds.first(supportedIds::contains)
+                val reference = lesson.references.firstOrNull()
+                return MathQuestionTemplateCatalog.generate(
+                    textbookKey = course.id,
+                    lessonId = lesson.id,
+                    knowledgePointId = pointId,
+                    difficulty = difficultyFor(mastery[pointId]?.score ?: INITIAL_SCORE),
+                    seed = seed,
+                    source = MathQuestionSource.TEXTBOOK_VARIANT,
+                    sourceContext = MathSourceContext(lesson.id, reference?.pageStart, null),
+                    excludedTemplateIds = recentTemplates,
+                )
             }
         }
 
@@ -123,18 +112,13 @@ class MathQuestionBankRepository(
                 val duePenalty = if (state != null && state.dueAt <= System.currentTimeMillis()) -0.15 else 0.0
                 (state?.score ?: INITIAL_SCORE) + duePenalty
             } ?: points.first()
-
-            MathPracticeMode.TEXTBOOK -> {
-                val lessonPoints = textbook.lessons.mapNotNull { lesson -> MathKnowledgeCatalog.infer(lesson.title) }
-                lessonPoints.randomOrNull(random) ?: points.random(random)
-            }
-
+            MathPracticeMode.TEXTBOOK -> points[random.nextInt(points.size)]
             MathPracticeMode.MIXED -> weightedPoint(points, mastery, random)
         }
         val state = mastery[point.id]
         return MathQuestionTemplateCatalog.generate(
-            textbookKey = textbook.key,
-            lessonId = MathKnowledgeCatalog.lessonIdFor(textbook, point.id),
+            textbookKey = course.id,
+            lessonId = MathKnowledgeCatalog.lessonIdFor(course, point.id),
             knowledgePointId = point.id,
             difficulty = difficultyFor(state?.score ?: INITIAL_SCORE),
             seed = seed,
@@ -181,43 +165,16 @@ class MathQuestionBankRepository(
             ),
         )
 
-        val previous = curriculumRepository.getMastery(MATH_SUBJECT_ID, question.knowledgePointId)
+        val previous = learningDao.getMathMastery(question.textbookKey, question.knowledgePointId)
         val updatedMastery = nextMastery(previous, question, evaluation.correct, usedHint, now)
-        curriculumRepository.upsertMastery(updatedMastery)
+        learningDao.upsertMathMastery(updatedMastery)
         updateMistake(question, answer, evaluation, now)
-
-        return MathSubmissionResult(
-            question = question,
-            evaluation = evaluation,
-            masteryScore = updatedMastery.score,
-        )
+        return MathSubmissionResult(question, evaluation, updatedMastery.score)
     }
-
-    private fun generateForDraft(
-        textbook: InstalledTextbook,
-        draft: TextbookQuestionDraft,
-        pointId: String,
-        mastery: Map<String, KnowledgeMastery>,
-        seed: Long,
-        recentTemplates: Set<String>,
-    ): MathQuestion = MathQuestionTemplateCatalog.generate(
-        textbookKey = textbook.key,
-        lessonId = draft.lessonId,
-        knowledgePointId = pointId,
-        difficulty = difficultyFor(mastery[pointId]?.score ?: INITIAL_SCORE),
-        seed = seed,
-        source = MathQuestionSource.TEXTBOOK_VARIANT,
-        sourceContext = MathSourceContext(
-            lessonId = draft.lessonId,
-            sourcePage = draft.page,
-            excerpt = draft.excerpt,
-        ),
-        excludedTemplateIds = recentTemplates,
-    )
 
     private fun weightedPoint(
         points: List<MathKnowledgePoint>,
-        mastery: Map<String, KnowledgeMastery>,
+        mastery: Map<String, MathKnowledgeMasteryEntity>,
         random: Random,
     ): MathKnowledgePoint {
         val now = System.currentTimeMillis()
@@ -244,12 +201,12 @@ class MathQuestionBankRepository(
     }
 
     private fun nextMastery(
-        previous: KnowledgeMastery?,
+        previous: MathKnowledgeMasteryEntity?,
         question: MathQuestion,
         correct: Boolean,
         usedHint: Boolean,
         now: Long,
-    ): KnowledgeMastery {
+    ): MathKnowledgeMasteryEntity {
         val currentScore = previous?.score ?: INITIAL_SCORE
         val difficultyFactor = 0.85 + question.difficulty.level * 0.08
         val score = if (correct) {
@@ -260,19 +217,15 @@ class MathQuestionBankRepository(
         }.coerceIn(0.05, 0.98)
         val correctStreak = if (correct) (previous?.correctStreak ?: 0) + 1 else 0
         val wrongStreak = if (correct) 0 else (previous?.wrongStreak ?: 0) + 1
-        val intervalDays = if (!correct) {
-            1
-        } else {
-            when (correctStreak) {
-                1 -> 1
-                2 -> 3
-                3 -> 7
-                4 -> 14
-                else -> 30
-            }
+        val intervalDays = if (!correct) 1 else when (correctStreak) {
+            1 -> 1
+            2 -> 3
+            3 -> 7
+            4 -> 14
+            else -> 30
         }
-        return KnowledgeMastery(
-            subjectId = MATH_SUBJECT_ID,
+        return MathKnowledgeMasteryEntity(
+            textbookKey = question.textbookKey,
             knowledgePointId = question.knowledgePointId,
             score = score,
             attempts = (previous?.attempts ?: 0) + 1,
@@ -284,12 +237,7 @@ class MathQuestionBankRepository(
         )
     }
 
-    private suspend fun updateMistake(
-        question: MathQuestion,
-        answer: String,
-        evaluation: MathAnswerEvaluation,
-        now: Long,
-    ) {
+    private suspend fun updateMistake(question: MathQuestion, answer: String, evaluation: MathAnswerEvaluation, now: Long) {
         val mistakeKey = "${question.textbookKey}:${question.knowledgePointId}:${question.templateId}"
         val previous = learningDao.getMathMistake(mistakeKey)
         if (!evaluation.correct) {
@@ -312,25 +260,17 @@ class MathQuestionBankRepository(
             )
             return
         }
-
         if (previous != null) {
             val resolved = previous.resolvedStreak + 1
             if (resolved >= 2) {
                 learningDao.deleteMathMistake(mistakeKey)
             } else {
-                learningDao.upsertMathMistake(
-                    previous.copy(
-                        resolvedStreak = resolved,
-                        dueAt = now + 3 * DAY_MILLIS,
-                        updatedAt = now,
-                    ),
-                )
+                learningDao.upsertMathMistake(previous.copy(resolvedStreak = resolved, dueAt = now + 3 * DAY_MILLIS, updatedAt = now))
             }
         }
     }
 
     companion object {
-        private const val MATH_SUBJECT_ID = "math"
         private const val INITIAL_SCORE = 0.25
         private const val DAY_MILLIS = 24L * 60L * 60L * 1_000L
     }

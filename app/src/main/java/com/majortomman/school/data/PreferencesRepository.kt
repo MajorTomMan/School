@@ -7,10 +7,10 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.majortomman.school.data.curriculum.CurriculumRepository
 import com.majortomman.school.data.local.PracticeAttemptEntity
 import com.majortomman.school.data.local.SchoolDatabase
 import com.majortomman.school.data.review.ReviewScheduler
+import com.majortomman.school.learning.cloud.CourseLibraryRepository
 import java.io.IOException
 import java.time.Instant
 import java.time.LocalDate
@@ -40,12 +40,11 @@ data class LearningProgress(
     val lastFeedback: String = "",
 ) {
     val accuracyPercent: Int
-        get() = if (attempts == 0) 0 else (correctAttempts * 100 / attempts)
+        get() = if (attempts == 0) 0 else correctAttempts * 100 / attempts
 }
 
 class PreferencesRepository(
     private val context: Context,
-    private val curriculumRepository: CurriculumRepository = CurriculumRepository(context),
 ) {
     private val learningDao = SchoolDatabase.getInstance(context).learningDao()
     private val preferencesFlow = context.schoolDataStore.data.safeData()
@@ -69,18 +68,14 @@ class PreferencesRepository(
         )
     }
 
-    val learningProgress: Flow<LearningProgress> = combine(
-        preferencesFlow,
-        learningDao.observeAttemptStats(),
-    ) { preferences, roomStats ->
+    val learningProgress: Flow<LearningProgress> = combine(preferencesFlow, learningDao.observeAttemptStats()) { preferences, roomStats ->
         val statuses = preferences.asMap().mapNotNull { (key, value) ->
             val keyName = key.name
             if (!keyName.startsWith(LESSON_STATUS_PREFIX)) return@mapNotNull null
             val lessonId = keyName.removePrefix(LESSON_STATUS_PREFIX)
             if (lessonId.isBlank()) return@mapNotNull null
             val statusName = value as? String ?: return@mapNotNull null
-            val status = runCatching { MasteryStatus.valueOf(statusName) }.getOrNull()
-                ?: return@mapNotNull null
+            val status = runCatching { MasteryStatus.valueOf(statusName) }.getOrNull() ?: return@mapNotNull null
             lessonId to status
         }.toMap()
 
@@ -143,30 +138,21 @@ class PreferencesRepository(
     }
 
     suspend fun markLessonStatus(lessonId: String, status: MasteryStatus) {
-        context.schoolDataStore.edit { preferences ->
-            preferences[lessonStatusKey(lessonId)] = status.name
-        }
-        curriculumRepository.markLessonStatus(lessonId, status)
+        context.schoolDataStore.edit { preferences -> preferences[lessonStatusKey(lessonId)] = status.name }
     }
 
     suspend fun finishLessonAndStartNext(currentLessonId: String, nextLessonId: String?) {
         context.schoolDataStore.edit { preferences ->
             val currentKey = lessonStatusKey(currentLessonId)
             val currentStatus = preferences[currentKey]?.let { stored -> runCatching { MasteryStatus.valueOf(stored) }.getOrNull() }
-            if (currentStatus != MasteryStatus.NEEDS_REVIEW) {
-                preferences[currentKey] = MasteryStatus.MASTERED.name
-            }
+            if (currentStatus != MasteryStatus.NEEDS_REVIEW) preferences[currentKey] = MasteryStatus.MASTERED.name
             if (nextLessonId != null) {
                 val nextKey = lessonStatusKey(nextLessonId)
                 val nextStatus = preferences[nextKey]?.let { stored -> runCatching { MasteryStatus.valueOf(stored) }.getOrNull() }
-                if (nextStatus != MasteryStatus.MASTERED) {
-                    preferences[nextKey] = MasteryStatus.LEARNING.name
-                }
+                if (nextStatus != MasteryStatus.MASTERED) preferences[nextKey] = MasteryStatus.LEARNING.name
             }
             preferences[Keys.lastLessonId] = nextLessonId ?: currentLessonId
         }
-        curriculumRepository.markLessonStatus(currentLessonId, MasteryStatus.MASTERED)
-        nextLessonId?.let { curriculumRepository.markLessonStatus(it, MasteryStatus.LEARNING) }
     }
 
     suspend fun recordAttempt(lessonId: String, draft: AttemptDraft) {
@@ -183,17 +169,8 @@ class PreferencesRepository(
                 createdAt = now,
             ),
         )
-
         val previousSchedule = learningDao.getReviewSchedule(lessonId)
-        learningDao.upsertReviewSchedule(
-            ReviewScheduler.next(
-                lessonId = lessonId,
-                previous = previousSchedule,
-                correct = draft.correct,
-                now = now,
-            ),
-        )
-
+        learningDao.upsertReviewSchedule(ReviewScheduler.next(lessonId, previousSchedule, draft.correct, now))
         val status = if (draft.correct) MasteryStatus.MASTERED else MasteryStatus.NEEDS_REVIEW
         context.schoolDataStore.edit { preferences ->
             preferences[lessonStatusKey(lessonId)] = status.name
@@ -201,7 +178,6 @@ class PreferencesRepository(
             preferences[Keys.lastAnswer] = draft.answer.take(2_000)
             preferences[Keys.lastFeedback] = draft.feedback.take(2_000)
         }
-        curriculumRepository.markLessonStatus(lessonId, status)
     }
 
     suspend fun clearLearningProgress() {
@@ -210,11 +186,8 @@ class PreferencesRepository(
         learningDao.clearMathAttempts()
         learningDao.clearMathMastery()
         learningDao.clearMathMistakes()
-        curriculumRepository.clearLearningState()
         context.schoolDataStore.edit { preferences ->
-            preferences.asMap().keys
-                .map { it.name }
-                .filter { it.startsWith(LESSON_STATUS_PREFIX) }
+            preferences.asMap().keys.map { it.name }.filter { it.startsWith(LESSON_STATUS_PREFIX) }
                 .forEach { keyName -> preferences.remove(stringPreferencesKey(keyName)) }
             preferences.remove(Keys.attempts)
             preferences.remove(Keys.correctAttempts)
@@ -224,7 +197,7 @@ class PreferencesRepository(
         }
     }
 
-    private fun lessonTitle(lessonId: String): String = curriculumRepository.state.value.nodeForLesson(lessonId)?.title ?: lessonId
+    private fun lessonTitle(lessonId: String): String = CourseLibraryRepository.lessonTitle(lessonId) ?: lessonId
 
     private fun lessonStatusKey(lessonId: String) = stringPreferencesKey("$LESSON_STATUS_PREFIX$lessonId")
 

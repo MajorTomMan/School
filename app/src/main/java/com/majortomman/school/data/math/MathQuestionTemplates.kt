@@ -1,6 +1,6 @@
 package com.majortomman.school.data.math
 
-import com.majortomman.school.data.material.InstalledTextbook
+import com.majortomman.school.learning.cloud.InstalledCourse
 import kotlin.math.absoluteValue
 import kotlin.random.Random
 
@@ -11,73 +11,29 @@ data class MathSourceContext(
 )
 
 object MathKnowledgeCatalog {
-    val all = listOf(
-        MathKnowledgePoint(
-            id = "positive-negative",
-            title = "正数和负数",
-            description = "判断符号，并用正负数表示相反意义的量。",
-            lessonKeywords = listOf("正数", "负数", "相反意义", "温度", "海拔"),
-        ),
-        MathKnowledgePoint(
-            id = "number-line",
-            title = "数轴",
-            description = "理解原点、正方向和单位长度，并在数轴上定位数。",
-            lessonKeywords = listOf("数轴", "原点", "单位长度", "坐标"),
-        ),
-        MathKnowledgePoint(
-            id = "opposite-number",
-            title = "相反数",
-            description = "理解关于原点对称的位置关系。",
-            lessonKeywords = listOf("相反数", "相反", "原点对称"),
-        ),
-        MathKnowledgePoint(
-            id = "absolute-value",
-            title = "绝对值",
-            description = "把绝对值理解为数到原点的距离。",
-            lessonKeywords = listOf("绝对值", "距离"),
-        ),
-        MathKnowledgePoint(
-            id = "rational-compare",
-            title = "有理数大小比较",
-            description = "借助数轴、符号和绝对值比较有理数。",
-            lessonKeywords = listOf("大小比较", "比较", "排序", "大于", "小于"),
-        ),
-        MathKnowledgePoint(
-            id = "expression-equivalence",
-            title = "整式与等价变形",
-            description = "使用去括号、分配律和合并同类项进行等价变形。",
-            lessonKeywords = listOf("整式", "代数式", "合并同类项", "去括号", "分配律"),
-        ),
-        MathKnowledgePoint(
-            id = "linear-equation",
-            title = "一元一次方程",
-            description = "保持等式两边平衡，逐步求出未知数。",
-            lessonKeywords = listOf("一元一次方程", "方程", "移项", "解方程"),
-        ),
+    private val supported = listOf(
+        MathKnowledgePoint("positive-negative", "正数和负数", "", emptyList()),
+        MathKnowledgePoint("number-line", "数轴", "", emptyList()),
+        MathKnowledgePoint("opposite-number", "相反数", "", emptyList()),
+        MathKnowledgePoint("absolute-value", "绝对值", "", emptyList()),
+        MathKnowledgePoint("rational-compare", "有理数大小比较", "", emptyList()),
+        MathKnowledgePoint("expression-equivalence", "整式与等价变形", "", emptyList()),
+        MathKnowledgePoint("linear-equation", "一元一次方程", "", emptyList()),
     )
+    val all: List<MathKnowledgePoint> get() = supported
 
-    fun find(id: String): MathKnowledgePoint = all.firstOrNull { it.id == id } ?: all.first()
+    fun find(id: String): MathKnowledgePoint = supported.firstOrNull { it.id == id } ?: MathKnowledgePoint(id, id, "", emptyList())
 
-    fun infer(text: String): MathKnowledgePoint? {
-        val normalized = text.lowercase()
-        return all
-            .map { point -> point to point.lessonKeywords.count { keyword -> keyword.lowercase() in normalized } }
-            .filter { (_, score) -> score > 0 }
-            .maxByOrNull { (_, score) -> score }
-            ?.first
+    fun forCourse(course: InstalledCourse): List<MathKnowledgePoint> {
+        val declared = course.document.knowledgePoints.associateBy { it.id }
+        return supported.mapNotNull { point ->
+            val authored = declared[point.id] ?: return@mapNotNull null
+            point.copy(title = authored.name, description = authored.description)
+        }
     }
 
-    fun forTextbook(textbook: InstalledTextbook): List<MathKnowledgePoint> {
-        val inferred = textbook.lessons.mapNotNull { lesson -> infer(lesson.title) }.distinctBy { it.id }
-        return inferred.ifEmpty { all.take(5) }
-    }
-
-    fun lessonIdFor(textbook: InstalledTextbook, knowledgePointId: String): String? {
-        val point = find(knowledgePointId)
-        return textbook.lessons.firstOrNull { lesson ->
-            point.lessonKeywords.any { keyword -> keyword in lesson.title }
-        }?.id
-    }
+    fun lessonIdFor(course: InstalledCourse, knowledgePointId: String): String? =
+        course.lessons.firstOrNull { knowledgePointId in it.knowledgePointIds }?.id
 }
 
 object MathQuestionTemplateCatalog {
@@ -320,10 +276,7 @@ object MathQuestionTemplateCatalog {
             prompt = "比较 $left 与 $right，选择较大的数。",
             answerSpec = MathAnswerSpec.Choice(correct),
             canonicalAnswer = if (correct == "left") left.toString() else right.toString(),
-            options = listOf(
-                MathQuestionOption("left", left.toString()),
-                MathQuestionOption("right", right.toString()),
-            ),
+            options = listOf(MathQuestionOption("left", left.toString()), MathQuestionOption("right", right.toString())),
             hints = listOf("把两个数放在同一条数轴上。", "数轴上越靠右的数越大。"),
             explanation = "$relation，因为数轴上越靠右的数越大。",
             context = context,
@@ -339,9 +292,7 @@ object MathQuestionTemplateCatalog {
         context: MathSourceContext?,
     ): MathQuestion {
         val count = if (difficulty.level >= 3) 5 else 4
-        val values = buildSet {
-            while (size < count) add(random.nextInt(-12, 13))
-        }.toList()
+        val values = buildSet { while (size < count) add(random.nextInt(-12, 13)) }.toList()
         val sorted = values.sorted()
         val shuffled = values.shuffled(random)
         return base(
@@ -419,11 +370,7 @@ object MathQuestionTemplateCatalog {
             source = source,
             parameters = "$coefficientValue,$constant,$right",
             prompt = if (steps) "逐步解方程，每一步单独写一行：$equation" else "解方程：$equation",
-            answerSpec = if (steps) {
-                MathAnswerSpec.StepSequence(equation, solution.toString())
-            } else {
-                MathAnswerSpec.LinearEquation(equation, solution.toString())
-            },
+            answerSpec = if (steps) MathAnswerSpec.StepSequence(equation, solution.toString()) else MathAnswerSpec.LinearEquation(equation, solution.toString()),
             canonicalAnswer = "x=$solution",
             hints = listOf("先消去常数项。", "等式两边必须进行相同的操作。", "最后同除以 x 的系数。"),
             explanation = "保持等式两边平衡，最终得到 x=$solution。",
