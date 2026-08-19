@@ -3,17 +3,18 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CI_DIR="$ROOT/scripts/ci"
+VERSION_FILE="$ROOT/version.properties"
 cd "$ROOT"
 
 ensure_version() {
   if [[ -z "${VERSION_NAME:-}" || -z "${VERSION_CODE:-}" ]]; then
-    source "$CI_DIR/resolve_version.sh"
+    source "$CI_DIR/resolve_version.sh" "$VERSION_FILE"
   fi
 }
 
 case "${1:-}" in
   prepare)
-    source "$CI_DIR/resolve_version.sh"
+    source "$CI_DIR/resolve_version.sh" "$VERSION_FILE"
     bash "$CI_DIR/detect_development_release.sh"
     sdkmanager "platforms;android-36" "build-tools;36.0.0"
     bash "$CI_DIR/verify_development_signing_key.sh"
