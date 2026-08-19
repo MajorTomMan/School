@@ -20,9 +20,9 @@ data class InstalledCourse(
     val pdfFile: File get() = File(rootPath, document.textbook.pdf.path)
     val lessons: List<CourseLesson> get() = document.chapters.flatMap { chapter -> chapter.sections.flatMap { section -> section.lessons } }
 
-    fun printedPageToPdfIndex(printedPage: Int): Int = printedPage - document.textbook.pdf.pageIndexOffset
+    fun printedPageToPdfIndex(printedPage: Int): Int = printedPage + document.textbook.pdf.pageIndexOffset - 1
 
-    fun pdfIndexToPrintedPage(pdfIndex: Int): Int = pdfIndex + document.textbook.pdf.pageIndexOffset
+    fun pdfIndexToPrintedPage(pdfIndex: Int): Int = pdfIndex - document.textbook.pdf.pageIndexOffset + 1
 
     fun readingRange(lesson: CourseLesson): IntRange? {
         val start = lesson.references.minOfOrNull { it.pageStart } ?: return null
