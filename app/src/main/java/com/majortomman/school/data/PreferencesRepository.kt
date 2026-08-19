@@ -107,9 +107,7 @@ class PreferencesRepository(
                 correct = attempt.correct,
                 feedback = attempt.feedback,
                 mistakeType = attempt.mistakeType,
-                createdLabel = Instant.ofEpochMilli(attempt.createdAt)
-                    .atZone(zoneId)
-                    .format(formatter),
+                createdLabel = Instant.ofEpochMilli(attempt.createdAt).atZone(zoneId).format(formatter),
             )
         }
     }
@@ -151,21 +149,16 @@ class PreferencesRepository(
         curriculumRepository.markLessonStatus(lessonId, status)
     }
 
-    suspend fun finishLessonAndStartNext(
-        currentLessonId: String,
-        nextLessonId: String?,
-    ) {
+    suspend fun finishLessonAndStartNext(currentLessonId: String, nextLessonId: String?) {
         context.schoolDataStore.edit { preferences ->
             val currentKey = lessonStatusKey(currentLessonId)
-            val currentStatus = preferences[currentKey]
-                ?.let { stored -> runCatching { MasteryStatus.valueOf(stored) }.getOrNull() }
+            val currentStatus = preferences[currentKey]?.let { stored -> runCatching { MasteryStatus.valueOf(stored) }.getOrNull() }
             if (currentStatus != MasteryStatus.NEEDS_REVIEW) {
                 preferences[currentKey] = MasteryStatus.MASTERED.name
             }
             if (nextLessonId != null) {
                 val nextKey = lessonStatusKey(nextLessonId)
-                val nextStatus = preferences[nextKey]
-                    ?.let { stored -> runCatching { MasteryStatus.valueOf(stored) }.getOrNull() }
+                val nextStatus = preferences[nextKey]?.let { stored -> runCatching { MasteryStatus.valueOf(stored) }.getOrNull() }
                 if (nextStatus != MasteryStatus.MASTERED) {
                     preferences[nextKey] = MasteryStatus.LEARNING.name
                 }
@@ -176,10 +169,7 @@ class PreferencesRepository(
         nextLessonId?.let { curriculumRepository.markLessonStatus(it, MasteryStatus.LEARNING) }
     }
 
-    suspend fun recordAttempt(
-        lessonId: String,
-        draft: AttemptDraft,
-    ) {
+    suspend fun recordAttempt(lessonId: String, draft: AttemptDraft) {
         val now = System.currentTimeMillis()
         learningDao.insertAttempt(
             PracticeAttemptEntity(
@@ -234,11 +224,7 @@ class PreferencesRepository(
         }
     }
 
-    private fun lessonTitle(lessonId: String): String = curriculumRepository.state.value
-        .nodeForLesson(lessonId)
-        ?.title
-        ?: SampleContent.lessons.firstOrNull { it.id == lessonId }?.title
-        ?: lessonId
+    private fun lessonTitle(lessonId: String): String = curriculumRepository.state.value.nodeForLesson(lessonId)?.title ?: lessonId
 
     private fun lessonStatusKey(lessonId: String) = stringPreferencesKey("$LESSON_STATUS_PREFIX$lessonId")
 

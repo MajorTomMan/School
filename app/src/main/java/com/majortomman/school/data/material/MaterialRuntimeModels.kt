@@ -14,11 +14,9 @@ data class InstalledMaterialPack(
     val catalogFile: File
         get() = File(rootPath, manifest.catalogPath)
 
-    fun printedPageToPdfIndex(printedPage: Int): Int =
-        (printedPage - 1 + manifest.pdf.pageIndexOffset).coerceAtLeast(0)
+    fun printedPageToPdfIndex(printedPage: Int): Int = (printedPage - 1 + manifest.pdf.pageIndexOffset).coerceAtLeast(0)
 
-    fun pdfIndexToPrintedPage(pdfIndex: Int): Int =
-        (pdfIndex - manifest.pdf.pageIndexOffset + 1).coerceAtLeast(1)
+    fun pdfIndexToPrintedPage(pdfIndex: Int): Int = (pdfIndex - manifest.pdf.pageIndexOffset + 1).coerceAtLeast(1)
 }
 
 data class InstalledTextbook(
@@ -33,8 +31,6 @@ data class InstalledTextbook(
 
 data class MaterialLibraryState(
     val installedTextbooks: List<InstalledTextbook> = emptyList(),
-    val message: String? = null,
 ) {
-    fun installed(slot: TextbookSlot): InstalledTextbook? =
-        installedTextbooks.firstOrNull { it.slot.key == slot.key }
+    fun installed(slot: TextbookSlot): InstalledTextbook? = installedTextbooks.firstOrNull { it.slot.key == slot.key }
 }
