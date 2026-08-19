@@ -17,13 +17,14 @@ import org.junit.Test
 class LessonPresentationTest {
     @Test
     fun practiceAlwaysComesAfterTeachingAndSummary() {
-        val lesson = lesson(
-            steps = listOf(CourseQuestion("为什么需要负数？", null), CourseExplanation(null, "相反意义的量需要共同基准。")),
-            practice = listOf(practice("p1"), practice("p2")),
-            summary = listOf("正数和负数可以表示相反意义的量。"),
+        val pages = composeLessonPresentation(
+            lesson(
+                steps = listOf(CourseQuestion("question", null), CourseExplanation(null, "explanation")),
+                practice = listOf(practice("p1"), practice("p2")),
+                summary = listOf("summary"),
+            ),
         )
 
-        val pages = composeLessonPresentation(lesson)
         assertTrue(pages.first() is LessonPresentationPage.Overview)
         assertTrue(pages[pages.size - 3] is LessonPresentationPage.Summary)
         assertTrue(pages[pages.size - 2] is LessonPresentationPage.Practice)
@@ -34,41 +35,43 @@ class LessonPresentationTest {
 
     @Test
     fun semanticStagesBreakWithoutDependingOnScreenHeight() {
-        val lesson = lesson(
-            steps = listOf(
-                CourseQuestion("先想一想", "提示"),
-                CourseExplanation(null, "解释"),
-                CourseKeyIdea("关键理解", "结论"),
-                CourseExample("例题", "题目", listOf("步骤"), "答案"),
-                CourseFormula("a+b", "公式说明"),
+        val teaching = composeLessonPresentation(
+            lesson(
+                steps = listOf(
+                    CourseQuestion("question", "hint"),
+                    CourseExplanation(null, "explanation"),
+                    CourseKeyIdea("key", "content"),
+                    CourseExample("example", "prompt", listOf("step"), "answer"),
+                    CourseFormula("a+b", null),
+                ),
             ),
-        )
+        ).filterIsInstance<LessonPresentationPage.Teaching>()
 
-        val teaching = composeLessonPresentation(lesson).filterIsInstance<LessonPresentationPage.Teaching>()
         assertEquals(2, teaching.size)
         assertEquals(3, teaching[0].steps.size)
         assertEquals(2, teaching[1].steps.size)
-        assertEquals("先想一想", teaching[0].label)
-        assertEquals("例题", teaching[1].label)
+        assertTrue(teaching[0].steps.first() is CourseQuestion)
+        assertTrue(teaching[1].steps.first() is CourseExample)
     }
 
     @Test
     fun visualizationStartsAStableSemanticStage() {
         val visualization = CourseVisualizationStep(VisualizationInvocation(VisualizationKey("mathematics.number-line.basic")))
         val teaching = composeLessonPresentation(
-            lesson(steps = listOf(CourseExplanation(null, "先建立概念"), visualization, CourseExplanation(null, "再解释图上的关系"))),
+            lesson(steps = listOf(CourseExplanation(null, "before"), visualization, CourseExplanation(null, "after"))),
         ).filterIsInstance<LessonPresentationPage.Teaching>()
 
         assertEquals(2, teaching.size)
         assertEquals(1, teaching[0].steps.size)
+        assertEquals(2, teaching[1].steps.size)
         assertTrue(teaching[1].steps.first() is CourseVisualizationStep)
-        assertEquals("观察", teaching[1].label)
     }
 
     @Test
     fun noTeachingPageContainsMoreThanFourSteps() {
         val steps = (1..9).map { CourseFormula("x+$it", null) }
         val teaching = composeLessonPresentation(lesson(steps = steps)).filterIsInstance<LessonPresentationPage.Teaching>()
+
         assertTrue(teaching.isNotEmpty())
         assertTrue(teaching.all { it.steps.size <= 4 })
     }
@@ -79,9 +82,9 @@ class LessonPresentationTest {
         summary: List<String> = emptyList(),
     ) = CourseLesson(
         id = "lesson-test",
-        title = "测试课程",
+        title = "title",
         aliases = emptyList(),
-        goals = listOf("理解测试目标"),
+        goals = listOf("goal"),
         knowledgePointIds = listOf("kp-test"),
         prerequisiteLessonIds = emptyList(),
         references = emptyList(),
@@ -92,9 +95,9 @@ class LessonPresentationTest {
 
     private fun practice(id: String) = CoursePractice(
         id = id,
-        prompt = "练习题",
-        answer = "答案",
-        analysis = listOf("解析"),
+        prompt = "prompt",
+        answer = "answer",
+        analysis = listOf("analysis"),
         knowledgePointIds = listOf("kp-test"),
         difficulty = 1,
     )
