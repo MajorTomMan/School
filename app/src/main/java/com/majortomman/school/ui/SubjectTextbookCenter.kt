@@ -68,9 +68,7 @@ private fun CourseRow(
         )
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(22.dp)) {
             CenterOutlinedButton("进入课程", CenterBlue, modifier = Modifier.weight(1f)) { onEnterCourse(course) }
-            CenterOutlinedButton("打开教材", CenterWhite.copy(alpha = 0.72f), modifier = Modifier.weight(1f)) {
-                onOpenTextbook(course, course.document.textbook.pdf.pageIndexOffset.coerceAtLeast(1))
-            }
+            CenterOutlinedButton("打开教材", CenterWhite.copy(alpha = 0.72f), modifier = Modifier.weight(1f)) { onOpenTextbook(course, 1) }
         }
     }
 }
