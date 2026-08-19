@@ -6,7 +6,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,11 +46,7 @@ fun CoursePathScreen(
     val masteredCount = lessons.count { it.status == MasteryStatus.MASTERED }
     val activeCount = lessons.count { it.status == MasteryStatus.LEARNING }
     val rawProgress = if (lessons.isEmpty()) 0f else (masteredCount + activeCount * 0.45f) / lessons.size
-    val progress by animateFloatAsState(
-        targetValue = rawProgress,
-        animationSpec = tween(700),
-        label = "courseProgress",
-    )
+    val progress by animateFloatAsState(targetValue = rawProgress, animationSpec = tween(700), label = "courseProgress")
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -60,8 +55,8 @@ fun CoursePathScreen(
         item {
             PageHeading(
                 eyebrow = "学习路径",
-                title = "有理数",
-                subtitle = "沿着前置关系往下走。当前节点会轻轻呼吸，告诉你下一步在哪里。",
+                title = "课程路径",
+                subtitle = "按照当前教材的课程顺序继续学习。",
             )
         }
         item {
@@ -74,7 +69,7 @@ fun CoursePathScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("七年级数学上册 · 第一章", fontWeight = FontWeight.SemiBold)
+                    Text("学习进度", fontWeight = FontWeight.SemiBold)
                     Text(
                         "$masteredCount / ${lessons.size}",
                         color = MaterialTheme.colorScheme.primary,
@@ -90,19 +85,10 @@ fun CoursePathScreen(
             }
         }
         itemsIndexed(lessons, key = { _, lesson -> lesson.id }) { index, lesson ->
-            PathLessonNode(
-                index = index,
-                lesson = lesson,
-                onClick = { onOpenLesson(lesson.id) },
-            )
+            PathLessonNode(index = index, lesson = lesson, onClick = { onOpenLesson(lesson.id) })
             if (index != lessons.lastIndex) {
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    PathConnector(
-                        active = lesson.status == MasteryStatus.MASTERED || lesson.status == MasteryStatus.LEARNING,
-                    )
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    PathConnector(active = lesson.status == MasteryStatus.MASTERED || lesson.status == MasteryStatus.LEARNING)
                 }
             }
         }
@@ -120,10 +106,7 @@ private fun PathLessonNode(
     val pulse by infiniteTransition.animateFloat(
         initialValue = 1f,
         targetValue = if (isCurrent) 1.055f else 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(900),
-            repeatMode = RepeatMode.Reverse,
-        ),
+        animationSpec = infiniteRepeatable(animation = tween(900), repeatMode = RepeatMode.Reverse),
         label = "currentNodeScale",
     )
     val nodeColor = when (lesson.status) {

@@ -19,9 +19,7 @@ import kotlinx.coroutines.withContext
  * Textbooks, PDFs, catalogues and exercises are installed by the cloud course synchronizer. This
  * repository deliberately has no local file picker, URI permission, OCR or PDF import pipeline.
  */
-class MaterialPackRepository(
-    context: Context,
-) {
+class MaterialPackRepository(context: Context) {
     private val appContext = context.applicationContext
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mutableState = MutableStateFlow(MaterialLibraryState())
@@ -35,16 +33,6 @@ class MaterialPackRepository(
         }
     }
 
-    suspend fun loadLessonAnalysis(
-        textbook: InstalledTextbook,
-        lessonSourceId: String,
-    ): LessonAnalysis? = withContext(Dispatchers.IO) {
-        LessonAnalysisStore.read(File(textbook.pack.rootPath), lessonSourceId)
-    }
-
-    fun analyzedLessonCount(textbook: InstalledTextbook): Int =
-        LessonAnalysisStore.count(File(textbook.pack.rootPath), textbook.lessons)
-
     suspend fun removeInstalled(slot: TextbookSlot) = withContext(Dispatchers.IO) {
         val removed = MaterialLibraryStore.remove(appContext, slot.key)
         removed?.pack?.rootPath?.let { File(it).deleteRecursively() }
@@ -56,8 +44,6 @@ class MaterialPackRepository(
     }
 
     private fun publish() {
-        mutableState.value = MaterialLibraryState(
-            installedTextbooks = MaterialLibraryStore.read(appContext),
-        )
+        mutableState.value = MaterialLibraryState(installedTextbooks = MaterialLibraryStore.read(appContext))
     }
 }
