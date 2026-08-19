@@ -62,7 +62,7 @@ class LessonPresentationTest {
         assertEquals(2, teaching.size)
         assertEquals(1, teaching[0].steps.size)
         assertTrue(teaching[1].steps.first() is CourseVisualizationStep)
-        assertEquals("看一看", teaching[1].label)
+        assertEquals("观察", teaching[1].label)
     }
 
     @Test
