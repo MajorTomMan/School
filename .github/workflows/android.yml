@@ -14,7 +14,7 @@ on:
       - "gradle/**"
       - "signing/**"
       - ".github/workflows/android.yml"
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 concurrency:
   group: android-${{ github.ref }}
