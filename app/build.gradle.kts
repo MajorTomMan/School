@@ -15,43 +15,27 @@ java {
 
 fun String.asBuildConfigString(): String = "\"" + replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
-fun resolvedSetting(environmentName: String, propertyName: String): String =
-    providers.environmentVariable(environmentName).orNull?.trim()?.takeIf(String::isNotEmpty)
-        ?: providers.gradleProperty(propertyName).orNull?.trim().orEmpty()
+fun resolvedSetting(environmentName: String, propertyName: String): String = providers.environmentVariable(environmentName).orNull?.trim()?.takeIf(String::isNotEmpty)
+    ?: providers.gradleProperty(propertyName).orNull?.trim().orEmpty()
 
 val versionPropertiesFile = rootProject.file("version.properties")
-check(versionPropertiesFile.isFile) {
-    "缺少统一版本文件：${versionPropertiesFile.path}"
-}
-val versionProperties = Properties().apply {
-    versionPropertiesFile.inputStream().use(::load)
-}
-fun requiredVersionProperty(name: String): String =
-    versionProperties.getProperty(name)?.trim()?.takeIf(String::isNotEmpty)
-        ?: error("version.properties 缺少 $name")
+check(versionPropertiesFile.isFile) { "缺少统一版本文件：${versionPropertiesFile.path}" }
+val versionProperties = Properties().apply { versionPropertiesFile.inputStream().use(::load) }
+fun requiredVersionProperty(name: String): String = versionProperties.getProperty(name)?.trim()?.takeIf(String::isNotEmpty)
+    ?: error("version.properties 缺少 $name")
 
-val declaredVersionCode = requiredVersionProperty("VERSION_CODE").toIntOrNull()
-    ?: error("VERSION_CODE 必须是正整数")
+val declaredVersionCode = requiredVersionProperty("VERSION_CODE").toIntOrNull() ?: error("VERSION_CODE 必须是正整数")
 check(declaredVersionCode > 0) { "VERSION_CODE 必须大于 0" }
 val declaredVersionName = requiredVersionProperty("VERSION_NAME")
-check(Regex("\\d+\\.\\d+\\.\\d+").matches(declaredVersionName)) {
-    "VERSION_NAME 必须使用 x.y.z 格式"
-}
+check(Regex("\\d+\\.\\d+\\.\\d+").matches(declaredVersionName)) { "VERSION_NAME 必须使用 x.y.z 格式" }
 
 val developmentKeystoreSource = rootProject.file("signing/school-development.jks.b64")
 val developmentKeystore = rootProject.file("build/signing/school-development.jks")
 val updatePublicKeySource = rootProject.file("signing/school-update-development-public.der.b64")
 val developmentCertificateSource = rootProject.file("signing/school-development.cert.sha256")
-
-check(developmentKeystoreSource.isFile) {
-    "缺少固定开发签名源文件：${developmentKeystoreSource.path}"
-}
-check(updatePublicKeySource.isFile) {
-    "缺少更新清单验证公钥：${updatePublicKeySource.path}"
-}
-check(developmentCertificateSource.isFile) {
-    "缺少固定开发签名证书指纹：${developmentCertificateSource.path}"
-}
+check(developmentKeystoreSource.isFile) { "缺少固定开发签名源文件：${developmentKeystoreSource.path}" }
+check(updatePublicKeySource.isFile) { "缺少更新清单验证公钥：${updatePublicKeySource.path}" }
+check(developmentCertificateSource.isFile) { "缺少固定开发签名证书指纹：${developmentCertificateSource.path}" }
 
 if (!developmentKeystore.isFile || developmentKeystore.length() == 0L) {
     developmentKeystore.parentFile.mkdirs()
@@ -63,14 +47,13 @@ val resolvedVersionCode = providers.environmentVariable("SCHOOL_VERSION_CODE").o
 val resolvedVersionName = providers.environmentVariable("SCHOOL_VERSION_NAME").orNull?.takeIf(String::isNotBlank) ?: declaredVersionName
 val updatePublicKey = updatePublicKeySource.readText(Charsets.UTF_8).filterNot(Char::isWhitespace)
 val developmentCertificate = developmentCertificateSource.readText(Charsets.UTF_8).lowercase().filter(Char::isLetterOrDigit)
-
 val firebaseProjectId = resolvedSetting("SCHOOL_FIREBASE_PROJECT_ID", "schoolFirebaseProjectId")
 val firebaseApplicationId = resolvedSetting("SCHOOL_FIREBASE_APPLICATION_ID", "schoolFirebaseApplicationId")
 val firebaseApiKey = resolvedSetting("SCHOOL_FIREBASE_API_KEY", "schoolFirebaseApiKey")
 val firebaseSenderId = resolvedSetting("SCHOOL_FIREBASE_SENDER_ID", "schoolFirebaseSenderId")
 val firebaseUpdateTopic = resolvedSetting("SCHOOL_FIREBASE_UPDATE_TOPIC", "schoolFirebaseUpdateTopic").ifBlank { error("缺少 schoolFirebaseUpdateTopic") }
-val updateDiscoveryUrl = resolvedSetting("SCHOOL_UPDATE_DISCOVERY_URL", "schoolUpdateDiscoveryUrl")
-val defaultUpdateReleaseBaseUrl = resolvedSetting("SCHOOL_UPDATE_RELEASE_BASE_URL", "schoolUpdateReleaseBaseUrl").ifBlank { error("缺少 schoolUpdateReleaseBaseUrl") }.trimEnd('/')
+val updateConfigUrl = resolvedSetting("SCHOOL_UPDATE_CONFIG_URL", "schoolUpdateConfigUrl")
+val defaultUpdateUrl = resolvedSetting("SCHOOL_UPDATE_URL", "schoolUpdateUrl").ifBlank { error("缺少 schoolUpdateUrl") }.trimEnd('/')
 val courseManifestUrl = resolvedSetting("SCHOOL_COURSE_MANIFEST_URL", "schoolCourseManifestUrl").ifBlank { error("缺少 schoolCourseManifestUrl") }
 val updatePushEnabled = listOf(firebaseProjectId, firebaseApplicationId, firebaseApiKey, firebaseSenderId).all(String::isNotBlank)
 
@@ -84,8 +67,8 @@ android {
         targetSdk = 36
         versionCode = resolvedVersionCode
         versionName = resolvedVersionName
-        buildConfigField("String", "UPDATE_DISCOVERY_URL", updateDiscoveryUrl.asBuildConfigString())
-        buildConfigField("String", "DEFAULT_UPDATE_RELEASE_BASE_URL", defaultUpdateReleaseBaseUrl.asBuildConfigString())
+        buildConfigField("String", "UPDATE_CONFIG_URL", updateConfigUrl.asBuildConfigString())
+        buildConfigField("String", "DEFAULT_UPDATE_URL", defaultUpdateUrl.asBuildConfigString())
         buildConfigField("String", "COURSE_MANIFEST_URL", courseManifestUrl.asBuildConfigString())
         buildConfigField("String", "UPDATE_PUBLIC_KEY_BASE64", updatePublicKey.asBuildConfigString())
         buildConfigField("String", "DEVELOPMENT_CERT_SHA256", developmentCertificate.asBuildConfigString())
@@ -114,9 +97,7 @@ android {
     }
 
     buildTypes {
-        debug {
-            signingConfig = signingConfigs.getByName("schoolDevelopment")
-        }
+        debug { signingConfig = signingConfigs.getByName("schoolDevelopment") }
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -133,14 +114,10 @@ android {
         buildConfig = true
     }
 
-    packaging {
-        resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
-    }
+    packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
 
-ksp {
-    arg("room.schemaLocation", "$projectDir/schemas")
-}
+ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2026.06.00")
@@ -164,9 +141,7 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.11.2")
     implementation("com.google.firebase:firebase-messaging")
     implementation("org.apache.lucene:lucene-analysis-kuromoji:10.5.0")
-
     ksp("androidx.room:room-compiler:$roomVersion")
-
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
     debugImplementation("androidx.compose.ui:ui-tooling")

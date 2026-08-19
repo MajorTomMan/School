@@ -5,43 +5,32 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class UpdateManifestCodecTest {
-    private val releaseBaseUrl = "https://github.com/MajorTomMan/School/releases/download/dev-latest"
+    private val updateUrl = "https://github.com/MajorTomMan/School/releases/download/dev-latest"
 
     @Test
     fun decodesReleaseManifestStructure() {
-        val manifest = UpdateManifestCodec.decode(manifestJson("$releaseBaseUrl/school-debug.apk"), releaseBaseUrl)
+        val manifest = UpdateManifestCodec.decode(manifestJson("$updateUrl/school-debug.apk"), updateUrl)
         assertEquals(53L, manifest.versionCode)
         assertEquals(listOf("change"), manifest.changes)
         assertEquals(listOf("fix"), manifest.fixes)
     }
 
     @Test
-    fun rejectsDownloadOutsideResolvedRelease() {
+    fun rejectsDownloadOutsideCurrentUpdateUrl() {
         val result = runCatching {
-            UpdateManifestCodec.decode(manifestJson("https://github.com/MajorTomMan/Other/releases/download/dev-latest/school-debug.apk"), releaseBaseUrl)
+            UpdateManifestCodec.decode(manifestJson("https://github.com/MajorTomMan/Other/releases/download/dev-latest/school-debug.apk"), updateUrl)
         }
         assertTrue(result.isFailure)
     }
 
     @Test
-    fun rejectsReleasePathCaseMismatch() {
-        val result = runCatching {
-            UpdateManifestCodec.decode(manifestJson("https://github.com/MajorTomMan/school/releases/download/dev-latest/school-debug.apk"), releaseBaseUrl)
-        }
-        assertTrue(result.isFailure)
+    fun decodesRemoteUpdateUrl() {
+        assertEquals(updateUrl, UpdateConfigCodec.decode("""{"updateUrl":"$updateUrl"}"""))
     }
 
     @Test
-    fun decodesDiscoveryReleaseBaseUrl() {
-        val endpoints = UpdateEndpointConfigCodec.decode("""{"releaseBaseUrl":"$releaseBaseUrl"}""")
-        assertEquals(releaseBaseUrl, endpoints.releaseBaseUrl)
-        assertEquals("$releaseBaseUrl/update-manifest.json", endpoints.manifestUrl)
-        assertEquals("$releaseBaseUrl/update-manifest.sig", endpoints.signatureUrl)
-    }
-
-    @Test
-    fun rejectsNonHttpsDiscoveryRelease() {
-        val result = runCatching { UpdateEndpointConfigCodec.decode("""{"releaseBaseUrl":"http://example.com/release"}""") }
+    fun rejectsNonHttpsUpdateUrl() {
+        val result = runCatching { UpdateConfigCodec.decode("""{"updateUrl":"http://example.com/release"}""") }
         assertTrue(result.isFailure)
     }
 

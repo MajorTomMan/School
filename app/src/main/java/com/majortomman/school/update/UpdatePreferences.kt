@@ -11,38 +11,23 @@ internal class UpdatePreferences(context: Context) {
         lastCheckedAt = preferences.getLong(KEY_LAST_CHECKED, 0L),
     )
 
-    fun setAutoCheck(enabled: Boolean) {
-        preferences.edit().putBoolean(KEY_AUTO_CHECK, enabled).apply()
-    }
+    fun setAutoCheck(enabled: Boolean) { preferences.edit().putBoolean(KEY_AUTO_CHECK, enabled).apply() }
+    fun setWifiOnly(enabled: Boolean) { preferences.edit().putBoolean(KEY_WIFI_ONLY, enabled).apply() }
+    fun setLastChecked(timestamp: Long) { preferences.edit().putLong(KEY_LAST_CHECKED, timestamp).apply() }
 
-    fun setWifiOnly(enabled: Boolean) {
-        preferences.edit().putBoolean(KEY_WIFI_ONLY, enabled).apply()
-    }
-
-    fun setLastChecked(timestamp: Long) {
-        preferences.edit().putLong(KEY_LAST_CHECKED, timestamp).apply()
-    }
-
-    fun cacheManifest(rawJson: String, releaseBaseUrl: String) {
-        preferences.edit().putString(KEY_MANIFEST, rawJson).putString(KEY_MANIFEST_RELEASE_BASE_URL, releaseBaseUrl).apply()
+    fun cacheManifest(rawJson: String, updateUrl: String) {
+        preferences.edit().putString(KEY_MANIFEST, rawJson).putString(KEY_MANIFEST_UPDATE_URL, updateUrl).apply()
     }
 
     fun cachedManifest(): UpdateManifest? {
         val rawJson = preferences.getString(KEY_MANIFEST, null) ?: return null
-        val releaseBaseUrl = preferences.getString(KEY_MANIFEST_RELEASE_BASE_URL, null) ?: return null
-        return runCatching { UpdateManifestCodec.decode(rawJson, releaseBaseUrl) }.getOrNull()
+        val updateUrl = preferences.getString(KEY_MANIFEST_UPDATE_URL, null) ?: return null
+        return runCatching { UpdateManifestCodec.decode(rawJson, updateUrl) }.getOrNull()
     }
 
-    fun setSnoozeUntil(timestamp: Long) {
-        preferences.edit().putLong(KEY_SNOOZE_UNTIL, timestamp).apply()
-    }
-
+    fun setSnoozeUntil(timestamp: Long) { preferences.edit().putLong(KEY_SNOOZE_UNTIL, timestamp).apply() }
     fun snoozeUntil(): Long = preferences.getLong(KEY_SNOOZE_UNTIL, 0L)
-
-    fun ignoreVersion(versionCode: Long) {
-        preferences.edit().putLong(KEY_IGNORED_VERSION, versionCode).apply()
-    }
-
+    fun ignoreVersion(versionCode: Long) { preferences.edit().putLong(KEY_IGNORED_VERSION, versionCode).apply() }
     fun ignoredVersion(): Long = preferences.getLong(KEY_IGNORED_VERSION, 0L)
 
     fun saveDownloadedApk(versionCode: Long, path: String) {
@@ -54,14 +39,8 @@ internal class UpdatePreferences(context: Context) {
         return preferences.getString(KEY_DOWNLOADED_PATH, null)
     }
 
-    fun clearDownloadedApk() {
-        preferences.edit().remove(KEY_DOWNLOADED_VERSION).remove(KEY_DOWNLOADED_PATH).apply()
-    }
-
-    fun savePushToken(token: String) {
-        preferences.edit().putString(KEY_PUSH_TOKEN, token).apply()
-    }
-
+    fun clearDownloadedApk() { preferences.edit().remove(KEY_DOWNLOADED_VERSION).remove(KEY_DOWNLOADED_PATH).apply() }
+    fun savePushToken(token: String) { preferences.edit().putString(KEY_PUSH_TOKEN, token).apply() }
     fun pushToken(): String? = preferences.getString(KEY_PUSH_TOKEN, null)
 
     private companion object {
@@ -69,7 +48,7 @@ internal class UpdatePreferences(context: Context) {
         const val KEY_WIFI_ONLY = "wifi_only"
         const val KEY_LAST_CHECKED = "last_checked"
         const val KEY_MANIFEST = "manifest"
-        const val KEY_MANIFEST_RELEASE_BASE_URL = "manifest_release_base_url"
+        const val KEY_MANIFEST_UPDATE_URL = "manifest_update_url"
         const val KEY_SNOOZE_UNTIL = "snooze_until"
         const val KEY_IGNORED_VERSION = "ignored_version"
         const val KEY_DOWNLOADED_VERSION = "downloaded_version"
