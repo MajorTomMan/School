@@ -37,8 +37,7 @@ internal object UpdatePushRegistrar {
             runCatching {
                 ensureFirebase(context.applicationContext)
                 val messaging = FirebaseMessaging.getInstance()
-                val topic = BuildConfig.FCM_UPDATE_TOPIC.ifBlank { UPDATE_PUSH_TOPIC_DEFAULT }
-                if (enabled) messaging.subscribeToTopic(topic) else messaging.unsubscribeFromTopic(topic)
+                if (enabled) messaging.subscribeToTopic(BuildConfig.FCM_UPDATE_TOPIC) else messaging.unsubscribeFromTopic(BuildConfig.FCM_UPDATE_TOPIC)
             }.onSuccess {
                 Log.i(TAG, if (enabled) "subscribed to update topic" else "unsubscribed from update topic")
             }.onFailure { error ->
