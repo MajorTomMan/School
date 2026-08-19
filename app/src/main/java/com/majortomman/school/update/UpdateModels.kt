@@ -76,6 +76,5 @@ internal const val UPDATE_PUSH_CHECK_WORK_NAME = "school-update-push-check"
 internal const val UPDATE_DOWNLOAD_WORK_NAME = "school-update-download"
 internal const val UPDATE_NOTIFICATION_CHANNEL = "school-updates"
 internal const val UPDATE_NOTIFICATION_ID = 2107
-internal const val UPDATE_PUSH_TOPIC_DEFAULT = "school_dev_update"
 internal const val UPDATE_WORK_REASON_KEY = "update_check_reason"
 internal const val UPDATE_WORK_REASON_PUSH = "push"
