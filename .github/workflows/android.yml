@@ -65,7 +65,7 @@ jobs:
         shell: bash
         run: bash scripts/ci/verify_development_signing_key.sh
 
-      - name: Test and assemble debug APK
+      - name: Test app core and assemble debug APK
         env:
           SCHOOL_VERSION_CODE: ${{ steps.version.outputs.version_code }}
           SCHOOL_VERSION_NAME: ${{ steps.version.outputs.version_name }}
@@ -74,7 +74,7 @@ jobs:
           SCHOOL_FIREBASE_API_KEY: ${{ vars.SCHOOL_FIREBASE_API_KEY }}
           SCHOOL_FIREBASE_SENDER_ID: ${{ vars.SCHOOL_FIREBASE_SENDER_ID }}
           SCHOOL_FIREBASE_UPDATE_TOPIC: ${{ vars.SCHOOL_FIREBASE_UPDATE_TOPIC }}
-        run: gradle :visualization:testDebugUnitTest :app:testDebugUnitTest :app:assembleDebug --stacktrace
+        run: bash scripts/ci/test_app_core.sh
 
       - name: Prepare development update package
         if: steps.release.outputs.should_publish == 'true'
