@@ -1,0 +1,387 @@
+openapi: 3.1.0
+info:
+  title: School Course Storage
+  version: 1.0.0
+  description: |
+    Authenticated management API for School course objects stored behind the Course Worker.
+    Configure the GPT Action authentication as API Key -> Bearer using COURSE_API_TOKEN.
+    This schema exposes only endpoints that are currently deployed.
+servers:
+  - url: https://course.flashnamesl.workers.dev
+security:
+  - courseBearer: []
+paths:
+  /cloud/course/config:
+    get:
+      operationId: getCourseStorageConfig
+      summary: Read course storage configuration
+      description: Read non-secret Worker configuration such as course prefix, upload limits, URL expiry limits, and whether deletion is enabled.
+      responses:
+        "200":
+          description: Course Worker configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageConfig"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /cloud/course/objects:
+    get:
+      operationId: listCourseObjects
+      summary: List course objects
+      description: List objects inside the Worker COURSE_PREFIX. Follow cursor while truncated is true when a complete inventory is required.
+      parameters:
+        - name: prefix
+          in: query
+          required: false
+          description: Relative object prefix. Empty means the Worker-visible course root.
+          schema:
+            type: string
+            default: ""
+        - name: limit
+          in: query
+          required: false
+          description: Maximum objects returned in this page.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 100
+        - name: cursor
+          in: query
+          required: false
+          description: Opaque cursor returned by a previous list call.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: One page of objects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ObjectList"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /cloud/course/object:
+    get:
+      operationId: getCourseObject
+      summary: Read object metadata
+      description: Read exact metadata for one relative object path without downloading its bytes.
+      parameters:
+        - $ref: "#/components/parameters/ObjectPath"
+      responses:
+        "200":
+          description: Object metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ObjectMetadata"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+    delete:
+      operationId: deleteCourseObject
+      summary: Delete one course object
+      description: |
+        Destructive operation. Call only after the user explicitly asks to delete this exact object.
+        First call getCourseObject and pass its current etag and size when possible.
+        confirm must exactly equal path. The Worker also requires COURSE_ALLOW_DELETE=true.
+        Never delete immutable releases/<release-id>/ objects as routine course management.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteObjectRequest"
+      responses:
+        "200":
+          description: Deleted object result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /cloud/course/upload-url:
+    post:
+      operationId: createCourseUploadUrl
+      summary: Create a signed upload URL
+      description: |
+        Create a short-lived signed PUT URL after exact byte size and SHA-256 are known.
+        This is a low-level upload step. The returned URL accepts raw bytes and is not itself a conversation-file upload Action.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUploadUrlRequest"
+      responses:
+        "200":
+          description: Signed upload request details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignedRequest"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /cloud/course/upload-complete:
+    post:
+      operationId: verifyCourseUpload
+      summary: Verify a completed upload
+      description: Verify that an uploaded R2 object exactly matches the declared size and SHA-256.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyUploadRequest"
+      responses:
+        "200":
+          description: Verified object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifyUploadResponse"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /cloud/course/download-url:
+    post:
+      operationId: createCourseDownloadUrl
+      summary: Create a signed download URL
+      description: Create a short-lived signed GET URL for one existing course object.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDownloadUrlRequest"
+      responses:
+        "200":
+          description: Signed download request details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignedRequest"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /cloud/course/channel/publish:
+    post:
+      operationId: publishCourseChannel
+      summary: Publish a release manifest to Testing or Stable
+      description: |
+        External write. Publish only when the user explicitly requests the channel change.
+        source_path must be releases/<release-id>/manifest.json and sha256 must match that immutable manifest.
+        Do not publish Stable until the same release has already been validated through Testing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublishChannelRequest"
+      responses:
+        "200":
+          description: Published channel manifest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublishChannelResponse"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+components:
+  securitySchemes:
+    courseBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+  parameters:
+    ObjectPath:
+      name: path
+      in: query
+      required: true
+      description: Relative path inside COURSE_PREFIX. Use forward slashes and no leading slash, dot segments, URL, or backslashes.
+      schema:
+        type: string
+        minLength: 1
+  schemas:
+    StorageConfig:
+      type: object
+      additionalProperties: true
+    ObjectMetadata:
+      type: object
+      properties:
+        path:
+          type: string
+        objectKey:
+          type: string
+        size:
+          type: integer
+        etag:
+          type: string
+        uploaded:
+          type: [string, "null"]
+        storageClass:
+          type: [string, "null"]
+        contentType:
+          type: [string, "null"]
+        sha256:
+          type: [string, "null"]
+        customMetadata:
+          type: object
+          additionalProperties:
+            type: string
+      required: [path, objectKey, size, etag, uploaded, storageClass, contentType, sha256, customMetadata]
+      additionalProperties: false
+    ObjectList:
+      type: object
+      properties:
+        prefix:
+          type: string
+        objects:
+          type: array
+          items:
+            $ref: "#/components/schemas/ObjectMetadata"
+        truncated:
+          type: boolean
+        cursor:
+          type: [string, "null"]
+      required: [prefix, objects, truncated, cursor]
+      additionalProperties: false
+    CreateUploadUrlRequest:
+      type: object
+      properties:
+        path:
+          type: string
+          minLength: 1
+        size:
+          type: integer
+          minimum: 1
+        sha256:
+          type: string
+          pattern: "^[0-9a-fA-F]{64}$"
+        content_type:
+          type: string
+          minLength: 1
+          maxLength: 200
+        expires_in:
+          type: integer
+          minimum: 60
+      required: [path, size, sha256, content_type]
+      additionalProperties: false
+    VerifyUploadRequest:
+      type: object
+      properties:
+        path:
+          type: string
+          minLength: 1
+        size:
+          type: integer
+          minimum: 1
+        sha256:
+          type: string
+          pattern: "^[0-9a-fA-F]{64}$"
+      required: [path, size, sha256]
+      additionalProperties: false
+    CreateDownloadUrlRequest:
+      type: object
+      properties:
+        path:
+          type: string
+          minLength: 1
+        expires_in:
+          type: integer
+          minimum: 60
+        download_name:
+          type: string
+          maxLength: 255
+      required: [path]
+      additionalProperties: false
+    SignedRequest:
+      type: object
+      properties:
+        method:
+          type: string
+          enum: [GET, PUT]
+        path:
+          type: string
+        objectKey:
+          type: string
+        url:
+          type: string
+          format: uri
+        expiresIn:
+          type: integer
+        requiredHeaders:
+          type: object
+          additionalProperties:
+            type: string
+      required: [method, path, objectKey, url, expiresIn, requiredHeaders]
+      additionalProperties: false
+    VerifyUploadResponse:
+      type: object
+      properties:
+        verified:
+          type: boolean
+        object:
+          $ref: "#/components/schemas/ObjectMetadata"
+      required: [verified, object]
+      additionalProperties: false
+    DeleteObjectRequest:
+      type: object
+      properties:
+        path:
+          type: string
+          minLength: 1
+        confirm:
+          type: string
+          minLength: 1
+          description: Must exactly equal path.
+        expected_etag:
+          type: string
+        expected_size:
+          type: integer
+          minimum: 0
+      required: [path, confirm]
+      additionalProperties: false
+    PublishChannelRequest:
+      type: object
+      properties:
+        channel:
+          type: string
+          enum: [testing, stable]
+        source_path:
+          type: string
+          pattern: "^releases/[A-Za-z0-9._-]+/manifest\\.json$"
+        sha256:
+          type: string
+          pattern: "^[0-9a-fA-F]{64}$"
+      required: [channel, source_path, sha256]
+      additionalProperties: false
+    PublishChannelResponse:
+      type: object
+      properties:
+        published:
+          type: boolean
+        channel:
+          type: string
+          enum: [testing, stable]
+        sourcePath:
+          type: string
+        sha256:
+          type: string
+        publicUrl:
+          type: string
+          format: uri
+        object:
+          $ref: "#/components/schemas/ObjectMetadata"
+      required: [published, channel, sourcePath, sha256, publicUrl, object]
+      additionalProperties: false
+    ErrorBody:
+      type: object
+      additionalProperties: true
+  responses:
+    ErrorResponse:
+      description: Worker error response
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
