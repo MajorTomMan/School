@@ -1,0 +1,258 @@
+name: R2 Storage Manager
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "R2 操作"
+        required: true
+        default: list
+        type: choice
+        options:
+          - list
+          - read
+          - create
+          - update
+          - delete
+          - dir-list
+          - dir-read
+          - dir-create
+          - dir-update
+          - dir-delete
+      target:
+        description: "对象 key 或目录 prefix；list 留空表示列出整个 bucket"
+        required: false
+        default: ""
+        type: string
+      source_url:
+        description: "create/update 的源文件 URL；dir-create/dir-update 时必须是 ZIP。不要填写长期凭据 URL"
+        required: false
+        default: ""
+        type: string
+      recursive:
+        description: "dir-list 是否递归列出"
+        required: false
+        default: true
+        type: boolean
+      delete_extra:
+        description: "dir-update 时删除远端不存在于源 ZIP 的多余文件"
+        required: false
+        default: false
+        type: boolean
+      allow_release_mutation:
+        description: "允许 update/delete 已发布 releases/ 对象，仅限明确恢复操作"
+        required: false
+        default: false
+        type: boolean
+      confirm_destructive:
+        description: "delete/dir-delete 必须显式确认"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: r2-storage-manager
+  cancel-in-progress: false
+
+jobs:
+  manage:
+    runs-on: ubuntu-latest
+    env:
+      R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ vars.R2_ACCESS_KEY_ID }}
+      R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install R2 dependency
+        run: python3 -m pip install --disable-pip-version-check --quiet boto3
+
+      - name: Validate R2 configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          [ -n "${R2_ACCOUNT_ID:-}" ] || missing+=(R2_ACCOUNT_ID)
+          [ -n "${R2_ACCESS_KEY_ID:-}" ] || missing+=(R2_ACCESS_KEY_ID)
+          [ -n "${R2_BUCKET_NAME:-}" ] || missing+=(R2_BUCKET_NAME)
+          [ -n "${R2_SECRET_ACCESS_KEY:-}" ] || missing+=(R2_SECRET_ACCESS_KEY)
+          if [ "${#missing[@]}" -ne 0 ]; then
+            printf '缺少 R2 配置：%s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+
+      - name: Run R2 action
+        shell: bash
+        env:
+          ACTION: ${{ inputs.action }}
+          TARGET: ${{ inputs.target }}
+          SOURCE_URL: ${{ inputs.source_url }}
+          RECURSIVE: ${{ inputs.recursive }}
+          DELETE_EXTRA: ${{ inputs.delete_extra }}
+          ALLOW_RELEASE_MUTATION: ${{ inputs.allow_release_mutation }}
+          CONFIRM_DESTRUCTIVE: ${{ inputs.confirm_destructive }}
+        run: |
+          set -Eeuo pipefail
+          mkdir -p build/r2-input build/r2-output
+
+          require_target() {
+            if [ -z "${TARGET:-}" ]; then
+              echo "${ACTION} 必须填写 target" >&2
+              exit 1
+            fi
+          }
+
+          require_source_url() {
+            if [ -z "${SOURCE_URL:-}" ]; then
+              echo "${ACTION} 必须填写 source_url" >&2
+              exit 1
+            fi
+            case "$SOURCE_URL" in
+              http://*|https://*) ;;
+              *) echo "source_url 只接受 http:// 或 https://" >&2; exit 1 ;;
+            esac
+          }
+
+          require_destructive_confirmation() {
+            if [ "$CONFIRM_DESTRUCTIVE" != "true" ]; then
+              echo "${ACTION} 是删除操作，必须勾选 confirm_destructive" >&2
+              exit 1
+            fi
+          }
+
+          download_object_source() {
+            require_source_url
+            local name="${TARGET##*/}"
+            [ -n "$name" ] || name="object.bin"
+            local output="build/r2-input/$name"
+            curl --fail --location --retry 4 --retry-delay 2 --silent --show-error --output "$output" "$SOURCE_URL"
+            printf '%s\n' "$output"
+          }
+
+          extract_directory_source() {
+            require_source_url
+            local archive="build/r2-input/source.zip"
+            local output="build/r2-input/source"
+            curl --fail --location --retry 4 --retry-delay 2 --silent --show-error --output "$archive" "$SOURCE_URL"
+            rm -rf "$output"
+            mkdir -p "$output"
+            python3 - "$archive" "$output" <<'PY'
+          import stat
+          import sys
+          import zipfile
+          from pathlib import Path, PurePosixPath
+
+          archive = Path(sys.argv[1])
+          output = Path(sys.argv[2]).resolve()
+          with zipfile.ZipFile(archive) as source:
+              for item in source.infolist():
+                  path = PurePosixPath(item.filename)
+                  if path.is_absolute() or ".." in path.parts:
+                      raise SystemExit(f"ZIP 包含不安全路径：{item.filename}")
+                  mode = (item.external_attr >> 16) & 0o170000
+                  if mode == stat.S_IFLNK:
+                      raise SystemExit(f"ZIP 不允许符号链接：{item.filename}")
+              source.extractall(output)
+          PY
+            printf '%s\n' "$output"
+          }
+
+          release_flags=()
+          if [ "$ALLOW_RELEASE_MUTATION" = "true" ]; then
+            release_flags+=(--allow-release-mutation)
+          fi
+
+          case "$ACTION" in
+            list)
+              python3 scripts/course_r2_manager.py list "${TARGET:-}" --json | tee build/r2-output/list.json
+              ;;
+            read)
+              require_target
+              output="build/r2-output/${TARGET##*/}"
+              python3 scripts/course_r2_manager.py read "$TARGET" --output "$output" --force | tee build/r2-output/result.txt
+              ;;
+            create)
+              require_target
+              source_file="$(download_object_source)"
+              python3 scripts/course_r2_manager.py create "$source_file" "$TARGET" | tee build/r2-output/result.txt
+              ;;
+            update)
+              require_target
+              source_file="$(download_object_source)"
+              python3 scripts/course_r2_manager.py update "$source_file" "$TARGET" "${release_flags[@]}" | tee build/r2-output/result.txt
+              ;;
+            delete)
+              require_target
+              require_destructive_confirmation
+              python3 scripts/course_r2_manager.py delete "$TARGET" --yes "${release_flags[@]}" | tee build/r2-output/result.txt
+              ;;
+            dir-list)
+              require_target
+              args=(dir-read "$TARGET" --json)
+              if [ "$RECURSIVE" = "true" ]; then
+                args+=(--recursive)
+              fi
+              python3 scripts/course_r2_manager.py "${args[@]}" | tee build/r2-output/list.json
+              ;;
+            dir-read)
+              require_target
+              python3 scripts/course_r2_manager.py dir-read "$TARGET" --output build/r2-output/directory --force | tee build/r2-output/result.txt
+              ;;
+            dir-create)
+              require_target
+              if [ -n "${SOURCE_URL:-}" ]; then
+                source_dir="$(extract_directory_source)"
+                python3 scripts/course_r2_manager.py dir-create "$TARGET" --from "$source_dir" | tee build/r2-output/result.txt
+              else
+                python3 scripts/course_r2_manager.py dir-create "$TARGET" | tee build/r2-output/result.txt
+              fi
+              ;;
+            dir-update)
+              require_target
+              source_dir="$(extract_directory_source)"
+              args=(dir-update "$source_dir" "$TARGET")
+              if [ "$DELETE_EXTRA" = "true" ]; then
+                args+=(--delete-extra)
+              fi
+              args+=("${release_flags[@]}")
+              python3 scripts/course_r2_manager.py "${args[@]}" | tee build/r2-output/result.txt
+              ;;
+            dir-delete)
+              require_target
+              require_destructive_confirmation
+              python3 scripts/course_r2_manager.py dir-delete "$TARGET" --yes "${release_flags[@]}" | tee build/r2-output/result.txt
+              ;;
+            *)
+              echo "不支持的 action：$ACTION" >&2
+              exit 1
+              ;;
+          esac
+
+          {
+            echo "### R2 Storage Manager"
+            echo "- Action: \`$ACTION\`"
+            if [ -n "${TARGET:-}" ]; then
+              echo "- Target: \`$TARGET\`"
+            else
+              echo "- Target: bucket root"
+            fi
+            echo "- Run: \`${GITHUB_RUN_ID}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload read/list result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r2-manager-${{ github.run_id }}
+          path: build/r2-output/
+          if-no-files-found: ignore
+          retention-days: 7
