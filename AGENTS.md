@@ -42,11 +42,14 @@ GitHub Actions 默认只服务 App；唯一额外允许的是手动触发的 R2 
 R2 管理 workflow 固定遵守：
 
 - 只允许 `workflow_dispatch` 手动触发，不监听 push、pull request、tag、schedule 或其他自动事件。
-- 只复用 `scripts/course_r2_manager.py`，可执行 R2 对象/目录 CRUD、上传仓库外已经制作完成的 immutable course release，以及手动切换 Testing/Stable channel；不得生成课程、审校课程、修改课程正文或承担教材专属处理。
-- 对象/目录 CRUD 使用 Repository Variables `R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_BUCKET_NAME` 与 Actions Secret `R2_SECRET_ACCESS_KEY`；`release-upload` / `publish` 使用 `COURSE_BASE_URL` 与 Actions Secret `COURSE_API_TOKEN`，两套鉴权互不强制依赖。
-- `release-upload` 只允许 `none` 或 `testing`，不得直接发布 Stable；Testing 验证完成后才允许通过单独的 `publish` 操作提升同一 immutable release 到 Stable。
+- 只复用 `scripts/course_r2_manager.py`，可执行课程对象/目录 CRUD、上传仓库外已经制作完成的 immutable course release、手动切换 Testing/Stable channel，以及在明确确认后清空课程存储；不得生成课程、审校课程、修改课程正文或承担教材专属处理。
+- 普通课程对象/目录 CRUD 默认使用 `worker` backend，通过 `COURSE_BASE_URL` 与 Actions Secret `COURSE_API_TOKEN` 调用课程 Worker；这也是 `list`、`read`、`create`、`update`、`delete`、目录管理和 `purge` 的默认路径。
+- `direct` backend 只作为底层 R2 恢复/诊断备用路径。只有明确选择 `backend=direct` 时才使用 Repository Variables `R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_BUCKET_NAME` 与 Actions Secret `R2_SECRET_ACCESS_KEY`，且不得把 direct 作为课程日常管理的默认依赖。
+- Worker 侧删除必须由 Cloudflare Worker 环境变量 `COURSE_ALLOW_DELETE=true` 显式开启；该开关不是 GitHub Secret，也不写入仓库。若未开启，删除操作应明确报告 Worker 的 `delete_disabled`，不得绕过保护。
+- `purge` 只允许 `worker` backend，作用域受 Worker 的 `COURSE_PREFIX` 限制；必须同时显式确认删除并开启 `allow_release_mutation`，完成后必须重新列举并确认课程存储为空。禁止提供 direct bucket 级 purge，避免误清共享 bucket 的非课程对象。
+- `release-upload` / `publish` 始终使用 Worker；`release-upload` 只允许 `none` 或 `testing`，不得直接发布 Stable；Testing 验证完成后才允许通过单独的 `publish` 操作提升同一 immutable release 到 Stable。
 - 删除操作必须显式确认；`releases/` 下 immutable 对象的 update/delete 默认禁止，只有明确恢复时才允许显式开启 `allow_release_mutation`。
-- 文件 create/update 可从临时 HTTP(S) URL 获取源文件；目录 create/update 与 `release-upload` 从 ZIP 获取源目录或 release artifact。不要把长期凭据写入 workflow input 或 source URL。
+- 文件 create/update 可从临时 HTTP(S) URL 获取源文件；目录 create/update 与 `release-upload` 从 ZIP 获取源目录或 release artifact。Worker backend 不创建空的 R2 “目录”，目录必须至少包含一个真实对象。不要把长期凭据写入 workflow input 或 source URL。
 
 App CI/CD 规则保持：
 
@@ -110,25 +113,29 @@ https://course.flashnamesl.workers.dev/cloud/course/public/releases/<release-id>
 
 正式 App 默认只消费 `stable/manifest.json`。`testing/manifest.json` 只用于新课程发布后的验证，不作为正式默认入口。App 可通过明确的构建环境配置临时覆盖课程 manifest 地址，但默认稳定地址不得依赖外部注入才能工作。
 
-课程 Worker 的发布接口为：
+课程 Worker 的受控管理接口为：
 
 ```text
-GET  /cloud/course/object?path=<object-path>
-POST /cloud/course/upload-url
-PUT  <signed-upload-url>
-POST /cloud/course/upload-complete
-POST /cloud/course/channel/publish
+GET    /cloud/course/objects?prefix=<prefix>&limit=<limit>&cursor=<cursor>
+GET    /cloud/course/object?path=<object-path>
+POST   /cloud/course/upload-url
+PUT    <signed-upload-url>
+POST   /cloud/course/upload-complete
+POST   /cloud/course/download-url
+GET    <signed-download-url>
+POST   /cloud/course/channel/publish
+DELETE /cloud/course/object
 ```
 
-发布鉴权使用 `Authorization: Bearer <COURSE_API_TOKEN>`。Token 只存在于受控执行环境或秘密存储中，禁止写入仓库、课程包、日志或提交记录。
+除签名上传/下载 URL 与公开分发地址外，管理接口鉴权使用 `Authorization: Bearer <COURSE_API_TOKEN>`。Token 只存在于受控执行环境或秘密存储中，禁止写入仓库、课程包、日志或提交记录。`DELETE /cloud/course/object` 使用 JSON body，至少包含完全一致的 `path` 与 `confirm`；管理器应在删除前读取 metadata，并尽量同时提交 `expected_etag`、`expected_size` 防止对象在确认后发生变化。Worker 删除还要求 Cloudflare 环境变量 `COURSE_ALLOW_DELETE=true`。
 
-课程 R2 管理统一使用 `scripts/course_r2_manager.py`。配置解析顺序固定为：命令行参数 → 当前环境变量 → GitHub Repository Variables → 内置默认值。非敏感配置使用 Repository Variables：`R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_BUCKET_NAME`、`COURSE_BASE_URL`；敏感配置 `R2_SECRET_ACCESS_KEY`、`COURSE_API_TOKEN` 必须使用受控环境变量或 GitHub Actions Secrets 注入，不得存入可直接读取的 Repository Variables。
+课程 R2 管理统一使用 `scripts/course_r2_manager.py`。普通课程管理默认 backend 为 `worker`；配置解析顺序固定为：命令行参数 → 当前环境变量 → GitHub Repository Variables → 内置默认值。Worker 非敏感配置使用 Repository Variable `COURSE_BASE_URL`，敏感配置 `COURSE_API_TOKEN` 必须使用受控环境变量或 GitHub Actions Secret。只有显式 `--backend direct` 时才读取 `R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_BUCKET_NAME` 与 `R2_SECRET_ACCESS_KEY`；其中 `R2_SECRET_ACCESS_KEY` 必须使用受控环境变量或 Secret，不得存入可直接读取的 Repository Variables。
 
-固定的 `.github/workflows/r2-storage-manager.yml` 是 `scripts/course_r2_manager.py` 的手动受控执行入口：可做 R2 文件/目录 CRUD，也可上传仓库外已完成制作与校验的 release artifact，并按标准流程手动发布 Testing/Stable；它不生成、不审校、不保存课程源，因此不属于课程内容生成 CI。
+固定的 `.github/workflows/r2-storage-manager.yml` 是 `scripts/course_r2_manager.py` 的手动受控执行入口：默认通过 Worker 做课程文件/目录 CRUD，也可上传仓库外已完成制作与校验的 release artifact，并按标准流程手动发布 Testing/Stable；只有明确选择 direct backend 时才直接访问 R2。它不生成、不审校、不保存课程源，因此不属于课程内容生成 CI。
 
 ## 6. 课程包发布流程
 
-课程制作由 Agent / 子代理在仓库外的临时工作区完成；课程源文件和发布产物不提交到仓库。课程 R2 上传、查询、修改、删除、目录管理、release 上传和 channel 发布统一调用仓库中的 `scripts/course_r2_manager.py`，不再临时生成发布脚本。
+课程制作由 Agent / 子代理在仓库外的临时工作区完成；课程源文件和发布产物不提交到仓库。课程 R2 上传、查询、修改、删除、目录管理、release 上传和 channel 发布统一调用仓库中的 `scripts/course_r2_manager.py`，默认通过 Worker 完成，不再临时生成发布脚本；只有底层恢复/诊断需要时才显式使用 `--backend direct`。
 
 标准流程固定为：
 
@@ -149,7 +156,7 @@ https://course.flashnamesl.workers.dev/cloud/course/public/releases/<release-id>
 
 禁止跳过 Testing 直接替换 Stable；禁止修改已经发布的 immutable release 内容；修复课程时发布新的 `release-id`，重新走 Testing → Stable。
 
-如果当前 Agent 执行环境没有 R2/Worker 写权限，应优先检查固定 `r2-storage-manager.yml` 是否可通过仓库已配置的 Actions Secrets 执行对应操作；不得再创建新的平行发布 CI、替代脚本，也不得把 Secret 降级存入 Repository Variables。若本地环境和固定 workflow 都没有所需授权，再明确报告缺少的授权。
+如果当前 Agent 执行环境没有 Worker 写权限，应优先检查固定 `r2-storage-manager.yml` 是否可通过仓库已配置的 `COURSE_API_TOKEN` Actions Secret 执行对应操作；不得再创建新的平行发布 CI、替代脚本，也不得把 Secret 降级存入 Repository Variables。只有明确执行 direct 恢复操作时才检查 R2 直连凭据；若所选 backend 在本地环境和固定 workflow 中都没有所需授权，再明确报告缺少的授权。
 
 ## 7. 课程包格式规范
 
@@ -499,7 +506,7 @@ assets/<question-assets>
 - 不为了格式化制造大面积无关 diff。
 - 禁止为了方便在仓库中新建 `tools/`。任何临时脚本默认只属于当前 Agent 执行环境。
 - `scripts/` 也不是杂物目录：通常只有与 App 构建、运行、签名、更新或发布直接相关且长期需要的脚本才能提交；`scripts/course_r2_manager.py` 是课程分发基础设施的唯一长期例外。
-- 涉及 Cloudflare R2 的文件/目录 CRUD、课程 release 上传、Testing/Stable 发布时必须优先复用 `scripts/course_r2_manager.py`；除非用户明确要求替换该实现，否则不得新增功能重叠的 R2 脚本。
+- 涉及 Cloudflare R2 的文件/目录 CRUD、课程 release 上传、Testing/Stable 发布时必须优先复用 `scripts/course_r2_manager.py`；普通课程管理默认走 Worker backend，只有明确的底层恢复/诊断场景才使用 direct backend；除非用户明确要求替换该实现，否则不得新增功能重叠的 R2 脚本。
 
 ## 13. 文档规则
 
