@@ -12,14 +12,14 @@ School Git 仓库只维护 App 本体以及 App 构建、测试、签名、更�
 - `visualization/`：受限的语义可视化基础设施。
 - `.github/workflows/`：App CI/CD，以及唯一的手动 R2 存储管理 workflow `.github/workflows/r2-storage-manager.yml`。
 - `signing/`：App 开发版签名和更新清单验证所需公开材料。
-- `scripts/`：与 App 构建、运行或发布直接相关且确有长期价值的脚本，以及固定的课程 R2 管理器 `scripts/course_r2_manager.py`。
+- `scripts/`：与 App 构建、运行或发布直接相关且确有长期价值的脚本，以及固定的课程 R2 管理器 `scripts/course_r2_manager.py` 与 CI 编排器 `scripts/course_r2_ci.py`。
 - `version.properties`、`.release-notes/current.md`、Gradle 配置和本文件。
 
 禁止把以下内容作为长期仓库资产：
 
 - `courses/` 或任何 authored course package、教材 PDF、课程 ZIP、课程发布产物。
 - `tools/` 目录。
-- 除 `scripts/course_r2_manager.py` 外，为一次任务临时编写的转换器、迁移器、抓取器、生成器、validator、审校脚本、发布脚本、数据修补脚本。
+- 除固定的 `scripts/course_r2_manager.py` 与 `scripts/course_r2_ci.py` 外，为一次任务临时编写的转换器、迁移器、抓取器、生成器、validator、审校脚本、发布脚本、数据修补脚本。
 - 课程内容 CI、课程发布 CI、教材专属 CI。
 - 与 App 无直接运行、构建或发布关系的辅助工程。
 
@@ -42,7 +42,7 @@ GitHub Actions 默认只服务 App；唯一额外允许的是手动触发的 R2 
 R2 管理 workflow 固定遵守：
 
 - 只允许 `workflow_dispatch` 手动触发，不监听 push、pull request、tag、schedule 或其他自动事件。
-- 只复用 `scripts/course_r2_manager.py`，可执行课程对象/目录 CRUD、上传仓库外已经制作完成的 immutable course release、手动切换 Testing/Stable channel，以及在明确确认后清空课程存储；不得生成课程、审校课程、修改课程正文或承担教材专属处理。
+- workflow 只调用 `scripts/course_r2_ci.py`；CI 编排器只负责读取 `workflow_dispatch` inputs、准备临时源文件/结果目录和动作分发，并把所有实际存储操作委托给 `scripts/course_r2_manager.py`。可执行课程对象/目录 CRUD、上传仓库外已经制作完成的 immutable course release、手动切换 Testing/Stable channel，以及在明确确认后清空课程存储；不得生成课程、审校课程、修改课程正文或承担教材专属处理。
 - 普通课程对象/目录 CRUD 默认使用 `worker` backend，通过 `COURSE_BASE_URL` 与 Actions Secret `COURSE_API_TOKEN` 调用课程 Worker；这也是 `list`、`read`、`create`、`update`、`delete`、目录管理和 `purge` 的默认路径。
 - `direct` backend 只作为底层 R2 恢复/诊断备用路径。只有明确选择 `backend=direct` 时才使用 Repository Variables `R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_BUCKET_NAME` 与 Actions Secret `R2_SECRET_ACCESS_KEY`，且不得把 direct 作为课程日常管理的默认依赖。
 - Worker 侧删除必须由 Cloudflare Worker 环境变量 `COURSE_ALLOW_DELETE=true` 显式开启；该开关不是 GitHub Secret，也不写入仓库。若未开启，删除操作应明确报告 Worker 的 `delete_disabled`，不得绕过保护。
@@ -131,7 +131,7 @@ DELETE /cloud/course/object
 
 课程 R2 管理统一使用 `scripts/course_r2_manager.py`。普通课程管理默认 backend 为 `worker`；配置解析顺序固定为：命令行参数 → 当前环境变量 → GitHub Repository Variables → 内置默认值。Worker 非敏感配置使用 Repository Variable `COURSE_BASE_URL`，敏感配置 `COURSE_API_TOKEN` 必须使用受控环境变量或 GitHub Actions Secret。只有显式 `--backend direct` 时才读取 `R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_BUCKET_NAME` 与 `R2_SECRET_ACCESS_KEY`；其中 `R2_SECRET_ACCESS_KEY` 必须使用受控环境变量或 Secret，不得存入可直接读取的 Repository Variables。
 
-固定的 `.github/workflows/r2-storage-manager.yml` 是 `scripts/course_r2_manager.py` 的手动受控执行入口：默认通过 Worker 做课程文件/目录 CRUD，也可上传仓库外已完成制作与校验的 release artifact，并按标准流程手动发布 Testing/Stable；只有明确选择 direct backend 时才直接访问 R2。它不生成、不审校、不保存课程源，因此不属于课程内容生成 CI。
+固定的 `.github/workflows/r2-storage-manager.yml` 是 `scripts/course_r2_ci.py` 的手动受控执行入口；`course_r2_ci.py` 只承担 CI 编排并统一调用 `scripts/course_r2_manager.py`。默认通过 Worker 做课程文件/目录 CRUD，也可上传仓库外已完成制作与校验的 release artifact，并按标准流程手动发布 Testing/Stable；只有明确选择 direct backend 时才直接访问 R2。它不生成、不审校、不保存课程源，因此不属于课程内容生成 CI。
 
 ## 6. 课程包发布流程
 
@@ -505,7 +505,7 @@ assets/<question-assets>
 - Kotlin、Java、XML 不要出现无意义换行；方法调用、参数列表和表达式在可读前提下保持紧凑。
 - 不为了格式化制造大面积无关 diff。
 - 禁止为了方便在仓库中新建 `tools/`。任何临时脚本默认只属于当前 Agent 执行环境。
-- `scripts/` 也不是杂物目录：通常只有与 App 构建、运行、签名、更新或发布直接相关且长期需要的脚本才能提交；`scripts/course_r2_manager.py` 是课程分发基础设施的唯一长期例外。
+- `scripts/` 也不是杂物目录：通常只有与 App 构建、运行、签名、更新或发布直接相关且长期需要的脚本才能提交；`scripts/course_r2_manager.py` 与 `scripts/course_r2_ci.py` 是课程分发基础设施的固定长期例外。
 - 涉及 Cloudflare R2 的文件/目录 CRUD、课程 release 上传、Testing/Stable 发布时必须优先复用 `scripts/course_r2_manager.py`；普通课程管理默认走 Worker backend，只有明确的底层恢复/诊断场景才使用 direct backend；除非用户明确要求替换该实现，否则不得新增功能重叠的 R2 脚本。
 
 ## 13. 文档规则
