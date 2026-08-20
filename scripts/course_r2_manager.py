@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""School Cloudflare R2 manager: file/dir CRUD and immutable course publishing."""
+"""School course storage manager: Worker-first CRUD, direct R2 fallback, and immutable release publishing."""
 from __future__ import annotations
 
 import argparse
@@ -36,6 +36,15 @@ def key(value: str) -> str:
     if not value or value == "." or ".." in path.parts:
         raise SystemExit(f"invalid R2 key: {value!r}")
     return path.as_posix()
+
+
+def clean_prefix(value: str) -> str:
+    value = value.strip().replace("\\", "/").lstrip("/")
+    if not value:
+        return ""
+    trailing = value.endswith("/")
+    normalized = key(value.rstrip("/"))
+    return normalized + "/" if trailing else normalized
 
 
 def prefix(value: str) -> str:
@@ -84,12 +93,21 @@ def guard_release(remote: str, allow: bool) -> None:
         raise SystemExit(f"refusing to mutate immutable release object: {remote}; publish a new release id instead")
 
 
+def print_objects(rows: list[dict[str, Any]], as_json: bool) -> None:
+    if as_json:
+        print(json.dumps(rows, ensure_ascii=False, indent=2, default=str))
+        return
+    print("\n".join(f"{int(row.get('size') or 0):>12}  {row.get('key') or row.get('path')}" for row in rows) if rows else "(no objects)")
+
+
 class R2:
+    """Low-level direct bucket backend. Use only when explicit bucket credentials are available."""
+
     def __init__(self, args: argparse.Namespace) -> None:
         try:
             import boto3
         except ImportError as error:
-            raise SystemExit("R2 CRUD requires boto3: python -m pip install boto3") from error
+            raise SystemExit("direct R2 backend requires boto3: python -m pip install boto3") from error
         repo = repo_name(args.github_repo)
         account = config(args.r2_account_id, "R2_ACCOUNT_ID", repo)
         access = config(args.r2_access_key_id, "R2_ACCESS_KEY_ID", repo)
@@ -97,7 +115,7 @@ class R2:
         self.bucket = config(args.r2_bucket_name, "R2_BUCKET_NAME", repo)
         missing = [name for name, value in (("R2_ACCOUNT_ID", account), ("R2_ACCESS_KEY_ID", access), ("R2_SECRET_ACCESS_KEY", secret), ("R2_BUCKET_NAME", self.bucket)) if not value]
         if missing:
-            raise SystemExit(f"missing R2 configuration: {', '.join(missing)}; non-secret values may come from GitHub Variables, R2_SECRET_ACCESS_KEY must come from CLI/env/Actions Secret")
+            raise SystemExit(f"missing direct R2 configuration: {', '.join(missing)}")
         self.s3 = boto3.client("s3", endpoint_url=f"https://{account}.r2.cloudflarestorage.com", aws_access_key_id=access, aws_secret_access_key=secret, region_name="auto")
 
     def head(self, remote: str) -> dict[str, Any] | None:
@@ -263,6 +281,8 @@ class R2:
 
 
 class Worker:
+    """Course-scoped backend exposed by the Cloudflare Worker and protected by COURSE_API_TOKEN."""
+
     def __init__(self, base_url: str, token: str) -> None:
         self.base = base_url.rstrip("/")
         self.token = token.strip()
@@ -273,7 +293,7 @@ class Worker:
 
     def request(self, method: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         body = None if payload is None else json.dumps(payload, ensure_ascii=False).encode()
-        headers = {"Accept": "application/json", "Authorization": f"Bearer {self.token}", "User-Agent": "School-Course-R2-Manager/2.0"}
+        headers = {"Accept": "application/json", "Authorization": f"Bearer {self.token}", "User-Agent": "School-Course-R2-Manager/3.0"}
         if body is not None:
             headers["Content-Type"] = "application/json"
         req = urllib.request.Request(self.base + path, data=body, method=method, headers=headers)
@@ -281,7 +301,11 @@ class Worker:
             with urllib.request.urlopen(req, timeout=120) as response:
                 raw = response.read()
         except urllib.error.HTTPError as error:
-            raise SystemExit(f"{method} {path} HTTP {error.code}: {error.read().decode(errors='replace')}") from error
+            response_body = error.read().decode(errors="replace")
+            hint = ""
+            if error.code == 403 and "delete_disabled" in response_body:
+                hint = " (enable COURSE_ALLOW_DELETE=true on the course Worker)"
+            raise SystemExit(f"{method} {path} HTTP {error.code}: {response_body}{hint}") from error
         except urllib.error.URLError as error:
             raise SystemExit(f"cannot reach course Worker: {error}") from error
         return json.loads(raw) if raw else {}
@@ -294,13 +318,36 @@ class Worker:
                 return None
             raise
 
-    def upload(self, local: Path, remote: str) -> None:
+    def objects(self, pfx: str = "") -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        cursor = ""
+        seen: set[str] = set()
+        while True:
+            query: dict[str, str] = {"prefix": clean_prefix(pfx), "limit": "200"}
+            if cursor:
+                query["cursor"] = cursor
+            result = self.request("GET", "/cloud/course/objects?" + urllib.parse.urlencode(query))
+            for item in result.get("objects", []):
+                rows.append({"key": item.get("path"), "size": item.get("size"), "etag": item.get("etag"), "last_modified": item.get("uploaded"), "sha256": item.get("sha256"), "content_type": item.get("contentType")})
+            if not result.get("truncated"):
+                break
+            cursor = str(result.get("cursor") or "")
+            if not cursor or cursor in seen:
+                raise SystemExit("course Worker returned an invalid pagination cursor")
+            seen.add(cursor)
+        return rows
+
+    def upload(self, local: Path, remote: str, *, overwrite: bool = False) -> None:
+        if not local.is_file():
+            raise SystemExit(f"local file not found: {local}")
         size, digest = local.stat().st_size, sha256(local)
         existing = self.metadata(remote)
         if existing:
             if existing.get("size") == size and existing.get("sha256") == digest:
-                print(f"skip unchanged: {remote}"); return
-            raise SystemExit(f"immutable release object already exists with different content: {remote}")
+                print(f"unchanged: {remote}")
+                return
+            if not overwrite:
+                raise SystemExit(f"object exists with different content: {remote}; use update")
         ctype = media_type(local)
         signed = self.request("POST", "/cloud/course/upload-url", {"path": remote, "size": size, "sha256": digest, "content_type": ctype, "expires_in": 1800})
         url = signed.get("url")
@@ -310,7 +357,158 @@ class Worker:
         if result.returncode:
             raise SystemExit(f"upload failed for {remote}: {(result.stderr or result.stdout).strip()}")
         self.request("POST", "/cloud/course/upload-complete", {"path": remote, "size": size, "sha256": digest})
-        print(f"uploaded: {remote} ({size} bytes)")
+        print(f"{'updated' if existing else 'created'}: {remote} ({size} bytes)")
+
+    def create(self, local: Path, remote: str) -> None:
+        self.upload(local, remote, overwrite=False)
+
+    def read(self, remote: str, output: Path | None, force: bool) -> None:
+        meta = self.metadata(remote)
+        if meta is None:
+            raise SystemExit(f"object not found: {remote}")
+        if output is None:
+            print(json.dumps(meta, ensure_ascii=False, indent=2, default=str))
+            return
+        if output.exists() and not force:
+            raise SystemExit(f"local file exists: {output}; use --force")
+        signed = self.request("POST", "/cloud/course/download-url", {"path": remote, "expires_in": 1800, "download_name": output.name})
+        url = signed.get("url")
+        if not url:
+            raise SystemExit("course Worker did not return a download URL")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with urllib.request.urlopen(url, timeout=120) as response, output.open("wb") as target:
+                for chunk in iter(lambda: response.read(1024 * 1024), b""):
+                    target.write(chunk)
+        except urllib.error.URLError as error:
+            raise SystemExit(f"download failed for {remote}: {error}") from error
+        print(f"downloaded: {remote} -> {output}")
+
+    def update(self, local: Path, remote: str, allow: bool) -> None:
+        guard_release(remote, allow)
+        if self.metadata(remote) is None:
+            raise SystemExit(f"object not found: {remote}; use create")
+        self.upload(local, remote, overwrite=True)
+
+    def delete(self, remote: str, allow: bool) -> None:
+        guard_release(remote, allow)
+        meta = self.metadata(remote)
+        if meta is None:
+            raise SystemExit(f"object not found: {remote}")
+        payload: dict[str, Any] = {"path": remote, "confirm": remote}
+        if meta.get("etag"):
+            payload["expected_etag"] = meta["etag"]
+        if meta.get("size") is not None:
+            payload["expected_size"] = meta["size"]
+        self.request("DELETE", "/cloud/course/object", payload)
+        print(f"deleted: {remote}")
+
+    def dir_exists(self, pfx: str) -> bool:
+        return bool(self.objects(prefix(pfx)))
+
+    def dir_create(self, pfx: str, local: Path | None) -> None:
+        pfx = prefix(pfx)
+        if self.objects(pfx):
+            raise SystemExit(f"directory exists: {pfx}; use dir-update")
+        if local is None:
+            raise SystemExit("Worker backend cannot create an empty R2 prefix; provide --from with at least one file")
+        if not local.is_dir():
+            raise SystemExit(f"local directory not found: {local}")
+        files = sorted(x for x in local.rglob("*") if x.is_file())
+        if not files:
+            raise SystemExit("Worker backend cannot create an empty R2 prefix")
+        for file in files:
+            self.create(file, pfx + PurePosixPath(file.relative_to(local).as_posix()).as_posix())
+        print(f"created directory: {pfx} ({len(files)} files)")
+
+    def dir_rows(self, pfx: str, recursive: bool) -> list[dict[str, Any]]:
+        pfx = prefix(pfx)
+        objects = self.objects(pfx)
+        if recursive:
+            return [{"type": "file", **item} for item in objects]
+        rows: list[dict[str, Any]] = []
+        directories: set[str] = set()
+        for item in objects:
+            remote = str(item.get("key") or "")
+            suffix = remote[len(pfx):]
+            if "/" in suffix:
+                directories.add(pfx + suffix.split("/", 1)[0] + "/")
+            else:
+                rows.append({"type": "file", **item})
+        rows.extend({"type": "directory", "key": directory} for directory in sorted(directories))
+        rows.sort(key=lambda row: (row["type"] != "directory", str(row.get("key") or "")))
+        return rows
+
+    def dir_read(self, pfx: str, recursive: bool, output: Path | None, force: bool, as_json: bool) -> None:
+        pfx = prefix(pfx)
+        objects = self.objects(pfx)
+        if not objects:
+            raise SystemExit(f"directory not found or empty: {pfx}")
+        if output:
+            output.mkdir(parents=True, exist_ok=True)
+            for item in objects:
+                remote = str(item["key"])
+                target = output.joinpath(*PurePosixPath(remote[len(pfx):]).parts)
+                self.read(remote, target, force)
+            print(f"downloaded directory: {pfx} -> {output} ({len(objects)} files)")
+            return
+        rows = self.dir_rows(pfx, recursive)
+        if as_json:
+            print(json.dumps(rows, ensure_ascii=False, indent=2, default=str))
+        else:
+            print("\n".join(f"{'[DIR]' if row['type'] == 'directory' else int(row.get('size') or 0):>12}  {row['key']}" for row in rows) if rows else "(empty directory)")
+
+    def dir_update(self, local: Path, pfx: str, delete_extra: bool, allow: bool) -> None:
+        pfx = prefix(pfx)
+        if not local.is_dir():
+            raise SystemExit(f"local directory not found: {local}")
+        remote_rows = self.objects(pfx)
+        if not remote_rows:
+            raise SystemExit(f"remote directory not found or empty: {pfx}")
+        guard_release(pfx, allow)
+        local_files = {pfx + PurePosixPath(file.relative_to(local).as_posix()).as_posix(): file for file in local.rglob("*") if file.is_file()}
+        remote = {str(item["key"]): item for item in remote_rows}
+        created = updated = unchanged = 0
+        for remote_key, file in sorted(local_files.items()):
+            guard_release(remote_key, allow)
+            item = remote.get(remote_key)
+            digest = sha256(file)
+            if item is None:
+                self.create(file, remote_key); created += 1
+            elif item.get("size") == file.stat().st_size and item.get("sha256") == digest:
+                unchanged += 1
+            else:
+                self.update(file, remote_key, allow); updated += 1
+        stale = sorted(set(remote) - set(local_files)) if delete_extra else []
+        for remote_key in stale:
+            self.delete(remote_key, allow)
+        print(f"updated directory: {pfx} (created={created}, updated={updated}, unchanged={unchanged}, deleted={len(stale)})")
+
+    def dir_delete(self, pfx: str, allow: bool) -> None:
+        pfx = prefix(pfx)
+        rows = self.objects(pfx)
+        if not rows:
+            raise SystemExit(f"directory not found or empty: {pfx}")
+        for item in rows:
+            self.delete(str(item["key"]), allow)
+        if self.objects(pfx):
+            raise SystemExit(f"directory delete verification failed: {pfx}")
+        print(f"deleted directory: {pfx} ({len(rows)} objects)")
+
+    def purge(self, allow: bool) -> None:
+        rows = self.objects("")
+        if not rows:
+            print("course storage is already empty")
+            return
+        for item in rows:
+            guard_release(str(item["key"]), allow)
+        print(f"purging course storage: {len(rows)} objects")
+        for item in rows:
+            self.delete(str(item["key"]), allow)
+        remaining = self.objects("")
+        if remaining:
+            raise SystemExit(f"purge verification failed: {len(remaining)} objects remain")
+        print(f"purged course storage: {len(rows)} objects deleted")
 
     def publish(self, release_id: str, channel: str) -> None:
         remote = f"releases/{release_id}/manifest.json"
@@ -340,25 +538,30 @@ def github_opts(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--github-repo", default=os.environ.get("GITHUB_REPOSITORY", DEFAULT_REPO))
 
 
+def worker_opts(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--course-base-url", default="")
+    parser.add_argument("--course-api-token", default="")
+
+
 def r2_opts(parser: argparse.ArgumentParser) -> None:
-    github_opts(parser)
     parser.add_argument("--r2-account-id", default="")
     parser.add_argument("--r2-access-key-id", default="")
     parser.add_argument("--r2-secret-access-key", default="")
     parser.add_argument("--r2-bucket-name", default="")
 
 
-def worker_opts(parser: argparse.ArgumentParser) -> None:
+def storage_opts(parser: argparse.ArgumentParser) -> None:
     github_opts(parser)
-    parser.add_argument("--course-base-url", default="")
-    parser.add_argument("--course-api-token", default="")
+    parser.add_argument("--backend", choices=("worker", "direct"), default="worker")
+    worker_opts(parser)
+    r2_opts(parser)
 
 
 def parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="Cloudflare R2 CRUD + School course release manager")
+    p = argparse.ArgumentParser(description="School course storage CRUD + immutable release manager")
     sub = p.add_subparsers(dest="command", required=True)
-    for name in ("create", "read", "update", "delete", "list", "dir-create", "dir-read", "dir-update", "dir-delete"):
-        cmd = sub.add_parser(name); r2_opts(cmd)
+    for name in ("create", "read", "update", "delete", "list", "dir-create", "dir-read", "dir-update", "dir-delete", "purge"):
+        cmd = sub.add_parser(name); storage_opts(cmd)
         if name == "create": cmd.add_argument("local", type=Path); cmd.add_argument("key")
         elif name == "read": cmd.add_argument("key"); cmd.add_argument("--output", type=Path); cmd.add_argument("--force", action="store_true")
         elif name == "update": cmd.add_argument("local", type=Path); cmd.add_argument("key"); cmd.add_argument("--allow-release-mutation", action="store_true")
@@ -367,41 +570,55 @@ def parser() -> argparse.ArgumentParser:
         elif name == "dir-create": cmd.add_argument("prefix"); cmd.add_argument("--from", dest="local", type=Path)
         elif name == "dir-read": cmd.add_argument("prefix"); cmd.add_argument("--recursive", action="store_true"); cmd.add_argument("--output", type=Path); cmd.add_argument("--force", action="store_true"); cmd.add_argument("--json", action="store_true")
         elif name == "dir-update": cmd.add_argument("local", type=Path); cmd.add_argument("prefix"); cmd.add_argument("--delete-extra", action="store_true"); cmd.add_argument("--allow-release-mutation", action="store_true")
-        else: cmd.add_argument("prefix"); cmd.add_argument("--yes", action="store_true"); cmd.add_argument("--allow-release-mutation", action="store_true")
-    upload = sub.add_parser("release-upload"); worker_opts(upload); upload.add_argument("--root", type=Path, required=True); upload.add_argument("--release-id", required=True); upload.add_argument("--channel", choices=("none", "testing", "stable"), default="testing")
-    publish = sub.add_parser("publish"); worker_opts(publish); publish.add_argument("--release-id", required=True); publish.add_argument("--channel", choices=("testing", "stable"), default="stable")
+        elif name == "dir-delete": cmd.add_argument("prefix"); cmd.add_argument("--yes", action="store_true"); cmd.add_argument("--allow-release-mutation", action="store_true")
+        else: cmd.add_argument("--yes", action="store_true"); cmd.add_argument("--allow-release-mutation", action="store_true")
+    upload = sub.add_parser("release-upload"); github_opts(upload); worker_opts(upload); upload.add_argument("--root", type=Path, required=True); upload.add_argument("--release-id", required=True); upload.add_argument("--channel", choices=("none", "testing", "stable"), default="testing")
+    publish = sub.add_parser("publish"); github_opts(publish); worker_opts(publish); publish.add_argument("--release-id", required=True); publish.add_argument("--channel", choices=("testing", "stable"), default="stable")
     return p
+
+
+def worker_from_args(args: argparse.Namespace) -> Worker:
+    repo = repo_name(args.github_repo)
+    base = config(args.course_base_url, "COURSE_BASE_URL", repo, default=DEFAULT_COURSE_URL)
+    token = config(args.course_api_token, "COURSE_API_TOKEN", repo, variable=False)
+    return Worker(base, token)
+
+
+def storage_from_args(args: argparse.Namespace) -> R2 | Worker:
+    return R2(args) if args.backend == "direct" else worker_from_args(args)
 
 
 def main() -> int:
     args = parser().parse_args()
-    if args.command in {"create", "read", "update", "delete", "list", "dir-create", "dir-read", "dir-update", "dir-delete"}:
-        r2 = R2(args)
-        if args.command == "create": r2.create(args.local.resolve(), key(args.key))
-        elif args.command == "read": r2.read(key(args.key), args.output.resolve() if args.output else None, args.force)
-        elif args.command == "update": r2.update(args.local.resolve(), key(args.key), args.allow_release_mutation)
+    storage_commands = {"create", "read", "update", "delete", "list", "dir-create", "dir-read", "dir-update", "dir-delete", "purge"}
+    if args.command in storage_commands:
+        if args.command == "purge" and args.backend != "worker":
+            raise SystemExit("purge is Worker-only so it cannot accidentally wipe a shared R2 bucket")
+        storage = storage_from_args(args)
+        if args.command == "create": storage.create(args.local.resolve(), key(args.key))
+        elif args.command == "read": storage.read(key(args.key), args.output.resolve() if args.output else None, args.force)
+        elif args.command == "update": storage.update(args.local.resolve(), key(args.key), args.allow_release_mutation)
         elif args.command == "delete":
             if not args.yes: raise SystemExit("delete requires --yes")
-            r2.delete(key(args.key), args.allow_release_mutation)
-        elif args.command == "list":
-            rows = r2.objects(args.prefix.strip().replace("\\", "/").lstrip("/"))
-            print(json.dumps(rows, ensure_ascii=False, indent=2, default=str) if args.json else ("\n".join(f"{row['size']:>12}  {row['key']}" for row in rows) if rows else "(no objects)"))
-        elif args.command == "dir-create": r2.dir_create(args.prefix, args.local.resolve() if args.local else None)
-        elif args.command == "dir-read": r2.dir_read(args.prefix, args.recursive, args.output.resolve() if args.output else None, args.force, args.json)
-        elif args.command == "dir-update": r2.dir_update(args.local.resolve(), args.prefix, args.delete_extra, args.allow_release_mutation)
-        else:
+            storage.delete(key(args.key), args.allow_release_mutation)
+        elif args.command == "list": print_objects(storage.objects(clean_prefix(args.prefix)), args.json)
+        elif args.command == "dir-create": storage.dir_create(args.prefix, args.local.resolve() if args.local else None)
+        elif args.command == "dir-read": storage.dir_read(args.prefix, args.recursive, args.output.resolve() if args.output else None, args.force, args.json)
+        elif args.command == "dir-update": storage.dir_update(args.local.resolve(), args.prefix, args.delete_extra, args.allow_release_mutation)
+        elif args.command == "dir-delete":
             if not args.yes: raise SystemExit("dir-delete requires --yes")
-            r2.dir_delete(args.prefix, args.allow_release_mutation)
+            storage.dir_delete(args.prefix, args.allow_release_mutation)
+        else:
+            if not args.yes: raise SystemExit("purge requires --yes")
+            assert isinstance(storage, Worker)
+            storage.purge(args.allow_release_mutation)
         return 0
     release_id = require_id(args.release_id)
-    repo = repo_name(args.github_repo)
-    base = config(args.course_base_url, "COURSE_BASE_URL", repo, default=DEFAULT_COURSE_URL)
-    token = config(args.course_api_token, "COURSE_API_TOKEN", repo, variable=False)
-    worker = Worker(base, token)
+    worker = worker_from_args(args)
     if args.command == "publish": worker.publish(release_id, args.channel); return 0
     root = args.root.resolve()
     if not root.is_dir(): raise SystemExit(f"release directory not found: {root}")
-    verify_manifest(root, base, release_id)
+    verify_manifest(root, worker.base, release_id)
     files = sorted((x for x in root.rglob("*") if x.is_file()), key=lambda x: x.name == "manifest.json")
     if not files: raise SystemExit("release directory is empty")
     for file in files:
