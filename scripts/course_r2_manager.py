@@ -376,12 +376,10 @@ class Worker:
         if not url:
             raise SystemExit("course Worker did not return a download URL")
         output.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            with urllib.request.urlopen(url, timeout=120) as response, output.open("wb") as target:
-                for chunk in iter(lambda: response.read(1024 * 1024), b""):
-                    target.write(chunk)
-        except urllib.error.URLError as error:
-            raise SystemExit(f"download failed for {remote}: {error}") from error
+        result = subprocess.run(["curl", "--fail-with-body", "--silent", "--show-error", "--retry", "3", "--location", "--output", str(output), url], text=True, capture_output=True)
+        if result.returncode:
+            output.unlink(missing_ok=True)
+            raise SystemExit(f"download failed for {remote}: {(result.stderr or result.stdout).strip()}")
         print(f"downloaded: {remote} -> {output}")
 
     def update(self, local: Path, remote: str, allow: bool) -> None:
