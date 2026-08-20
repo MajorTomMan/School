@@ -42,10 +42,11 @@ GitHub Actions 默认只服务 App；唯一额外允许的是手动触发的 R2 
 R2 管理 workflow 固定遵守：
 
 - 只允许 `workflow_dispatch` 手动触发，不监听 push、pull request、tag、schedule 或其他自动事件。
-- 只复用 `scripts/course_r2_manager.py` 执行 R2 对象和目录的增、查、改、删，不生成课程、不审校课程、不执行 `release-upload`，也不切换 Testing/Stable channel。
-- 非敏感配置使用 Repository Variables：`R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_BUCKET_NAME`；`R2_SECRET_ACCESS_KEY` 只从 GitHub Actions Secret 注入。
+- 只复用 `scripts/course_r2_manager.py`，可执行 R2 对象/目录 CRUD、上传仓库外已经制作完成的 immutable course release，以及手动切换 Testing/Stable channel；不得生成课程、审校课程、修改课程正文或承担教材专属处理。
+- 对象/目录 CRUD 使用 Repository Variables `R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_BUCKET_NAME` 与 Actions Secret `R2_SECRET_ACCESS_KEY`；`release-upload` / `publish` 使用 `COURSE_BASE_URL` 与 Actions Secret `COURSE_API_TOKEN`，两套鉴权互不强制依赖。
+- `release-upload` 只允许 `none` 或 `testing`，不得直接发布 Stable；Testing 验证完成后才允许通过单独的 `publish` 操作提升同一 immutable release 到 Stable。
 - 删除操作必须显式确认；`releases/` 下 immutable 对象的 update/delete 默认禁止，只有明确恢复时才允许显式开启 `allow_release_mutation`。
-- 文件 create/update 可从临时 HTTP(S) URL 获取源文件；目录 create/update 可从 ZIP 获取源目录。不要把长期凭据写入 workflow input 或 source URL。
+- 文件 create/update 可从临时 HTTP(S) URL 获取源文件；目录 create/update 与 `release-upload` 从 ZIP 获取源目录或 release artifact。不要把长期凭据写入 workflow input 或 source URL。
 
 App CI/CD 规则保持：
 
@@ -123,7 +124,7 @@ POST /cloud/course/channel/publish
 
 课程 R2 管理统一使用 `scripts/course_r2_manager.py`。配置解析顺序固定为：命令行参数 → 当前环境变量 → GitHub Repository Variables → 内置默认值。非敏感配置使用 Repository Variables：`R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_BUCKET_NAME`、`COURSE_BASE_URL`；敏感配置 `R2_SECRET_ACCESS_KEY`、`COURSE_API_TOKEN` 必须使用受控环境变量或 GitHub Actions Secrets 注入，不得存入可直接读取的 Repository Variables。
 
-固定的 `.github/workflows/r2-storage-manager.yml` 只是上述 R2 文件/目录 CRUD 的手动执行入口，不属于课程内容或课程发布 CI；课程 release 上传与 Testing/Stable channel 发布仍按下节标准流程执行。
+固定的 `.github/workflows/r2-storage-manager.yml` 是 `scripts/course_r2_manager.py` 的手动受控执行入口：可做 R2 文件/目录 CRUD，也可上传仓库外已完成制作与校验的 release artifact，并按标准流程手动发布 Testing/Stable；它不生成、不审校、不保存课程源，因此不属于课程内容生成 CI。
 
 ## 6. 课程包发布流程
 
@@ -140,15 +141,15 @@ POST /cloud/course/channel/publish
 https://course.flashnamesl.workers.dev/cloud/course/public/releases/<release-id>/...
 ```
 
-5. 使用 `python scripts/course_r2_manager.py release-upload --root <release-root> --release-id <release-id> --channel testing` 完成 size/SHA-256 校验、签名上传、完成确认并发布到 Testing；同内容对象可跳过，不允许覆盖已存在但内容不同的 immutable release 对象。
+5. 使用 `python scripts/course_r2_manager.py release-upload --root <release-root> --release-id <release-id> --channel testing` 完成 size/SHA-256 校验、签名上传、完成确认并发布到 Testing；同内容对象可跳过，不允许覆盖已存在但内容不同的 immutable release 对象。若当前执行环境没有 `COURSE_API_TOKEN`、但仓库 Actions Secret 已配置，可使用固定的 `r2-storage-manager.yml` 选择 `release-upload`，输入同一 release artifact 的临时 HTTPS ZIP 地址、release ID 和 `testing` channel 执行同一管理器。
 6. 确认 `releases/<release-id>/manifest.json` 已存在且 SHA-256 正确。
 7. 从公开 Testing 地址重新下载 manifest，并逐项检查 manifest、文件 URL、大小、SHA-256、课程解析和关键内容；验证必须针对远端实际资源，而不是只检查本地生成目录。
-8. Testing 验证通过后，使用 `python scripts/course_r2_manager.py publish --release-id <release-id> --channel stable` 将同一个 immutable release 提升到 Stable。
+8. Testing 验证通过后，使用 `python scripts/course_r2_manager.py publish --release-id <release-id> --channel stable` 将同一个 immutable release 提升到 Stable；若由 GitHub Actions 执行，则使用固定 R2 manager workflow 的 `publish` 动作，且必须与已验证的 Testing release ID 完全相同。
 9. 从 Stable 地址重新下载并确认最终 manifest 与已验证的 release 一致。Stable 切换完成即视为课程发布完成，不需要重新构建 App。
 
 禁止跳过 Testing 直接替换 Stable；禁止修改已经发布的 immutable release 内容；修复课程时发布新的 `release-id`，重新走 Testing → Stable。
 
-如果当前 Agent 执行环境没有 R2/Worker 写权限或缺少 `R2_SECRET_ACCESS_KEY` / `COURSE_API_TOKEN`，不得创建新的发布 CI、替代脚本或把 Secret 降级存入 Repository Variables 来绕过限制；应继续使用 `scripts/course_r2_manager.py` 并明确报告缺少的授权，由具备授权的环境执行。
+如果当前 Agent 执行环境没有 R2/Worker 写权限，应优先检查固定 `r2-storage-manager.yml` 是否可通过仓库已配置的 Actions Secrets 执行对应操作；不得再创建新的平行发布 CI、替代脚本，也不得把 Secret 降级存入 Repository Variables。若本地环境和固定 workflow 都没有所需授权，再明确报告缺少的授权。
 
 ## 7. 课程包格式规范
 
