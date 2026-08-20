@@ -208,6 +208,7 @@ jobs:
             release-upload)
               require_course_config
               require_release_id
+              [ "$CHANNEL" != "stable" ] || { echo "release-upload 不允许直接发布 stable；先上传到 none/testing，再使用 publish 提升 stable" >&2; exit 1; }
               source_dir="$(extract_zip_source)"
               release_root="$(resolve_release_root "$source_dir")"
               python3 scripts/course_r2_manager.py release-upload --root "$release_root" --release-id "$RELEASE_ID" --channel "$CHANNEL" | tee build/r2-output/result.txt
