@@ -10,7 +10,7 @@ School Git 仓库只维护 App 本体以及 App 构建、测试、签名、更�
 
 - `app/`：Android App。
 - `visualization/`：受限的语义可视化基础设施。
-- `.github/workflows/`：仅 App CI/CD。
+- `.github/workflows/`：App CI/CD，以及唯一的手动 R2 存储管理 workflow `.github/workflows/r2-storage-manager.yml`。
 - `signing/`：App 开发版签名和更新清单验证所需公开材料。
 - `scripts/`：与 App 构建、运行或发布直接相关且确有长期价值的脚本，以及固定的课程 R2 管理器 `scripts/course_r2_manager.py`。
 - `version.properties`、`.release-notes/current.md`、Gradle 配置和本文件。
@@ -35,11 +35,21 @@ School Git 仓库只维护 App 本体以及 App 构建、测试、签名、更�
 - 合并前检查 `dev`、`master` 最新 head、差异和 App CI 状态。
 - 普通 App 开发提交不要求每次提升版本号；准备发布时才由 Agent 统一维护版本元数据。
 
-## 3. App CI/CD
+## 3. App CI/CD 与 R2 管理
 
-GitHub Actions 只服务 App。
+GitHub Actions 默认只服务 App；唯一额外允许的是手动触发的 R2 存储管理 workflow `.github/workflows/r2-storage-manager.yml`。
 
-- 只监听 `dev` 的 App、Visualization、Gradle、签名、版本和 workflow 等 App 构建相关变化。
+R2 管理 workflow 固定遵守：
+
+- 只允许 `workflow_dispatch` 手动触发，不监听 push、pull request、tag、schedule 或其他自动事件。
+- 只复用 `scripts/course_r2_manager.py` 执行 R2 对象和目录的增、查、改、删，不生成课程、不审校课程、不执行 `release-upload`，也不切换 Testing/Stable channel。
+- 非敏感配置使用 Repository Variables：`R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_BUCKET_NAME`；`R2_SECRET_ACCESS_KEY` 只从 GitHub Actions Secret 注入。
+- 删除操作必须显式确认；`releases/` 下 immutable 对象的 update/delete 默认禁止，只有明确恢复时才允许显式开启 `allow_release_mutation`。
+- 文件 create/update 可从临时 HTTP(S) URL 获取源文件；目录 create/update 可从 ZIP 获取源目录。不要把长期凭据写入 workflow input 或 source URL。
+
+App CI/CD 规则保持：
+
+- App CI 只监听 `dev` 的 App、Visualization、Gradle、签名、版本和 workflow 等 App 构建相关变化。
 - `courses/**` 不存在，也不得重新加入 CI 触发路径。
 - CI/CD 负责机械工作：解析版本、执行单元测试、编译 APK、生成并签名更新清单、上传产物、刷新 GitHub Development Release。
 - Development Release 的阻断型单元测试只覆盖 App 数据结构/协议与数学引擎；另以 `:app:assembleDebug` 验证 APK 能正常构建。
@@ -112,6 +122,8 @@ POST /cloud/course/channel/publish
 发布鉴权使用 `Authorization: Bearer <COURSE_API_TOKEN>`。Token 只存在于受控执行环境或秘密存储中，禁止写入仓库、课程包、日志或提交记录。
 
 课程 R2 管理统一使用 `scripts/course_r2_manager.py`。配置解析顺序固定为：命令行参数 → 当前环境变量 → GitHub Repository Variables → 内置默认值。非敏感配置使用 Repository Variables：`R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_BUCKET_NAME`、`COURSE_BASE_URL`；敏感配置 `R2_SECRET_ACCESS_KEY`、`COURSE_API_TOKEN` 必须使用受控环境变量或 GitHub Actions Secrets 注入，不得存入可直接读取的 Repository Variables。
+
+固定的 `.github/workflows/r2-storage-manager.yml` 只是上述 R2 文件/目录 CRUD 的手动执行入口，不属于课程内容或课程发布 CI；课程 release 上传与 Testing/Stable channel 发布仍按下节标准流程执行。
 
 ## 6. 课程包发布流程
 
