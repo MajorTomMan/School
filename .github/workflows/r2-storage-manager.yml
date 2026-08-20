@@ -19,16 +19,32 @@ on:
           - dir-create
           - dir-update
           - dir-delete
+          - release-upload
+          - publish
       target:
-        description: "对象 key 或目录 prefix；list 留空表示列出整个 bucket"
+        description: "对象 key 或目录 prefix；list 留空表示整个 bucket"
         required: false
         default: ""
         type: string
       source_url:
-        description: "create/update 的源文件 URL；dir-create/dir-update 时必须是 ZIP。不要填写长期凭据 URL"
+        description: "create/update 的源文件 URL；目录/release 操作时必须是 ZIP。不要填写长期凭据 URL"
         required: false
         default: ""
         type: string
+      release_id:
+        description: "release-upload/publish 使用的 immutable release ID"
+        required: false
+        default: ""
+        type: string
+      channel:
+        description: "release-upload/publish 的目标 channel"
+        required: false
+        default: none
+        type: choice
+        options:
+          - none
+          - testing
+          - stable
       recursive:
         description: "dir-list 是否递归列出"
         required: false
@@ -65,6 +81,8 @@ jobs:
       R2_ACCESS_KEY_ID: ${{ vars.R2_ACCESS_KEY_ID }}
       R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
       R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      COURSE_BASE_URL: ${{ vars.COURSE_BASE_URL || 'https://course.flashnamesl.workers.dev' }}
+      COURSE_API_TOKEN: ${{ secrets.COURSE_API_TOKEN }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
@@ -76,26 +94,14 @@ jobs:
       - name: Install R2 dependency
         run: python3 -m pip install --disable-pip-version-check --quiet boto3
 
-      - name: Validate R2 configuration
-        shell: bash
-        run: |
-          set -euo pipefail
-          missing=()
-          [ -n "${R2_ACCOUNT_ID:-}" ] || missing+=(R2_ACCOUNT_ID)
-          [ -n "${R2_ACCESS_KEY_ID:-}" ] || missing+=(R2_ACCESS_KEY_ID)
-          [ -n "${R2_BUCKET_NAME:-}" ] || missing+=(R2_BUCKET_NAME)
-          [ -n "${R2_SECRET_ACCESS_KEY:-}" ] || missing+=(R2_SECRET_ACCESS_KEY)
-          if [ "${#missing[@]}" -ne 0 ]; then
-            printf '缺少 R2 配置：%s\n' "${missing[*]}" >&2
-            exit 1
-          fi
-
       - name: Run R2 action
         shell: bash
         env:
           ACTION: ${{ inputs.action }}
           TARGET: ${{ inputs.target }}
           SOURCE_URL: ${{ inputs.source_url }}
+          RELEASE_ID: ${{ inputs.release_id }}
+          CHANNEL: ${{ inputs.channel }}
           RECURSIVE: ${{ inputs.recursive }}
           DELETE_EXTRA: ${{ inputs.delete_extra }}
           ALLOW_RELEASE_MUTATION: ${{ inputs.allow_release_mutation }}
@@ -105,17 +111,15 @@ jobs:
           mkdir -p build/r2-input build/r2-output
 
           require_target() {
-            if [ -z "${TARGET:-}" ]; then
-              echo "${ACTION} 必须填写 target" >&2
-              exit 1
-            fi
+            [ -n "${TARGET:-}" ] || { echo "${ACTION} 必须填写 target" >&2; exit 1; }
+          }
+
+          require_release_id() {
+            [ -n "${RELEASE_ID:-}" ] || { echo "${ACTION} 必须填写 release_id" >&2; exit 1; }
           }
 
           require_source_url() {
-            if [ -z "${SOURCE_URL:-}" ]; then
-              echo "${ACTION} 必须填写 source_url" >&2
-              exit 1
-            fi
+            [ -n "${SOURCE_URL:-}" ] || { echo "${ACTION} 必须填写 source_url" >&2; exit 1; }
             case "$SOURCE_URL" in
               http://*|https://*) ;;
               *) echo "source_url 只接受 http:// 或 https://" >&2; exit 1 ;;
@@ -123,10 +127,24 @@ jobs:
           }
 
           require_destructive_confirmation() {
-            if [ "$CONFIRM_DESTRUCTIVE" != "true" ]; then
-              echo "${ACTION} 是删除操作，必须勾选 confirm_destructive" >&2
+            [ "$CONFIRM_DESTRUCTIVE" = "true" ] || { echo "${ACTION} 是删除操作，必须勾选 confirm_destructive" >&2; exit 1; }
+          }
+
+          require_r2_config() {
+            missing=()
+            [ -n "${R2_ACCOUNT_ID:-}" ] || missing+=(R2_ACCOUNT_ID)
+            [ -n "${R2_ACCESS_KEY_ID:-}" ] || missing+=(R2_ACCESS_KEY_ID)
+            [ -n "${R2_BUCKET_NAME:-}" ] || missing+=(R2_BUCKET_NAME)
+            [ -n "${R2_SECRET_ACCESS_KEY:-}" ] || missing+=(R2_SECRET_ACCESS_KEY)
+            if [ "${#missing[@]}" -ne 0 ]; then
+              printf '缺少直连 R2 配置：%s\n' "${missing[*]}" >&2
               exit 1
             fi
+          }
+
+          require_course_config() {
+            [ -n "${COURSE_API_TOKEN:-}" ] || { echo "缺少 GitHub Actions Secret: COURSE_API_TOKEN" >&2; exit 1; }
+            [ -n "${COURSE_BASE_URL:-}" ] || { echo "缺少 COURSE_BASE_URL" >&2; exit 1; }
           }
 
           download_object_source() {
@@ -138,7 +156,7 @@ jobs:
             printf '%s\n' "$output"
           }
 
-          extract_directory_source() {
+          extract_zip_source() {
             require_source_url
             local archive="build/r2-input/source.zip"
             local output="build/r2-input/source"
@@ -166,67 +184,101 @@ jobs:
             printf '%s\n' "$output"
           }
 
+          resolve_release_root() {
+            local root="$1"
+            if [ -f "$root/manifest.json" ]; then
+              printf '%s\n' "$root"
+              return
+            fi
+            mapfile -t manifests < <(find "$root" -mindepth 2 -maxdepth 2 -type f -name manifest.json -print)
+            if [ "${#manifests[@]}" -eq 1 ]; then
+              dirname "${manifests[0]}"
+              return
+            fi
+            echo "release ZIP 根目录或唯一一级子目录必须包含 manifest.json" >&2
+            exit 1
+          }
+
           release_flags=()
           if [ "$ALLOW_RELEASE_MUTATION" = "true" ]; then
             release_flags+=(--allow-release-mutation)
           fi
 
           case "$ACTION" in
+            release-upload)
+              require_course_config
+              require_release_id
+              source_dir="$(extract_zip_source)"
+              release_root="$(resolve_release_root "$source_dir")"
+              python3 scripts/course_r2_manager.py release-upload --root "$release_root" --release-id "$RELEASE_ID" --channel "$CHANNEL" | tee build/r2-output/result.txt
+              ;;
+            publish)
+              require_course_config
+              require_release_id
+              [ "$CHANNEL" != "none" ] || { echo "publish 的 channel 必须是 testing 或 stable" >&2; exit 1; }
+              python3 scripts/course_r2_manager.py publish --release-id "$RELEASE_ID" --channel "$CHANNEL" | tee build/r2-output/result.txt
+              ;;
             list)
+              require_r2_config
               python3 scripts/course_r2_manager.py list "${TARGET:-}" --json | tee build/r2-output/list.json
               ;;
             read)
+              require_r2_config
               require_target
               output="build/r2-output/${TARGET##*/}"
               python3 scripts/course_r2_manager.py read "$TARGET" --output "$output" --force | tee build/r2-output/result.txt
               ;;
             create)
+              require_r2_config
               require_target
               source_file="$(download_object_source)"
               python3 scripts/course_r2_manager.py create "$source_file" "$TARGET" | tee build/r2-output/result.txt
               ;;
             update)
+              require_r2_config
               require_target
               source_file="$(download_object_source)"
               python3 scripts/course_r2_manager.py update "$source_file" "$TARGET" "${release_flags[@]}" | tee build/r2-output/result.txt
               ;;
             delete)
+              require_r2_config
               require_target
               require_destructive_confirmation
               python3 scripts/course_r2_manager.py delete "$TARGET" --yes "${release_flags[@]}" | tee build/r2-output/result.txt
               ;;
             dir-list)
+              require_r2_config
               require_target
               args=(dir-read "$TARGET" --json)
-              if [ "$RECURSIVE" = "true" ]; then
-                args+=(--recursive)
-              fi
+              if [ "$RECURSIVE" = "true" ]; then args+=(--recursive); fi
               python3 scripts/course_r2_manager.py "${args[@]}" | tee build/r2-output/list.json
               ;;
             dir-read)
+              require_r2_config
               require_target
               python3 scripts/course_r2_manager.py dir-read "$TARGET" --output build/r2-output/directory --force | tee build/r2-output/result.txt
               ;;
             dir-create)
+              require_r2_config
               require_target
               if [ -n "${SOURCE_URL:-}" ]; then
-                source_dir="$(extract_directory_source)"
+                source_dir="$(extract_zip_source)"
                 python3 scripts/course_r2_manager.py dir-create "$TARGET" --from "$source_dir" | tee build/r2-output/result.txt
               else
                 python3 scripts/course_r2_manager.py dir-create "$TARGET" | tee build/r2-output/result.txt
               fi
               ;;
             dir-update)
+              require_r2_config
               require_target
-              source_dir="$(extract_directory_source)"
+              source_dir="$(extract_zip_source)"
               args=(dir-update "$source_dir" "$TARGET")
-              if [ "$DELETE_EXTRA" = "true" ]; then
-                args+=(--delete-extra)
-              fi
+              if [ "$DELETE_EXTRA" = "true" ]; then args+=(--delete-extra); fi
               args+=("${release_flags[@]}")
               python3 scripts/course_r2_manager.py "${args[@]}" | tee build/r2-output/result.txt
               ;;
             dir-delete)
+              require_r2_config
               require_target
               require_destructive_confirmation
               python3 scripts/course_r2_manager.py dir-delete "$TARGET" --yes "${release_flags[@]}" | tee build/r2-output/result.txt
@@ -240,15 +292,13 @@ jobs:
           {
             echo "### R2 Storage Manager"
             echo "- Action: \`$ACTION\`"
-            if [ -n "${TARGET:-}" ]; then
-              echo "- Target: \`$TARGET\`"
-            else
-              echo "- Target: bucket root"
-            fi
+            if [ -n "${RELEASE_ID:-}" ]; then echo "- Release: \`$RELEASE_ID\`"; fi
+            if [ -n "${TARGET:-}" ]; then echo "- Target: \`$TARGET\`"; fi
+            if [ "$ACTION" = "release-upload" ] || [ "$ACTION" = "publish" ]; then echo "- Channel: \`$CHANNEL\`"; fi
             echo "- Run: \`${GITHUB_RUN_ID}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload read/list result
+      - name: Upload result
         if: always()
         uses: actions/upload-artifact@v4
         with:
