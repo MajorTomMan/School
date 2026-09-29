@@ -12,6 +12,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -34,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.majortomman.school.data.DisplayPreferences
 import com.majortomman.school.data.DisplaySettings
+import com.majortomman.school.data.ThemeMode
 import com.majortomman.school.data.PreferencesRepository
 import com.majortomman.school.data.math.MathQuestionBankRepository
 import com.majortomman.school.learning.cloud.CourseDownloadCoordinator
@@ -86,7 +88,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            SchoolTheme(textScale = displaySettings.textScale) {
+            val darkTheme = when (displaySettings.themeMode) {
+                ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+            }
+            SchoolTheme(darkTheme = darkTheme, textScale = displaySettings.textScale) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     SchoolApp(
                         repository = preferencesRepository,
