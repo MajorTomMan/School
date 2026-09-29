@@ -11,25 +11,28 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-/** Shared layout tokens for all School top-level and lesson screens. */
 internal object SchoolUiMetrics {
     val pageHorizontal = 24.dp
-    val pageTop = 28.dp
+    val pageTop = 24.dp
     val pageBottom = 36.dp
-    val sectionGap = 28.dp
+    val sectionGap = 30.dp
     val itemGap = 14.dp
     val compactGap = 8.dp
     val minTouchHeight = 48.dp
@@ -39,36 +42,59 @@ internal object SchoolUiMetrics {
 }
 
 @Composable
-internal fun SchoolPageTitle(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        modifier = modifier,
-        color = MaterialTheme.colorScheme.onBackground,
-        style = MaterialTheme.typography.headlineLarge,
-        fontWeight = FontWeight.Bold,
-    )
+internal fun SchoolBrandSlash(modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.secondary) {
+    Box(modifier = modifier.width(8.dp).height(28.dp).rotate(18f).background(color, RoundedCornerShape(1.dp)))
+}
+
+@Composable
+internal fun SchoolPageTitle(text: String, modifier: Modifier = Modifier, eyebrow: String? = null) {
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        eyebrow?.let {
+            Text(it.uppercase(), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            SchoolBrandSlash()
+            Text(text, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
+        }
+    }
 }
 
 @Composable
 internal fun SchoolSectionLabel(text: String, modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.secondary) {
-    Text(
-        text = text,
-        modifier = modifier,
-        color = color,
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.Bold,
-    )
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SchoolBrandSlash(color = color, modifier = Modifier.height(24.dp).width(7.dp))
+        Text(text, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 1)
+        Box(Modifier.weight(1f).height(1.dp).background(color.copy(alpha = 0.72f)))
+    }
 }
 
 @Composable
-internal fun SchoolDivider(modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.13f)) {
+internal fun SchoolPrimaryAction(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+    Box(
+        modifier = modifier.fillMaxWidth().heightIn(min = 50.dp).clip(RoundedCornerShape(10.dp))
+            .background(if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(enabled = enabled, onClick = onClick).padding(horizontal = 20.dp, vertical = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            color = if (enabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+internal fun SchoolDivider(modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)) {
     Box(modifier.fillMaxWidth().height(1.dp).background(color))
 }
 
-/**
- * Tabs never squeeze text into multiple lines. Large text turns the row into a horizontal scroller
- * instead of changing labels into vertical text or clipping neighboring tabs.
- */
 @Composable
 internal fun SchoolScrollableTabs(
     labels: List<String>,
@@ -76,7 +102,7 @@ internal fun SchoolScrollableTabs(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
     selectedColor: Color = MaterialTheme.colorScheme.onBackground,
-    mutedColor: Color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.46f),
+    mutedColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     indicatorColor: Color = MaterialTheme.colorScheme.primary,
 ) {
     Row(
@@ -87,14 +113,11 @@ internal fun SchoolScrollableTabs(
         labels.forEachIndexed { index, label ->
             val selected = index == selectedIndex
             Column(
-                modifier = Modifier
-                    .widthIn(min = SchoolUiMetrics.tabMinWidth)
-                    .clickable { onSelect(index) }
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                modifier = Modifier.widthIn(min = SchoolUiMetrics.tabMinWidth).clickable { onSelect(index) }.padding(horizontal = 10.dp, vertical = 8.dp),
                 horizontalAlignment = Alignment.Start,
             ) {
                 Text(
-                    text = label,
+                    label,
                     color = if (selected) selectedColor else mutedColor,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
@@ -103,10 +126,7 @@ internal fun SchoolScrollableTabs(
                     overflow = TextOverflow.Clip,
                 )
                 Box(
-                    Modifier
-                        .padding(top = 8.dp)
-                        .fillMaxWidth(0.58f)
-                        .height(if (selected) 3.dp else 1.dp)
+                    Modifier.padding(top = 8.dp).fillMaxWidth(0.58f).height(if (selected) 3.dp else 1.dp)
                         .background(if (selected) indicatorColor else Color.Transparent),
                 )
             }
@@ -121,32 +141,15 @@ internal fun SchoolSettingRow(
     onClick: () -> Unit,
     selected: Boolean = false,
     modifier: Modifier = Modifier,
-    valueColor: Color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.46f),
+    valueColor: Color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = SchoolUiMetrics.settingsRowMinHeight)
-            .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
+        modifier = modifier.fillMaxWidth().heightIn(min = SchoolUiMetrics.settingsRowMinHeight).clickable(onClick = onClick).padding(vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = label,
-            modifier = Modifier.weight(1f),
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = if (selected) 1f else 0.76f),
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        Text(
-            text = value,
-            color = valueColor,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            maxLines = 1,
-            softWrap = false,
-            textAlign = TextAlign.End,
-        )
+        Text(label, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodyLarge)
+        Text(value, color = valueColor, style = MaterialTheme.typography.bodyMedium, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal, maxLines = 1, softWrap = false, textAlign = TextAlign.End)
     }
     SchoolDivider()
 }
@@ -161,41 +164,20 @@ internal fun SchoolCompactTopBar(
     actionEnabled: Boolean = true,
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = SchoolUiMetrics.minTouchHeight)
-            .padding(horizontal = 22.dp, vertical = 8.dp),
+        modifier = modifier.fillMaxWidth().heightIn(min = SchoolUiMetrics.minTouchHeight).padding(horizontal = SchoolUiMetrics.pageHorizontal, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = "返回",
-            modifier = Modifier.clickable(onClick = onBack).padding(vertical = 8.dp),
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.52f),
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
-            softWrap = false,
-        )
-        Text(
-            text = title,
-            modifier = Modifier.weight(1f),
-            color = MaterialTheme.colorScheme.onBackground,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = if (actionLabel == null) TextAlign.End else TextAlign.Center,
-        )
+        Text("‹", modifier = Modifier.clickable(onClick = onBack).padding(vertical = 6.dp, horizontal = 2.dp), color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.headlineSmall)
+        Text(title, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (actionLabel != null && onAction != null) {
             Text(
-                text = actionLabel,
+                actionLabel,
                 modifier = Modifier.clickable(enabled = actionEnabled, onClick = onAction).padding(vertical = 8.dp),
-                color = if (actionEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.28f),
+                color = if (actionEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
-                softWrap = false,
             )
         }
     }
