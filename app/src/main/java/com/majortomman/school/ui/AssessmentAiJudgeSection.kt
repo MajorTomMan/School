@@ -210,6 +210,7 @@ private fun localResultText(page: AssessmentQuestionPageState): String = when (p
     null -> ""
 }
 
+@Composable
 private fun localResultColor(page: AssessmentQuestionPageState) = when (page.progress.latestJudgeResult?.outcome) {
     JudgeOutcome.CORRECT -> MaterialTheme.colorScheme.tertiary
     JudgeOutcome.INCORRECT -> MaterialTheme.colorScheme.error
