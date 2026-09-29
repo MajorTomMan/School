@@ -94,7 +94,7 @@ fun AssessmentSessionScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(InteractiveBlack)
+            .background(MaterialTheme.colorScheme.background)
             .systemBarsPadding(),
     ) {
         when (val value = state) {
@@ -688,6 +688,7 @@ private fun ResultMetricGrid(completion: AssessmentCompletion) {
     }
 }
 
+@Composable
 private fun progressColor(status: QuestionCompletionStatus): Color = when (status) {
     QuestionCompletionStatus.FIRST_TRY_CORRECT -> MaterialTheme.colorScheme.tertiary
     QuestionCompletionStatus.RECOVERED_CORRECT -> MaterialTheme.colorScheme.primary
