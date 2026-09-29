@@ -414,6 +414,9 @@ private fun OrderingAnswer(question: MathQuestion, selected: List<String>, enabl
 private fun NumberLineAnswer(question: MathQuestion, selected: Double?, enabled: Boolean, onSelect: (Double) -> Unit) {
     val min = question.numberLineMin
     val max = question.numberLineMax
+    val axisColor = MaterialTheme.colorScheme.onBackground
+    val tickColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val selectedColor = MaterialTheme.colorScheme.primary
     Column {
         Canvas(
             modifier = Modifier.fillMaxWidth().height(170.dp).pointerInput(question.id, enabled) {
@@ -428,17 +431,17 @@ private fun NumberLineAnswer(question: MathQuestion, selected: Double?, enabled:
             val left = 12f
             val right = size.width - 12f
             val centerY = size.height * 0.52f
-            drawLine(MaterialTheme.colorScheme.onBackground, Offset(left, centerY), Offset(right, centerY), strokeWidth = 3f, cap = StrokeCap.Round)
+            drawLine(axisColor, Offset(left, centerY), Offset(right, centerY), strokeWidth = 3f, cap = StrokeCap.Round)
             val span = (max - min).coerceAtLeast(1)
             for (value in min..max) {
                 val x = left + (value - min).toFloat() / span * (right - left)
                 val tick = if (value == 0) 18f else 10f
-                drawLine(MaterialTheme.colorScheme.onSurfaceVariant, Offset(x, centerY - tick), Offset(x, centerY + tick), strokeWidth = if (value == 0) 3f else 1.5f)
+                drawLine(tickColor, Offset(x, centerY - tick), Offset(x, centerY + tick), strokeWidth = if (value == 0) 3f else 1.5f)
             }
             selected?.let { value ->
                 val x = left + ((value - min) / span).toFloat() * (right - left)
-                drawCircle(MaterialTheme.colorScheme.primary, radius = 10f, center = Offset(x, centerY))
-                drawLine(MaterialTheme.colorScheme.primary, Offset(x, centerY - 34f), Offset(x, centerY - 12f), strokeWidth = 3f)
+                drawCircle(selectedColor, radius = 10f, center = Offset(x, centerY))
+                drawLine(selectedColor, Offset(x, centerY - 34f), Offset(x, centerY - 12f), strokeWidth = 3f)
             }
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
