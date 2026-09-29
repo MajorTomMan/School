@@ -83,7 +83,7 @@ private fun VerificationSubjectIndex(onOpen: (VerificationSubject) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(InteractiveBlack)
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 24.dp),
     ) {
@@ -128,7 +128,7 @@ private fun MathVerificationPage(onBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(InteractiveBlack)
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 24.dp),
     ) {
@@ -293,7 +293,7 @@ private fun MathVerificationStep(number: Int, step: VerificationStep) {
 @Composable
 private fun VerificationSubjectPlaceholderPage(subject: VerificationSubject, onBack: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize().background(InteractiveBlack).padding(horizontal = 20.dp, vertical = 24.dp),
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(horizontal = 20.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
         Column {
