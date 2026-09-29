@@ -15,9 +15,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,39 +33,26 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.majortomman.school.data.AiSettings
-import com.majortomman.school.data.AttemptRecord
-import com.majortomman.school.data.BackgroundMode
 import com.majortomman.school.data.DailyPlan
-import com.majortomman.school.data.DisplayPreferences
-import com.majortomman.school.data.DisplaySettings
 import com.majortomman.school.data.LearningProgress
 import com.majortomman.school.data.Lesson
 import com.majortomman.school.data.MasteryStatus
 import com.majortomman.school.data.PreferencesRepository
-import com.majortomman.school.data.ScheduledReview
 import com.majortomman.school.data.math.MathQuestionBankRepository
 import com.majortomman.school.learning.cloud.CourseLibraryRepository
 import com.majortomman.school.learning.cloud.InstalledCourse
 import com.majortomman.school.learning.course.CourseLesson
 import kotlinx.coroutines.launch
 
-private val NavigationBlack = Color.Transparent
-private val NavigationWhite = Color(0xFFF5F5F7)
-private val NavigationBlue = Color(0xFF0A84FF)
-
-private enum class MainTab(val label: String) {
-    SUBJECTS("课程"),
-    TODAY("今天"),
-    PATH("路径"),
-    BANK("题库"),
-    REVIEW("复习"),
-    LAB("验证"),
-    SETTINGS("设置"),
+private enum class MainTab(val label: String, val symbol: String) {
+    LEARN("学习", "⌂"),
+    COURSES("课程", "▤"),
+    PRACTICE("练习", "✎"),
+    MINE("我的", "●"),
 }
 
 @Composable
@@ -72,7 +61,7 @@ fun SchoolApp(
     mathQuestionRepository: MathQuestionBankRepository,
     initialCourseId: String? = null,
 ) {
-    var selectedTabName by rememberSaveable { mutableStateOf(MainTab.SUBJECTS.name) }
+    var selectedTabName by rememberSaveable { mutableStateOf(MainTab.LEARN.name) }
     var activeCourseId by rememberSaveable { mutableStateOf(initialCourseId) }
     var openedLessonId by rememberSaveable { mutableStateOf<String?>(null) }
     var openedCourseId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -82,14 +71,7 @@ fun SchoolApp(
     val scope = rememberCoroutineScope()
     val progress by repository.learningProgress.collectAsState(initial = LearningProgress())
     val aiSettings by repository.aiSettings.collectAsState(initial = AiSettings())
-    val recentAttempts by repository.recentAttempts.collectAsState(initial = emptyList<AttemptRecord>())
-    val reviewQueue by repository.reviewQueue.collectAsState(initial = emptyList<ScheduledReview>())
-    val displaySettings by DisplayPreferences.state.collectAsState(initial = DisplaySettings())
     val libraryState by CourseLibraryRepository.state.collectAsState()
-    val bottomBarBackground = when (displaySettings.backgroundMode) {
-        BackgroundMode.PRESET -> Color(displaySettings.backgroundPreset.argb)
-        BackgroundMode.CUSTOM -> Color.Black.copy(alpha = 0.18f)
-    }
 
     val activeCourse = libraryState.course(activeCourseId)
     val lessons = activeCourse?.lessons.orEmpty().mapIndexed { index, lesson ->
@@ -108,28 +90,33 @@ fun SchoolApp(
     val readingRange = if (readingRangeStart != null && readingRangeEnd != null) readingRangeStart!!..readingRangeEnd!! else null
 
     LaunchedEffect(libraryState.courses.map { it.id }) {
+        if (activeCourseId == null && libraryState.courses.size == 1) {
+            activeCourseId = libraryState.courses.first().id
+        }
         if (activeCourseId != null && activeCourse == null) {
             activeCourseId = null
             openedLessonId = null
         }
-        if (openedCourseId != null && openedTextbook == null) closeTextbook(
-            onCourse = { openedCourseId = it },
-            onPage = { openedTextbookPage = it },
-            onRangeStart = { readingRangeStart = it },
-            onRangeEnd = { readingRangeEnd = it },
-        )
+        if (openedCourseId != null && openedTextbook == null) {
+            closeTextbook(
+                onCourse = { openedCourseId = it },
+                onPage = { openedTextbookPage = it },
+                onRangeStart = { readingRangeStart = it },
+                onRangeEnd = { readingRangeEnd = it },
+            )
+        }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         AnimatedContent(
             targetState = openedCourseLesson,
             transitionSpec = {
                 if (targetState != null) {
-                    (fadeIn(tween(300)) + slideInHorizontally(tween(420)) { it / 7 }) togetherWith
-                        (fadeOut(tween(170)) + slideOutHorizontally(tween(280)) { -it / 9 })
+                    (fadeIn(tween(260)) + slideInHorizontally(tween(340)) { it / 8 }) togetherWith
+                        (fadeOut(tween(150)) + slideOutHorizontally(tween(220)) { -it / 10 })
                 } else {
-                    (fadeIn(tween(280)) + slideInHorizontally(tween(400)) { -it / 8 }) togetherWith
-                        (fadeOut(tween(170)) + slideOutHorizontally(tween(280)) { it / 9 })
+                    (fadeIn(tween(240)) + slideInHorizontally(tween(320)) { -it / 9 }) togetherWith
+                        (fadeOut(tween(150)) + slideOutHorizontally(tween(220)) { it / 10 })
                 }
             },
             label = "appNavigation",
@@ -154,59 +141,70 @@ fun SchoolApp(
                             openedLessonId = nextCourseLesson.id
                         } else {
                             openedLessonId = null
-                            selectedTabName = MainTab.PATH.name
+                            selectedTabName = MainTab.COURSES.name
                         }
                     },
                 )
             } else {
                 Scaffold(
-                    containerColor = NavigationBlack,
+                    containerColor = MaterialTheme.colorScheme.background,
                     bottomBar = {
-                        MinimalBottomBar(selectedTab, bottomBarBackground) { selectedTabName = it.name }
+                        SchoolBottomBar(selectedTab) { selectedTabName = it.name }
                     },
                 ) { innerPadding ->
                     Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
                         AnimatedContent(
                             targetState = selectedTab,
                             transitionSpec = {
-                                (fadeIn(tween(260)) + slideInHorizontally(tween(360)) { it / 14 }) togetherWith
-                                    (fadeOut(tween(150)) + slideOutHorizontally(tween(260)) { -it / 14 })
+                                (fadeIn(tween(220)) + slideInHorizontally(tween(300)) { it / 16 }) togetherWith
+                                    (fadeOut(tween(130)) + slideOutHorizontally(tween(220)) { -it / 16 })
                             },
                             label = "mainTabs",
                         ) { tab ->
                             when (tab) {
-                                MainTab.SUBJECTS -> SubjectTextbookCenterScreen(
-                                    libraryState = libraryState,
-                                    onEnterCourse = { course ->
-                                        activeCourseId = course.id
-                                        openedLessonId = null
-                                        selectedTabName = MainTab.TODAY.name
-                                    },
-                                    onOpenTextbook = { course, page ->
-                                        openedCourseId = course.id
-                                        openedTextbookPage = page
-                                        readingRangeStart = null
-                                        readingRangeEnd = null
-                                    },
-                                )
-                                MainTab.TODAY -> {
+                                MainTab.LEARN -> {
                                     if (activeCourse == null || dailyPlan == null || lessons.isEmpty()) {
-                                        NoActiveTextbookScreen { selectedTabName = MainTab.SUBJECTS.name }
+                                        NoActiveTextbookScreen { selectedTabName = MainTab.COURSES.name }
                                     } else {
-                                        TodayScreen(plan = dailyPlan, lessons = lessons, onStartLesson = { openedLessonId = it }, onOpenPath = { selectedTabName = MainTab.PATH.name })
+                                        TodayScreen(
+                                            plan = dailyPlan,
+                                            lessons = lessons,
+                                            courseTitle = activeCourse.title,
+                                            onStartLesson = { openedLessonId = it },
+                                            onOpenPath = { selectedTabName = MainTab.COURSES.name },
+                                        )
                                     }
                                 }
-                                MainTab.PATH -> {
+
+                                MainTab.COURSES -> {
                                     if (activeCourse == null || lessons.isEmpty()) {
-                                        NoActiveTextbookScreen { selectedTabName = MainTab.SUBJECTS.name }
+                                        SubjectTextbookCenterScreen(
+                                            libraryState = libraryState,
+                                            onEnterCourse = { course ->
+                                                activeCourseId = course.id
+                                                openedLessonId = null
+                                            },
+                                            onOpenTextbook = { course, page ->
+                                                openedCourseId = course.id
+                                                openedTextbookPage = page
+                                                readingRangeStart = null
+                                                readingRangeEnd = null
+                                            },
+                                        )
                                     } else {
-                                        CoursePathScreen(lessons = lessons, onOpenLesson = { openedLessonId = it })
+                                        CoursePathScreen(
+                                            courseTitle = activeCourse.title,
+                                            lessons = lessons,
+                                            onOpenLesson = { openedLessonId = it },
+                                            onChooseCourse = { activeCourseId = null },
+                                        )
                                     }
                                 }
-                                MainTab.BANK -> MathQuestionBankScreen(
+
+                                MainTab.PRACTICE -> MathQuestionBankScreen(
                                     repository = mathQuestionRepository,
                                     textbook = activeCourse,
-                                    onOpenSubjects = { selectedTabName = MainTab.SUBJECTS.name },
+                                    onOpenSubjects = { selectedTabName = MainTab.COURSES.name },
                                     onOpenTextbook = { page ->
                                         activeCourse?.let { course ->
                                             openedCourseId = course.id
@@ -216,18 +214,11 @@ fun SchoolApp(
                                         }
                                     },
                                 )
-                                MainTab.REVIEW -> MinimalRoomReviewScreen(
-                                    fallbackItems = emptyList(),
-                                    progress = progress,
-                                    scheduledReviews = reviewQueue,
-                                    recentAttempts = recentAttempts,
-                                    onOpenLesson = { lessonId -> if (activeCourse?.lessons?.any { it.id == lessonId } == true) openedLessonId = lessonId },
-                                )
-                                MainTab.LAB -> VerificationHubScreen()
-                                MainTab.SETTINGS -> MaterialSettingsScreen(
+
+                                MainTab.MINE -> MaterialSettingsScreen(
                                     settings = aiSettings,
                                     onSave = { updated -> scope.launch { repository.saveAiSettings(updated) } },
-                                    onOpenSubjects = { selectedTabName = MainTab.SUBJECTS.name },
+                                    onOpenSubjects = { selectedTabName = MainTab.COURSES.name },
                                     onClearProgress = { scope.launch { repository.clearLearningProgress() } },
                                 )
                             }
@@ -283,29 +274,40 @@ private fun closeTextbook(
 }
 
 @Composable
-private fun MinimalBottomBar(selected: MainTab, backgroundColor: Color, onSelect: (MainTab) -> Unit) {
+private fun SchoolBottomBar(selected: MainTab, onSelect: (MainTab) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().background(backgroundColor).padding(horizontal = 7.dp, vertical = 13.dp),
+        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background).navigationBarsPadding()
+            .padding(horizontal = 8.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         MainTab.entries.forEach { tab ->
             val isSelected = tab == selected
             Column(
-                modifier = Modifier.weight(1f).clickable { onSelect(tab) }.padding(horizontal = 1.dp, vertical = 4.dp),
+                modifier = Modifier.weight(1f).clickable { onSelect(tab) }.padding(vertical = 5.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(7.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    text = tab.label,
-                    color = if (isSelected) NavigationWhite else NavigationWhite.copy(alpha = 0.32f),
-                    fontSize = 11.sp,
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    tab.symbol,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 18.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                     maxLines = 1,
-                    softWrap = false,
                 )
-                Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(if (isSelected) NavigationBlue else Color.Transparent))
+                Text(
+                    tab.label,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    maxLines = 1,
+                )
+                Box(
+                    modifier = Modifier.size(4.dp).clip(CircleShape)
+                        .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.background),
+                )
             }
         }
     }
+    SchoolDivider()
 }
