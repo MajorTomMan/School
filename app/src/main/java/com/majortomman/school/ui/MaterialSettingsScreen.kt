@@ -1,7 +1,5 @@
 package com.majortomman.school.ui
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -51,11 +49,9 @@ import androidx.compose.ui.unit.dp
 import com.majortomman.school.BuildConfig
 import com.majortomman.school.ai.OpenAiCompatibleClient
 import com.majortomman.school.data.AiSettings
-import com.majortomman.school.data.BackgroundImportResult
-import com.majortomman.school.data.BackgroundMode
-import com.majortomman.school.data.BackgroundPreset
 import com.majortomman.school.data.DisplayPreferences
 import com.majortomman.school.data.DisplaySettings
+import com.majortomman.school.data.ThemeMode
 import com.majortomman.school.network.AppProxy
 import com.majortomman.school.network.AppProxySettings
 import com.majortomman.school.update.UpdateCoordinator
@@ -388,27 +384,29 @@ private fun AiSettingsPage(
 @Composable
 private fun DisplaySettingsPage(settings: DisplaySettings) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var importStatus by rememberSaveable { mutableStateOf<String?>(null) }
-    var importing by rememberSaveable { mutableStateOf(false) }
-    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        importing = true
-        importStatus = "正在校验并导入背景图片…"
-        scope.launch {
-            when (val result = DisplayPreferences.importCustomBackground(context, uri)) {
-                is BackgroundImportResult.Success -> importStatus = "背景图片已导入并应用。"
-                is BackgroundImportResult.Failure -> importStatus = "导入失败：${result.message}。已保留原来的背景。"
-            }
-            importing = false
-        }
-    }
     val textOptions = listOf("小" to 0.90f, "标准" to 1.00f, "大" to 1.15f, "特大" to 1.30f, "超大" to 1.50f)
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        SettingsSectionTitle("显示模式")
+        Text(
+            "School 的日间与夜间模式共享同一套排版、色彩角色和组件结构；只切换主题，不切换设计语言。",
+            color = SettingsMuted,
+            style = MaterialTheme.typography.bodySmall,
+        )
+        ThemeMode.entries.forEach { mode ->
+            SchoolSettingRow(
+                label = mode.label,
+                value = if (settings.themeMode == mode) "使用中" else "",
+                selected = settings.themeMode == mode,
+                onClick = { DisplayPreferences.setThemeMode(context, mode) },
+                valueColor = if (settings.themeMode == mode) SettingsBlue else SettingsMuted,
+            )
+        }
+
+        Spacer(Modifier.height(20.dp))
         SettingsSectionTitle("文字大小")
         Text(
-            "课程正文、题目、解析和数学可视化标签会同时调整。界面使用自适应高度，放大后不会压缩成竖排。",
+            "课程正文、题目、解析和数学可视化标签会同时调整。",
             color = SettingsMuted,
             style = MaterialTheme.typography.bodySmall,
         )
@@ -423,73 +421,6 @@ private fun DisplaySettingsPage(settings: DisplaySettings) {
             )
         }
         Text("预览：负半轴　−3　0　+3　正半轴　答案与解释", color = SettingsWhite, style = MaterialTheme.typography.bodyLarge)
-
-        Spacer(Modifier.height(20.dp))
-        SettingsSectionTitle("背景")
-        Text(
-            "默认保持纯黑风格。预定义颜色和自定义图片只改变底层背景，界面会自动保留暗色遮罩保证文字可读。",
-            color = SettingsMuted,
-            style = MaterialTheme.typography.bodySmall,
-        )
-        BackgroundPreset.entries.forEach { preset ->
-            val selected = settings.backgroundMode == BackgroundMode.PRESET && settings.backgroundPreset == preset
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = SchoolUiMetrics.settingsRowMinHeight)
-                    .clickable {
-                        DisplayPreferences.setBackgroundPreset(context, preset)
-                        importStatus = "已切换为${preset.label}。"
-                    }
-                    .padding(vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(24.dp).background(Color(preset.argb), CircleShape))
-                    Text(
-                        preset.label,
-                        modifier = Modifier.weight(1f),
-                        color = SettingsWhite.copy(alpha = if (selected) 1f else 0.75f),
-                        style = MaterialTheme.typography.bodyLarge,
-                        maxLines = 2,
-                    )
-                }
-                if (selected) {
-                    Text("使用中", color = SettingsBlue, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, maxLines = 1)
-                }
-            }
-            SchoolDivider(color = SettingsLine)
-        }
-
-        Spacer(Modifier.height(6.dp))
-        Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (settings.customImagePath != null) {
-                SettingsAction(
-                    label = if (settings.backgroundMode == BackgroundMode.CUSTOM) "自定义背景使用中" else "使用已导入背景",
-                    color = if (settings.backgroundMode == BackgroundMode.CUSTOM) SettingsYellow else SettingsWhite.copy(alpha = 0.72f),
-                    onClick = {
-                        if (DisplayPreferences.useExistingCustomBackground(context)) importStatus = "已切换到已导入的自定义背景。"
-                    },
-                    enabled = !importing,
-                )
-            }
-            SettingsAction(
-                label = if (importing) "正在导入…" else "导入自定义图片",
-                color = if (importing) SettingsMuted else SettingsBlue,
-                onClick = { imagePicker.launch(arrayOf("image/jpeg", "image/png", "image/webp")) },
-                enabled = !importing,
-            )
-        }
-        Text(
-            "支持 JPEG、PNG、WebP；至少短边 720px、长边 1280px，不超过 20 MB 和 3200 万像素。格式、尺寸或解码失败时不会替换当前背景。",
-            color = SettingsMuted,
-            style = MaterialTheme.typography.bodySmall,
-        )
-        AnimatedVisibility(visible = importStatus != null, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
-            val failed = importStatus.orEmpty().startsWith("导入失败")
-            SettingsInlineNotice(color = if (failed) SettingsRed else SettingsBlue, label = "背景状态", body = importStatus.orEmpty())
-        }
     }
 }
 
