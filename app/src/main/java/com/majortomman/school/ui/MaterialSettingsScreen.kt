@@ -75,6 +75,7 @@ fun MaterialSettingsScreen(
     onSave: (AiSettings) -> Unit,
     onOpenSubjects: () -> Unit,
     onClearProgress: () -> Unit,
+    onBack: (() -> Unit)? = null,
 ) {
     var pageName by rememberSaveable { mutableStateOf(SettingsPage.PROXY.name) }
     var endpoint by rememberSaveable { mutableStateOf(settings.endpoint) }
@@ -113,7 +114,17 @@ fun MaterialSettingsScreen(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = SchoolUiMetrics.pageHorizontal, vertical = SchoolUiMetrics.pageTop),
     ) {
-        SchoolPageTitle("我的", eyebrow = "SCHOOL / PROFILE")
+        if (onBack != null) {
+            Text(
+                "‹ 我的",
+                modifier = Modifier.clickable(onClick = onBack).padding(vertical = 8.dp),
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+        SchoolPageTitle("设置", eyebrow = "SCHOOL / SETTINGS")
         Spacer(Modifier.height(20.dp))
         val selectedPage = SettingsPage.valueOf(pageName)
         SchoolScrollableTabs(
