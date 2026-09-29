@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -167,7 +168,7 @@ fun AssessmentSessionScreen(
 @Composable
 private fun AssessmentLoading() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(color = InteractiveBlue)
+        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
     }
 }
 
@@ -196,7 +197,7 @@ private fun AssessmentQuestionPage(
         ) {
             Text(
                 text = richQuestion.definition.number,
-                color = InteractiveBlue,
+                color = MaterialTheme.colorScheme.primary,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
             )
@@ -234,20 +235,20 @@ private fun AssessmentHeader(
             Text(
                 "返回",
                 modifier = Modifier.clickable(enabled = !page.busy, onClick = onBack).padding(vertical = 7.dp),
-                color = InteractiveMuted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 13.sp,
             )
             Text(
                 title,
                 modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
-                color = InteractiveWhite,
+                color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
             )
             Text(
                 "${page.questionIndex + 1} / ${page.questionCount}",
-                color = InteractiveMuted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 13.sp,
             )
         }
@@ -265,7 +266,7 @@ private fun AssessmentHeader(
                         .background(progressColor(progress.completionStatus), CircleShape)
                         .border(
                             width = if (selected) 2.dp else 0.dp,
-                            color = if (selected) InteractiveWhite else Color.Transparent,
+                            color = if (selected) MaterialTheme.colorScheme.onBackground else Color.Transparent,
                             shape = CircleShape,
                         )
                         .clickable(enabled = !page.busy) { onQuestionSelected(index) },
@@ -283,7 +284,7 @@ private fun AnswerArea(
     dispatch: (AssessmentIntent) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("你的答案", color = InteractiveWhite, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Text("你的答案", color = MaterialTheme.colorScheme.onBackground, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         when (val input = question.definition.inputSpec) {
             AnswerInputSpec.Integer,
             is AnswerInputSpec.Decimal,
@@ -324,7 +325,7 @@ private fun AnswerArea(
                                 .fillMaxWidth()
                                 .padding(top = 10.dp)
                                 .height(if (checked) 2.dp else 1.dp)
-                                .background(if (checked) InteractiveBlue else InteractiveLine),
+                                .background(if (checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)),
                         )
                     }
                 }
@@ -360,7 +361,7 @@ private fun AssessmentTextField(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        Text(label, color = InteractiveMuted, fontSize = 12.sp)
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
@@ -368,17 +369,17 @@ private fun AssessmentTextField(
             enabled = enabled,
             singleLine = true,
             textStyle = TextStyle(
-                color = if (enabled) InteractiveWhite else InteractiveMuted,
+                color = if (enabled) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 18.sp,
             ),
-            cursorBrush = SolidColor(InteractiveBlue),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
         )
         Box(
             Modifier
                 .fillMaxWidth()
                 .height(1.dp)
-                .background(if (enabled) InteractiveBlue.copy(alpha = 0.66f) else InteractiveLine),
+                .background(if (enabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.66f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)),
         )
     }
 }
@@ -391,11 +392,11 @@ private fun coordinateAnswer(x: String, y: String): AssessmentIntent = Assessmen
 private fun JudgeFeedback(page: AssessmentQuestionPageState) {
     val result = page.progress.latestJudgeResult ?: return
     val color = when (result.outcome) {
-        JudgeOutcome.CORRECT -> InteractiveGreen
-        JudgeOutcome.INCORRECT -> InteractiveRed
+        JudgeOutcome.CORRECT -> MaterialTheme.colorScheme.tertiary
+        JudgeOutcome.INCORRECT -> MaterialTheme.colorScheme.error
         JudgeOutcome.PARTIALLY_CORRECT,
         JudgeOutcome.INVALID_INPUT,
-        -> InteractiveYellow
+        -> MaterialTheme.colorScheme.secondary
     }
     val message = when (result.outcome) {
         JudgeOutcome.CORRECT -> if (page.progress.wrongAttemptCount > 0) {
@@ -433,11 +434,11 @@ private fun HintAndExplanationArea(
             val viewed = hint.id in page.progress.viewedHintIds
             if (viewed) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveBlue.copy(alpha = 0.54f)))
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.54f)))
                     Text(
                         text = "提示 ${index + 1}：${hint.text}",
                         modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
-                        color = InteractiveWhite.copy(alpha = 0.82f),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.82f),
                         fontSize = 13.sp,
                         lineHeight = 21.sp,
                     )
@@ -448,7 +449,7 @@ private fun HintAndExplanationArea(
                     modifier = Modifier
                         .clickable(enabled = !page.busy) { dispatch(AssessmentIntent.ViewHint(hint.id)) }
                         .padding(vertical = 6.dp),
-                    color = InteractiveBlue,
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -458,8 +459,8 @@ private fun HintAndExplanationArea(
         val canViewExplanation = question.explanation.isNotEmpty() && page.progress.latestJudgeResult != null
         when {
             page.progress.explanationViewed -> {
-                Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveYellow.copy(alpha = 0.58f)))
-                Text("参考解析", color = InteractiveYellow, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.58f)))
+                Text("参考解析", color = MaterialTheme.colorScheme.secondary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 AssessmentLearningContentList(question.explanation, assetFiles, compact = true)
             }
             canViewExplanation -> Text(
@@ -467,7 +468,7 @@ private fun HintAndExplanationArea(
                 modifier = Modifier
                     .clickable(enabled = !page.busy) { dispatch(AssessmentIntent.ViewExplanation) }
                     .padding(vertical = 6.dp),
-                color = InteractiveYellow,
+                color = MaterialTheme.colorScheme.secondary,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -498,7 +499,7 @@ private fun AssessmentBottomActions(
                 label = "跳过",
                 enabled = !page.busy,
                 modifier = Modifier.weight(1f),
-                color = InteractiveMuted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             ) { dispatch(AssessmentIntent.SkipQuestion) }
         }
         AssessmentOutlineAction(
@@ -519,7 +520,7 @@ private fun AssessmentOutlineAction(
     label: String,
     enabled: Boolean,
     modifier: Modifier,
-    color: Color = InteractiveBlue,
+    color: Color = MaterialTheme.colorScheme.primary,
     onClick: () -> Unit,
 ) {
     Box(
@@ -530,7 +531,7 @@ private fun AssessmentOutlineAction(
     ) {
         Text(
             label,
-            color = if (enabled) color else InteractiveMuted.copy(alpha = 0.42f),
+            color = if (enabled) color else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
@@ -540,7 +541,7 @@ private fun AssessmentOutlineAction(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .height(if (enabled) 2.dp else 1.dp)
-                .background(if (enabled) color.copy(alpha = 0.76f) else InteractiveLine),
+                .background(if (enabled) color.copy(alpha = 0.76f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)),
         )
     }
 }
@@ -595,25 +596,25 @@ private fun AssessmentResultPage(
             .navigationBarsPadding(),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        Text("题组完成", color = InteractiveBlue, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        Text(title, color = InteractiveWhite, fontSize = 30.sp, lineHeight = 37.sp, fontWeight = FontWeight.SemiBold)
-        Box(Modifier.fillMaxWidth().height(2.dp).background(InteractiveYellow.copy(alpha = 0.64f)))
+        Text("题组完成", color = MaterialTheme.colorScheme.primary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text(title, color = MaterialTheme.colorScheme.onBackground, fontSize = 30.sp, lineHeight = 37.sp, fontWeight = FontWeight.SemiBold)
+        Box(Modifier.fillMaxWidth().height(2.dp).background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.64f)))
         Column(
             modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
                 "${(summary.firstCorrectRate * 100).roundToInt()}%",
-                color = InteractiveYellow,
+                color = MaterialTheme.colorScheme.secondary,
                 fontSize = 48.sp,
                 fontWeight = FontWeight.Bold,
             )
-            Text("首次正确率", color = InteractiveMuted, fontSize = 13.sp)
+            Text("首次正确率", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
         }
         ResultMetricGrid(completion)
 
         if (completion.masteryUpdates.isNotEmpty()) {
-            Text("掌握度变化", color = InteractiveWhite, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Text("掌握度变化", color = MaterialTheme.colorScheme.onBackground, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
             completion.masteryUpdates.forEach { update ->
                 val titleText = knowledgePoints[update.knowledgePointId]?.title ?: update.knowledgePointId.value
                 Column {
@@ -622,27 +623,27 @@ private fun AssessmentResultPage(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(titleText, modifier = Modifier.weight(1f), color = InteractiveWhite, fontSize = 14.sp)
+                        Text(titleText, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp)
                         Text(
                             "${(update.beforeScore * 100).roundToInt()} → ${(update.afterScore * 100).roundToInt()}",
-                            color = if (update.afterScore >= update.beforeScore) InteractiveGreen else InteractiveRed,
+                            color = if (update.afterScore >= update.beforeScore) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                         )
                     }
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)))
                 }
             }
         }
 
         if (wrongQuestions.isNotEmpty()) {
-            Text("本次做错过的题", color = InteractiveWhite, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Text("本次做错过的题", color = MaterialTheme.colorScheme.onBackground, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
             Text(
                 wrongQuestions.joinToString("、") { result ->
                     val index = summary.questionResults.indexOf(result) + 1
                     "第 $index 题（${result.wrongAttemptCount} 次）"
                 },
-                color = InteractiveMuted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 14.sp,
                 lineHeight = 22.sp,
             )
@@ -652,7 +653,7 @@ private fun AssessmentResultPage(
             label = "完成并继续",
             enabled = true,
             modifier = Modifier.fillMaxWidth(),
-            color = InteractiveBlue,
+            color = MaterialTheme.colorScheme.primary,
             onClick = onFinished,
         )
     }
@@ -679,20 +680,20 @@ private fun ResultMetricGrid(completion: AssessmentCompletion) {
                 modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Text(label, color = InteractiveMuted, fontSize = 13.sp)
-                Text(value, color = InteractiveWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                Text(value, color = MaterialTheme.colorScheme.onBackground, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             }
-            Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
+            Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)))
         }
     }
 }
 
 private fun progressColor(status: QuestionCompletionStatus): Color = when (status) {
-    QuestionCompletionStatus.FIRST_TRY_CORRECT -> InteractiveGreen
-    QuestionCompletionStatus.RECOVERED_CORRECT -> InteractiveBlue
-    QuestionCompletionStatus.FINAL_INCORRECT -> InteractiveRed
-    QuestionCompletionStatus.SKIPPED -> InteractiveMuted
-    QuestionCompletionStatus.UNANSWERED -> InteractiveLine
+    QuestionCompletionStatus.FIRST_TRY_CORRECT -> MaterialTheme.colorScheme.tertiary
+    QuestionCompletionStatus.RECOVERED_CORRECT -> MaterialTheme.colorScheme.primary
+    QuestionCompletionStatus.FINAL_INCORRECT -> MaterialTheme.colorScheme.error
+    QuestionCompletionStatus.SKIPPED -> MaterialTheme.colorScheme.onSurfaceVariant
+    QuestionCompletionStatus.UNANSWERED -> MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)
 }
 
 private fun feedbackMessage(code: String?): String = when (code) {
