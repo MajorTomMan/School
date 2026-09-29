@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -50,20 +51,20 @@ internal fun VerificationChoiceGrid(
                 ) {
                     Text(
                         item.label,
-                        color = if (selected) InteractiveBlue else InteractiveWhite,
+                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                     )
                     if (item.subtitle.isNotBlank()) {
                         Spacer(Modifier.height(3.dp))
-                        Text(item.subtitle, color = InteractiveMuted, fontSize = 11.sp, lineHeight = 16.sp)
+                        Text(item.subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, lineHeight = 16.sp)
                     }
                     Spacer(Modifier.height(8.dp))
                     Box(
                         Modifier
                             .fillMaxWidth()
                             .height(if (selected) 2.dp else 1.dp)
-                            .background(if (selected) InteractiveBlue else InteractiveLine),
+                            .background(if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)),
                     )
                 }
             }
@@ -79,28 +80,28 @@ internal fun VerificationTextInput(
     onValueChange: (String) -> Unit,
     hint: String = "",
     maxLength: Int = 500,
-    accent: Color = InteractiveBlue,
+    accent: Color = MaterialTheme.colorScheme.primary,
 ) {
     Column(Modifier.fillMaxWidth()) {
-        Text(label, color = InteractiveMuted, fontSize = 12.sp)
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
         Spacer(Modifier.height(7.dp))
         BasicTextField(
             value = value,
             onValueChange = { onValueChange(it.take(maxLength)) },
             modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-            textStyle = TextStyle(color = InteractiveWhite, fontSize = 18.sp, lineHeight = 26.sp),
+            textStyle = TextStyle(color = MaterialTheme.colorScheme.onBackground, fontSize = 18.sp, lineHeight = 26.sp),
             cursorBrush = SolidColor(accent),
             decorationBox = { inner ->
                 Box(Modifier.fillMaxWidth()) {
                     if (value.isBlank() && hint.isNotBlank()) {
-                        Text(hint, color = InteractiveMuted.copy(alpha = 0.55f), fontSize = 17.sp)
+                        Text(hint, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f), fontSize = 17.sp)
                     }
                     inner()
                 }
             },
         )
         Spacer(Modifier.height(5.dp))
-        Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)))
     }
 }
 
@@ -113,8 +114,8 @@ internal fun VerificationNumberInput(
 ) {
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, color = InteractiveMuted, fontSize = 12.sp)
-            if (unit.isNotBlank()) Text(unit, color = InteractiveBlue, fontSize = 12.sp)
+            Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            if (unit.isNotBlank()) Text(unit, color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
         }
         BasicTextField(
             value = value,
@@ -122,10 +123,10 @@ internal fun VerificationNumberInput(
                 if (changed.matches(Regex("-?\\d*(?:\\.\\d*)?"))) onValueChange(changed.take(20))
             },
             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            textStyle = TextStyle(color = InteractiveWhite, fontSize = 18.sp),
-            cursorBrush = SolidColor(InteractiveBlue),
+            textStyle = TextStyle(color = MaterialTheme.colorScheme.onBackground, fontSize = 18.sp),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
         )
-        Box(Modifier.fillMaxWidth().height(1.dp).background(InteractiveLine))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)))
     }
 }
 
@@ -141,15 +142,15 @@ internal fun VerificationToggle(
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(label, color = InteractiveWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text(label, color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             if (description.isNotBlank()) {
                 Spacer(Modifier.height(3.dp))
-                Text(description, color = InteractiveMuted, fontSize = 12.sp, lineHeight = 18.sp)
+                Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, lineHeight = 18.sp)
             }
         }
         Text(
             if (checked) "已确认" else "未确认",
-            color = if (checked) InteractiveGreen else InteractiveYellow,
+            color = if (checked) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.secondary,
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
         )
@@ -171,7 +172,7 @@ internal fun VerificationStatusBlock(
         Text(title, color = color, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         normalized?.takeIf { it.isNotBlank() }?.let {
             Spacer(Modifier.height(8.dp))
-            Text(it, color = InteractiveWhite, fontSize = 20.sp, lineHeight = 28.sp)
+            Text(it, color = MaterialTheme.colorScheme.onBackground, fontSize = 20.sp, lineHeight = 28.sp)
         }
         if (rows.isNotEmpty()) {
             Spacer(Modifier.height(12.dp))
@@ -180,8 +181,8 @@ internal fun VerificationStatusBlock(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(label, color = InteractiveMuted, fontSize = 13.sp)
-                    Text(value, color = InteractiveWhite, fontSize = 14.sp, textAlign = TextAlign.End)
+                    Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                    Text(value, color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp, textAlign = TextAlign.End)
                 }
             }
         }
@@ -189,12 +190,12 @@ internal fun VerificationStatusBlock(
             Spacer(Modifier.height(12.dp))
             steps.forEachIndexed { index, step ->
                 Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("%02d".format(index + 1), color = InteractiveBlue, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Text(step, modifier = Modifier.weight(1f), color = InteractiveWhite.copy(alpha = 0.78f), fontSize = 13.sp, lineHeight = 20.sp)
+                    Text("%02d".format(index + 1), color = MaterialTheme.colorScheme.primary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(step, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.78f), fontSize = 13.sp, lineHeight = 20.sp)
                 }
             }
         }
         Spacer(Modifier.height(12.dp))
-        Text(message, color = InteractiveWhite.copy(alpha = 0.76f), fontSize = 14.sp, lineHeight = 22.sp)
+        Text(message, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.76f), fontSize = 14.sp, lineHeight = 22.sp)
     }
 }
