@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,13 +49,6 @@ import com.majortomman.school.learning.cloud.InstalledCourse
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.launch
-
-private val CourseSettingsWhite = Color(0xFFF5F7FA)
-private val CourseSettingsBlue = Color(0xFF2D7BFF)
-private val CourseSettingsRed = Color(0xFFFF453A)
-private val CourseSettingsYellow = Color(0xFFFFCC00)
-private val CourseSettingsMuted = CourseSettingsWhite.copy(alpha = 0.46f)
-private val CourseSettingsLine = CourseSettingsWhite.copy(alpha = 0.13f)
 
 private data class CourseResourceRow(
     val id: String,
@@ -111,17 +105,17 @@ internal fun CourseStorageSettingsPage() {
         CourseSettingsSectionTitle("课程资源")
         TextLine(
             if (BuildConfig.COURSE_MANIFEST_URL.isBlank()) "当前 APK 未配置课程源。" else "课程列表完全来自远端清单与已安装的 course.json，不再维护 APK 内置教材目录。",
-            if (BuildConfig.COURSE_MANIFEST_URL.isBlank()) CourseSettingsRed else CourseSettingsMuted,
+            if (BuildConfig.COURSE_MANIFEST_URL.isBlank()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(10.dp))
         snapshot?.let {
-            TextLine("已安装 ${it.installedTextbooks} 个课程 · ${formatBytes(it.activeBytes)}", CourseSettingsWhite.copy(alpha = 0.72f), 12.sp)
-            TextLine("上次检查：${formatCheckTime(it.lastCheckedAt)}", CourseSettingsMuted, 12.sp)
+            TextLine("已安装 ${it.installedTextbooks} 个课程 · ${formatBytes(it.activeBytes)}", MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f), 12.sp)
+            TextLine("上次检查：${formatCheckTime(it.lastCheckedAt)}", MaterialTheme.colorScheme.onSurfaceVariant, 12.sp)
         }
         Spacer(Modifier.height(18.dp))
 
         if (rows.isEmpty()) {
-            TextLine("本地暂无课程。先检查课程源或选择全部下载。", CourseSettingsMuted)
+            TextLine("本地暂无课程。先检查课程源或选择全部下载。", MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(12.dp))
         } else {
             rows.forEach { row ->
@@ -181,10 +175,10 @@ internal fun CourseStorageSettingsPage() {
                         checking = false
                     }
                 },
-                color = if (checking || downloadBusy) CourseSettingsMuted else CourseSettingsBlue,
+                color = if (checking || downloadBusy) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold,
             )
-            downloadState.downloadLabel()?.let { Text(it, color = CourseSettingsMuted, fontSize = 12.sp, maxLines = 1, softWrap = false) }
+            downloadState.downloadLabel()?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, maxLines = 1, softWrap = false) }
         }
         Spacer(Modifier.height(16.dp))
         Text(
@@ -193,13 +187,13 @@ internal fun CourseStorageSettingsPage() {
                 updateStatus = "课程已交给后台任务；只会下载缺失或发生变化的文件。"
                 CourseDownloadCoordinator.enqueue(context)
             },
-            color = if (downloadBusy) CourseSettingsMuted else CourseSettingsWhite.copy(alpha = 0.68f),
+            color = if (downloadBusy) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.68f),
             fontSize = 13.sp,
         )
 
         AnimatedVisibility(visible = updateStatus != null) {
             CourseSettingsNotice(
-                color = if (updateStatus.orEmpty().contains("失败") || updateStatus.orEmpty().contains("未配置")) CourseSettingsRed else CourseSettingsBlue,
+                color = if (updateStatus.orEmpty().contains("失败") || updateStatus.orEmpty().contains("未配置")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                 label = "课程状态",
                 body = updateStatus.orEmpty(),
             )
@@ -208,12 +202,12 @@ internal fun CourseStorageSettingsPage() {
         Spacer(Modifier.height(48.dp))
         CourseSettingsSectionTitle("本地课程缓存")
         snapshot?.let { state ->
-            TextLine("课程资源共 ${formatBytes(state.totalBytes)}", CourseSettingsWhite.copy(alpha = 0.78f))
+            TextLine("课程资源共 ${formatBytes(state.totalBytes)}", MaterialTheme.colorScheme.onBackground.copy(alpha = 0.78f))
             Spacer(Modifier.height(7.dp))
-            TextLine("已安装 ${formatBytes(state.activeBytes)} · 下载与暂存 ${formatBytes(state.temporaryBytes)}", CourseSettingsMuted, 12.sp)
-        } ?: TextLine("正在统计本地课程…", CourseSettingsMuted)
+            TextLine("已安装 ${formatBytes(state.activeBytes)} · 下载与暂存 ${formatBytes(state.temporaryBytes)}", MaterialTheme.colorScheme.onSurfaceVariant, 12.sp)
+        } ?: TextLine("正在统计本地课程…", MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(12.dp))
-        TextLine("清理只删除 course-packs 下的课程、PDF、图片和下载缓存；答题与复习记录单独保存。", CourseSettingsMuted, 12.sp)
+        TextLine("清理只删除 course-packs 下的课程、PDF、图片和下载缓存；答题与复习记录单独保存。", MaterialTheme.colorScheme.onSurfaceVariant, 12.sp)
         Spacer(Modifier.height(20.dp))
 
         AnimatedContent(targetState = confirmClear, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "clearCourseCache") { confirming ->
@@ -228,14 +222,14 @@ internal fun CourseStorageSettingsPage() {
                         clearStatus = null
                         confirmClear = true
                     },
-                    color = if (clearing || downloadBusy) CourseSettingsMuted else CourseSettingsRed,
+                    color = if (clearing || downloadBusy) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
                 )
             } else {
                 Column {
-                    TextLine("这会删除所有已下载课程；学习记录仍会保留。", CourseSettingsWhite.copy(alpha = 0.72f), 13.sp)
+                    TextLine("这会删除所有已下载课程；学习记录仍会保留。", MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f), 13.sp)
                     Spacer(Modifier.height(16.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("取消", modifier = Modifier.clickable { confirmClear = false }, color = CourseSettingsMuted)
+                        Text("取消", modifier = Modifier.clickable { confirmClear = false }, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(
                             "确认全部清理",
                             modifier = Modifier.clickable {
@@ -251,7 +245,7 @@ internal fun CourseStorageSettingsPage() {
                                     clearing = false
                                 }
                             },
-                            color = CourseSettingsRed,
+                            color = MaterialTheme.colorScheme.error,
                             fontWeight = FontWeight.SemiBold,
                         )
                     }
@@ -261,7 +255,7 @@ internal fun CourseStorageSettingsPage() {
 
         AnimatedVisibility(visible = clearStatus != null) {
             CourseSettingsNotice(
-                color = if (clearStatus.orEmpty().contains("失败")) CourseSettingsRed else CourseSettingsYellow,
+                color = if (clearStatus.orEmpty().contains("失败")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary,
                 label = "清理结果",
                 body = clearStatus.orEmpty(),
             )
@@ -291,15 +285,15 @@ private fun CourseResourceItem(
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 11.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Column(modifier = Modifier.weight(1f).padding(end = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(row.displayTitle(), color = CourseSettingsWhite, fontWeight = FontWeight.Medium)
-                Text(row.displayMetadata(), color = CourseSettingsMuted, fontSize = 11.sp)
+                Text(row.displayTitle(), color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Medium)
+                Text(row.displayMetadata(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
             }
-            Text(stateText, color = if (update != null) CourseSettingsBlue else CourseSettingsMuted, fontSize = 12.sp, maxLines = 1, softWrap = false)
+            Text(stateText, color = if (update != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, maxLines = 1, softWrap = false)
         }
         if (confirmingDelete) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                Text("取消", modifier = Modifier.clickable(onClick = onCancelDelete).padding(horizontal = 10.dp, vertical = 4.dp), color = CourseSettingsMuted)
-                Text("确认删除", modifier = Modifier.clickable(onClick = onConfirmDelete).padding(horizontal = 10.dp, vertical = 4.dp), color = CourseSettingsRed, fontWeight = FontWeight.SemiBold)
+                Text("取消", modifier = Modifier.clickable(onClick = onCancelDelete).padding(horizontal = 10.dp, vertical = 4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("确认删除", modifier = Modifier.clickable(onClick = onConfirmDelete).padding(horizontal = 10.dp, vertical = 4.dp), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold)
             }
         } else {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -307,19 +301,19 @@ private fun CourseResourceItem(
                     Text(
                         if (installed) "更新" else "下载",
                         modifier = Modifier.clickable(enabled = !downloadBusy, onClick = onDownload).padding(vertical = 4.dp),
-                        color = if (downloadBusy) CourseSettingsMuted else CourseSettingsBlue,
+                        color = if (downloadBusy) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold,
                     )
                 } else {
                     Text(
                         "删除本地课程",
                         modifier = Modifier.clickable(enabled = !downloadBusy, onClick = onBeginDelete).padding(vertical = 4.dp),
-                        color = if (downloadBusy) CourseSettingsMuted else CourseSettingsRed.copy(alpha = 0.82f),
+                        color = if (downloadBusy) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error.copy(alpha = 0.82f),
                     )
                 }
             }
         }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(CourseSettingsLine))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)))
     }
 }
 
@@ -332,7 +326,7 @@ private fun CourseResourceRow.displayMetadata(): String {
 
 @Composable
 private fun CourseSettingsSectionTitle(text: String) {
-    Text(text, modifier = Modifier.padding(bottom = 18.dp), color = CourseSettingsYellow, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+    Text(text, modifier = Modifier.padding(bottom = 18.dp), color = MaterialTheme.colorScheme.secondary, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
 }
 
 @Composable
@@ -340,7 +334,7 @@ private fun CourseSettingsNotice(color: Color, label: String, body: String) {
     Column(modifier = Modifier.fillMaxWidth().padding(top = 24.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
         Box(Modifier.fillMaxWidth().height(2.dp).background(color))
         Text(label, color = color, fontWeight = FontWeight.Bold)
-        Text(body, color = CourseSettingsWhite.copy(alpha = 0.72f), lineHeight = 23.sp)
+        Text(body, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f), lineHeight = 23.sp)
     }
 }
 
