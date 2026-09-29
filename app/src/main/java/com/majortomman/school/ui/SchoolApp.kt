@@ -62,6 +62,7 @@ fun SchoolApp(
     initialCourseId: String? = null,
 ) {
     var selectedTabName by rememberSaveable { mutableStateOf(MainTab.LEARN.name) }
+    var mineSettingsOpen by rememberSaveable { mutableStateOf(false) }
     var activeCourseId by rememberSaveable { mutableStateOf(initialCourseId) }
     var openedLessonId by rememberSaveable { mutableStateOf<String?>(null) }
     var openedCourseId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -149,7 +150,10 @@ fun SchoolApp(
                 Scaffold(
                     containerColor = MaterialTheme.colorScheme.background,
                     bottomBar = {
-                        SchoolBottomBar(selectedTab) { selectedTabName = it.name }
+                        SchoolBottomBar(selectedTab) {
+                            if (it != MainTab.MINE) mineSettingsOpen = false
+                            selectedTabName = it.name
+                        }
                     },
                 ) { innerPadding ->
                     Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
@@ -215,12 +219,27 @@ fun SchoolApp(
                                     },
                                 )
 
-                                MainTab.MINE -> MaterialSettingsScreen(
-                                    settings = aiSettings,
-                                    onSave = { updated -> scope.launch { repository.saveAiSettings(updated) } },
-                                    onOpenSubjects = { selectedTabName = MainTab.COURSES.name },
-                                    onClearProgress = { scope.launch { repository.clearLearningProgress() } },
-                                )
+                                MainTab.MINE -> {
+                                    if (mineSettingsOpen) {
+                                        MaterialSettingsScreen(
+                                            settings = aiSettings,
+                                            onSave = { updated -> scope.launch { repository.saveAiSettings(updated) } },
+                                            onOpenSubjects = {
+                                                mineSettingsOpen = false
+                                                selectedTabName = MainTab.COURSES.name
+                                            },
+                                            onClearProgress = { scope.launch { repository.clearLearningProgress() } },
+                                            onBack = { mineSettingsOpen = false },
+                                        )
+                                    } else {
+                                        MyScreen(
+                                            currentCourseTitle = activeCourse?.title,
+                                            recentLessonTitle = currentLesson?.title,
+                                            onOpenCourses = { selectedTabName = MainTab.COURSES.name },
+                                            onOpenSettings = { mineSettingsOpen = true },
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
