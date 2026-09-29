@@ -16,22 +16,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.majortomman.school.learning.cloud.InstalledCourse
 import com.majortomman.school.learning.course.CourseLesson
-
-internal val InteractiveBlack = Color.Transparent
-internal val InteractivePanel = Color.Transparent
-internal val InteractiveWhite = Color(0xFFF5F7FA)
-internal val InteractiveMuted = InteractiveWhite.copy(alpha = 0.52f)
-internal val InteractiveLine = InteractiveWhite.copy(alpha = 0.12f)
-internal val InteractiveBlue = Color(0xFF58C4DD)
-internal val InteractiveYellow = Color(0xFFF4D35E)
-internal val InteractiveGreen = Color(0xFF83C167)
-internal val InteractiveRed = Color(0xFFFC6255)
-internal val InteractivePurple = Color(0xFF9A72AC)
 
 @Composable
 fun InteractiveLessonScreen(
