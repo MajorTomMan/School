@@ -60,14 +60,6 @@ import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.launch
 
-private val SettingsBlack = Color.Transparent
-private val SettingsWhite = Color(0xFFF5F7FA)
-private val SettingsBlue = Color(0xFF2D7BFF)
-private val SettingsRed = Color(0xFFFF453A)
-private val SettingsYellow = Color(0xFFFFCC00)
-private val SettingsMuted = SettingsWhite.copy(alpha = 0.46f)
-private val SettingsLine = SettingsWhite.copy(alpha = 0.13f)
-
 private enum class SettingsPage(val label: String) {
     PROXY("代理"),
     UPDATE("应用"),
@@ -117,20 +109,20 @@ fun MaterialSettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SettingsBlack)
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = SchoolUiMetrics.pageHorizontal, vertical = SchoolUiMetrics.pageTop),
     ) {
-        SchoolPageTitle("设置")
+        SchoolPageTitle("我的", eyebrow = "SCHOOL / PROFILE")
         Spacer(Modifier.height(20.dp))
         val selectedPage = SettingsPage.valueOf(pageName)
         SchoolScrollableTabs(
             labels = SettingsPage.entries.map { it.label },
             selectedIndex = selectedPage.ordinal,
             onSelect = { index -> pageName = SettingsPage.entries[index].name },
-            selectedColor = SettingsWhite,
-            mutedColor = SettingsMuted,
-            indicatorColor = SettingsBlue,
+            selectedColor = MaterialTheme.colorScheme.onBackground,
+            mutedColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            indicatorColor = MaterialTheme.colorScheme.primary,
         )
         Spacer(Modifier.height(30.dp))
 
@@ -253,7 +245,7 @@ private fun ProxySettingsPage(
         Spacer(Modifier.height(10.dp))
         Text(
             "支持 HTTP、HTTPS、SOCKS 和 SOCKS5。未写协议时按 HTTP 处理；未写端口时 HTTP 使用 8080，SOCKS 使用 1080。",
-            color = SettingsMuted,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(18.dp))
@@ -261,11 +253,11 @@ private fun ProxySettingsPage(
         SettingsToggleRow("AI 请求走代理", useForAi, onToggleAi)
         Spacer(Modifier.height(18.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            SettingsAction("保存代理", SettingsBlue, onSaveProxy)
+            SettingsAction("保存代理", MaterialTheme.colorScheme.primary, onSaveProxy)
         }
         AnimatedVisibility(visible = proxyStatus != null, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
             SettingsInlineNotice(
-                color = if (proxyStatus.orEmpty().startsWith("保存失败")) SettingsRed else SettingsBlue,
+                color = if (proxyStatus.orEmpty().startsWith("保存失败")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                 label = "代理状态",
                 body = proxyStatus.orEmpty(),
             )
@@ -287,32 +279,32 @@ private fun UpdateSettingsPage(
 ) {
     Column {
         SettingsSectionTitle("应用更新")
-        Text("${BuildConfig.VERSION_NAME}（${BuildConfig.VERSION_CODE}）", color = SettingsWhite, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Medium)
+        Text("${BuildConfig.VERSION_NAME}（${BuildConfig.VERSION_CODE}）", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Medium)
         Spacer(Modifier.height(8.dp))
-        Text("开发通道 · GitHub dev-latest", color = SettingsMuted, style = MaterialTheme.typography.bodyMedium)
+        Text("开发通道 · GitHub dev-latest", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.height(7.dp))
         Text(
             if (updateUsesProxy) "更新清单、签名与 APK 下载：通过代理" else "更新清单、签名与 APK 下载：直接连接",
-            color = if (updateUsesProxy) SettingsBlue else SettingsMuted,
+            color = if (updateUsesProxy) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(18.dp))
         SettingsToggleRow("自动检查更新", autoCheck, onToggleAutoCheck)
         SettingsToggleRow("仅在 Wi-Fi 下载", wifiOnly, onToggleWifiOnly)
         Spacer(Modifier.height(12.dp))
-        Text("上次检查：${formatUpdateCheckTime(lastCheckedAt)}", color = SettingsMuted, style = MaterialTheme.typography.bodySmall)
+        Text("上次检查：${formatUpdateCheckTime(lastCheckedAt)}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(14.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            SettingsAction("检查更新", if (updateState is UpdateState.Checking) SettingsMuted else SettingsBlue, onCheckUpdate, updateState !is UpdateState.Checking)
+            SettingsAction("检查更新", if (updateState is UpdateState.Checking) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary, onCheckUpdate, updateState !is UpdateState.Checking)
             if (updateState is UpdateState.Available || updateState is UpdateState.Downloading || updateState is UpdateState.Ready || updateState is UpdateState.Error || updateState is UpdateState.UpToDate) {
-                SettingsAction("查看状态", SettingsWhite.copy(alpha = 0.72f), onShowUpdateStatus)
+                SettingsAction("查看状态", MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f), onShowUpdateStatus)
             }
         }
         SettingsInlineNotice(
             color = when (updateState) {
-                is UpdateState.Error -> SettingsRed
-                is UpdateState.Available, is UpdateState.Downloading, is UpdateState.Ready -> SettingsBlue
-                else -> SettingsYellow
+                is UpdateState.Error -> MaterialTheme.colorScheme.error
+                is UpdateState.Available, is UpdateState.Downloading, is UpdateState.Ready -> MaterialTheme.colorScheme.primary
+                else -> MaterialTheme.colorScheme.secondary
             },
             label = "更新状态",
             body = updateState.settingsDescription(),
@@ -342,7 +334,7 @@ private fun AiSettingsPage(
         SettingsSectionTitle("AI")
         Text(
             if (aiUsesProxy) "当前 AI 请求通过代理连接。" else "当前 AI 请求直接连接，不使用代理。",
-            color = if (aiUsesProxy) SettingsBlue else SettingsMuted,
+            color = if (aiUsesProxy) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(18.dp))
@@ -353,12 +345,12 @@ private fun AiSettingsPage(
         SettingsInput("API Key", apiKey, onApiKeyChange, visualTransformation = PasswordVisualTransformation(), placeholder = "可留空")
         Spacer(Modifier.height(20.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            SettingsAction("测试连接", if (isTesting) SettingsMuted else SettingsWhite.copy(alpha = 0.68f), onTest, !isTesting && endpoint.isNotBlank())
-            SettingsAction("保存", SettingsBlue, onSaveAi, endpoint.isNotBlank() && model.isNotBlank())
+            SettingsAction("测试连接", if (isTesting) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.68f), onTest, !isTesting && endpoint.isNotBlank())
+            SettingsAction("保存", MaterialTheme.colorScheme.primary, onSaveAi, endpoint.isNotBlank() && model.isNotBlank())
         }
         AnimatedVisibility(visible = connectionStatus != null, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
             SettingsInlineNotice(
-                color = if (connectionStatus.orEmpty().startsWith("连接失败")) SettingsRed else SettingsBlue,
+                color = if (connectionStatus.orEmpty().startsWith("连接失败")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                 label = "AI 状态",
                 body = connectionStatus.orEmpty(),
             )
@@ -366,15 +358,15 @@ private fun AiSettingsPage(
 
         Spacer(Modifier.height(42.dp))
         SettingsSectionTitle("学习数据")
-        Text("答案、反馈、复习计划和掌握状态保存在本机。", color = SettingsWhite.copy(alpha = 0.72f), style = MaterialTheme.typography.bodyMedium)
+        Text("答案、反馈、复习计划和掌握状态保存在本机。", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f), style = MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.height(16.dp))
         AnimatedContent(targetState = confirmClearProgress, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "clearLearningData") { confirming ->
             if (!confirming) {
-                SettingsAction("清空学习记录", SettingsRed, onBeginClear)
+                SettingsAction("清空学习记录", MaterialTheme.colorScheme.error, onBeginClear)
             } else {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    SettingsAction("取消", SettingsMuted, onCancelClear)
-                    SettingsAction("确认清空", SettingsRed, onConfirmClear)
+                    SettingsAction("取消", MaterialTheme.colorScheme.onSurfaceVariant, onCancelClear)
+                    SettingsAction("确认清空", MaterialTheme.colorScheme.error, onConfirmClear)
                 }
             }
         }
@@ -390,7 +382,7 @@ private fun DisplaySettingsPage(settings: DisplaySettings) {
         SettingsSectionTitle("显示模式")
         Text(
             "School 的日间与夜间模式共享同一套排版、色彩角色和组件结构；只切换主题，不切换设计语言。",
-            color = SettingsMuted,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
         )
         ThemeMode.entries.forEach { mode ->
@@ -399,7 +391,7 @@ private fun DisplaySettingsPage(settings: DisplaySettings) {
                 value = if (settings.themeMode == mode) "使用中" else "",
                 selected = settings.themeMode == mode,
                 onClick = { DisplayPreferences.setThemeMode(context, mode) },
-                valueColor = if (settings.themeMode == mode) SettingsBlue else SettingsMuted,
+                valueColor = if (settings.themeMode == mode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
@@ -407,7 +399,7 @@ private fun DisplaySettingsPage(settings: DisplaySettings) {
         SettingsSectionTitle("文字大小")
         Text(
             "课程正文、题目、解析和数学可视化标签会同时调整。",
-            color = SettingsMuted,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
         )
         textOptions.forEach { (label, scale) ->
@@ -417,10 +409,10 @@ private fun DisplaySettingsPage(settings: DisplaySettings) {
                 value = "${(scale * 100).toInt()}%",
                 selected = selected,
                 onClick = { DisplayPreferences.setTextScale(context, scale) },
-                valueColor = if (selected) SettingsBlue else SettingsMuted,
+                valueColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Text("预览：负半轴　−3　0　+3　正半轴　答案与解释", color = SettingsWhite, style = MaterialTheme.typography.bodyLarge)
+        Text("预览：负半轴　−3　0　+3　正半轴　答案与解释", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodyLarge)
     }
 }
 
@@ -431,7 +423,7 @@ private fun SettingsToggleRow(label: String, enabled: Boolean, onClick: () -> Un
         value = if (enabled) "开启" else "关闭",
         selected = enabled,
         onClick = onClick,
-        valueColor = if (enabled) SettingsBlue else SettingsMuted,
+        valueColor = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 
@@ -445,13 +437,13 @@ private fun SettingsInput(
     placeholder: String = "输入…",
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(label, color = SettingsMuted, style = MaterialTheme.typography.labelMedium)
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth().heightIn(min = SchoolUiMetrics.textInputMinHeight).padding(vertical = 12.dp),
-            textStyle = MaterialTheme.typography.titleLarge.copy(color = SettingsWhite),
-            cursorBrush = SolidColor(SettingsBlue),
+            textStyle = MaterialTheme.typography.titleLarge.copy(color = MaterialTheme.colorScheme.onBackground),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             visualTransformation = visualTransformation,
             singleLine = true,
@@ -460,7 +452,7 @@ private fun SettingsInput(
                     if (value.isEmpty()) {
                         Text(
                             placeholder,
-                            color = SettingsWhite.copy(alpha = 0.2f),
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f),
                             style = MaterialTheme.typography.titleLarge,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -470,13 +462,13 @@ private fun SettingsInput(
                 }
             },
         )
-        SchoolDivider(color = SettingsLine)
+        SchoolDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.55f))
     }
 }
 
 @Composable
 private fun SettingsSectionTitle(text: String) {
-    SchoolSectionLabel(text = text, modifier = Modifier.padding(bottom = 16.dp), color = SettingsYellow)
+    SchoolSectionLabel(text = text, modifier = Modifier.padding(bottom = 16.dp), color = MaterialTheme.colorScheme.secondary)
 }
 
 @Composable
@@ -484,7 +476,7 @@ private fun SettingsAction(label: String, color: Color, onClick: () -> Unit, ena
     Text(
         text = label,
         modifier = Modifier.heightIn(min = SchoolUiMetrics.minTouchHeight).clickable(enabled = enabled, onClick = onClick).padding(vertical = 12.dp),
-        color = if (enabled) color else SettingsMuted,
+        color = if (enabled) color else MaterialTheme.colorScheme.onSurfaceVariant,
         style = MaterialTheme.typography.labelLarge,
         fontWeight = FontWeight.SemiBold,
         maxLines = 1,
@@ -496,7 +488,7 @@ private fun SettingsInlineNotice(color: Color, label: String, body: String) {
     Column(modifier = Modifier.fillMaxWidth().padding(top = 22.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
         Box(Modifier.fillMaxWidth().height(2.dp).background(color))
         Text(label, color = color, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-        Text(body, color = SettingsWhite.copy(alpha = 0.72f), style = MaterialTheme.typography.bodyMedium)
+        Text(body, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f), style = MaterialTheme.typography.bodyMedium)
     }
 }
 
