@@ -5,7 +5,7 @@ import androidx.room.withTransaction
 import com.majortomman.school.learning.assessment.domain.AssessmentSession
 import com.majortomman.school.learning.assessment.domain.AssessmentSessionStatus
 import com.majortomman.school.learning.assessment.domain.AttemptRecord
-import com.majortomman.school.learning.assessment.domain.KnowledgePointId
+import com.majortomman.school.learning.knowledge.KnowledgePointId
 import com.majortomman.school.learning.assessment.domain.QuestionDefinition
 import com.majortomman.school.learning.assessment.domain.QuestionKey
 import com.majortomman.school.learning.assessment.domain.QuestionSetDefinition
