@@ -1,6 +1,6 @@
 package com.majortomman.school.learning.knowledge
 
-import com.majortomman.school.learning.assessment.domain.KnowledgePointId
+import com.majortomman.school.learning.knowledge.KnowledgePointId
 import com.majortomman.school.learning.mastery.domain.MasteryState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
