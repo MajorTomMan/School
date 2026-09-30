@@ -36,9 +36,9 @@ import androidx.core.content.ContextCompat
 import com.majortomman.school.data.DisplayPreferences
 import com.majortomman.school.data.DisplaySettings
 import com.majortomman.school.data.ThemeMode
-import com.majortomman.school.data.PreferencesRepository
-import com.majortomman.school.data.math.MathQuestionBankRepository
+import com.majortomman.school.data.AppSettingsRepository
 import com.majortomman.school.learning.cloud.CourseDownloadCoordinator
+import com.majortomman.school.learning.progress.persistence.CourseProgressStore
 import com.majortomman.school.learning.cloud.CourseDownloadUiState
 import com.majortomman.school.learning.cloud.CourseLibraryRepository
 import com.majortomman.school.learning.cloud.CourseUpdateKind
@@ -52,8 +52,8 @@ import com.majortomman.school.update.UpdateCoordinator
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
-    private val preferencesRepository by lazy { PreferencesRepository(applicationContext) }
-    private val mathQuestionBankRepository by lazy { MathQuestionBankRepository(applicationContext) }
+    private val settingsRepository by lazy { AppSettingsRepository(applicationContext) }
+    private val courseProgressStore by lazy { CourseProgressStore.create(applicationContext) }
     private val updateCoordinatorDelegate = lazy { UpdateCoordinator.get(applicationContext) }
     private val updateCoordinator: UpdateCoordinator get() = updateCoordinatorDelegate.value
     private val pendingCourseUpdate = MutableStateFlow<CourseUpdateOffer?>(null)
@@ -96,8 +96,8 @@ class MainActivity : ComponentActivity() {
             SchoolTheme(darkTheme = darkTheme, textScale = displaySettings.textScale) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     SchoolApp(
-                        repository = preferencesRepository,
-                        mathQuestionRepository = mathQuestionBankRepository,
+                        settingsRepository = settingsRepository,
+                        courseProgressStore = courseProgressStore,
                         initialCourseId = initialCourseId,
                     )
                     UpdateOverlayHost { updateCoordinator }
