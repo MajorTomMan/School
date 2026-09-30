@@ -2,7 +2,6 @@ package com.majortomman.school.visualization.renderers.math
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,14 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableDoubleStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -123,7 +116,6 @@ internal class RationalClassificationRenderer : VisualizationRenderer() {
 
     @Composable
     override fun Render(context: VisualizationRenderContext, modifier: Modifier) {
-        var selected by remember { mutableIntStateOf(4) }
         val texts = context.invocation.texts
         val cells = listOf(texts.text("positiveInteger"), texts.text("positiveFraction"), texts.text("zero"), "", texts.text("negativeInteger"), texts.text("negativeFraction"))
         val rows = listOf(texts.text("rowPositive"), texts.text("rowZero"), texts.text("rowNegative"))
@@ -153,9 +145,8 @@ internal class RationalClassificationRenderer : VisualizationRenderer() {
                         val color = if (rowIndex == 2) context.palette.secondary else if (rowIndex == 1) context.palette.foreground else context.palette.primary
                         Box(
                             modifier = Modifier.weight(1f).height(54.dp)
-                                .background(if (selected == index) color.copy(alpha = 0.16f) else Color.Transparent, RoundedCornerShape(8.dp))
-                                .border(1.dp, color.copy(alpha = if (selected == index) 0.86f else 0.30f), RoundedCornerShape(8.dp))
-                                .clickable(enabled = enabled) { selected = index },
+                                .background(if (enabled) color.copy(alpha = 0.06f) else Color.Transparent, RoundedCornerShape(8.dp))
+                                .border(1.dp, color.copy(alpha = 0.30f), RoundedCornerShape(8.dp)),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(text = if (enabled) label else "—", color = if (enabled) color else context.palette.muted.copy(alpha = 0.45f), fontSize = 12.sp, textAlign = TextAlign.Center)
@@ -279,15 +270,13 @@ internal class PowerProcessRenderer : VisualizationRenderer() {
     @Composable
     override fun Render(context: VisualizationRenderContext, modifier: Modifier) {
         val parameters = context.invocation.parameters
-        var base by remember { mutableDoubleStateOf(parameters.number("base")) }
-        var exponent by remember { mutableDoubleStateOf(parameters.number("exponent").coerceIn(1.0, 8.0)) }
+        val base = parameters.number("base")
+        val exponent = parameters.number("exponent").coerceIn(1.0, 8.0)
         val exponentInt = exponent.toInt().coerceIn(1, 8)
         val result = base.pow(exponentInt)
         val factors = List(exponentInt) { processNumber(base) }.joinToString(" × ")
         Column(modifier.fillMaxSize().padding(10.dp), verticalArrangement = Arrangement.SpaceEvenly) {
             if (context.invocation.texts.text("title").isNotBlank()) ProcessTitle(context.invocation.texts.text("title"))
-            Slider(value = base.toFloat(), onValueChange = { base = it.toDouble() }, valueRange = parameters.number("minBase", -4.0).toFloat()..parameters.number("maxBase", 4.0).toFloat())
-            Slider(value = exponent.toFloat(), onValueChange = { exponent = it.toInt().coerceIn(1, 8).toDouble() }, valueRange = 1f..8f, steps = 6)
             Text(text = "${processNumber(base)}^$exponentInt", modifier = Modifier.fillMaxWidth(), color = context.palette.foreground, fontSize = 22.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center)
             Text(text = factors, modifier = Modifier.fillMaxWidth(), color = context.palette.primary, fontSize = 16.sp, textAlign = TextAlign.Center)
             Text(text = "= ${processNumber(result)}", modifier = Modifier.fillMaxWidth(), color = context.palette.secondary, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
