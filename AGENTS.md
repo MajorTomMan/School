@@ -465,6 +465,17 @@ assets/<question-assets>
 - App 对远端课程执行必要的运行时格式、安全、完整性和哈希校验；这是 App 产品能力，不是课程 CI。
 - 课程更新和 App 发布完全解耦；课程 Stable manifest 更新后，已有 App 应可直接获取新课程。
 
+### 9.1 学习数据与练习运行边界
+
+- School 只有一个学习数据宿主：`SchoolLearningDatabase`。不得重新引入并行的历史学习数据库。
+- `CourseProgressStore` 只保存“学到哪里”：`NOT_STARTED / IN_PROGRESS / COMPLETED`。课程进度不得包含“已掌握”“需要复习”等知识状态。
+- `AssessmentProgressStore` 保存答题会话、提交、事件、结算、证据和 mastery projection。UI 不直接访问 Room。
+- CourseProgress 与 Knowledge Mastery 是两个不同系统；完成课时不等于掌握知识点，掌握度变化也不能直接改写课程顺序。
+- 正式练习必须来自已验证的 `assessments.json + knowledge-points.json`；APK 不内置课程专用随机题库、错题数据库或复习调度器作为 fallback。
+- 没有 Assessment Package 的课程在练习页明确显示“暂无练习包”，不得用内置模板静默补题。
+- 复习推荐以后由 LearningAdvisor 基于 mastery/evidence 产生；不得把“最近完成课时”之类的课程进度信息伪装成 mastery 推荐。
+- 禁止恢复 `SchoolDatabase`、`MathQuestionBankRepository`、`ReviewScheduler`、`MasteryStatus` 这类旧架构入口。
+
 ## 10. Visualization 架构
 
 - Visualization 是独立基础设施，不是课程业务逻辑。
