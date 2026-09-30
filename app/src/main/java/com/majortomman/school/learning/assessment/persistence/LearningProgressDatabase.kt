@@ -6,6 +6,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.majortomman.school.learning.progress.persistence.CourseLessonProgressEntity
+import com.majortomman.school.learning.progress.persistence.CourseProgressDao
 
 /**
  * 只保存新版 Assessment 的追加事实与结算快照。
@@ -23,12 +25,14 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MasteryEvidenceEntity::class,
         MasteryStateEntity::class,
         MasterySnapshotEntity::class,
+        CourseLessonProgressEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 internal abstract class LearningProgressDatabase : RoomDatabase() {
     abstract fun assessmentProgressDao(): AssessmentProgressDao
+    abstract fun courseProgressDao(): CourseProgressDao
 
     companion object {
         private const val DATABASE_NAME = "school-learning-progress.db"
@@ -36,6 +40,28 @@ internal abstract class LearningProgressDatabase : RoomDatabase() {
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE assessment_attempt ADD COLUMN workProcess TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS course_lesson_progress (
+                        courseId TEXT NOT NULL,
+                        lessonId TEXT NOT NULL,
+                        status TEXT NOT NULL,
+                        updatedAtEpochMillis INTEGER NOT NULL,
+                        PRIMARY KEY(courseId, lessonId)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_course_lesson_progress_courseId ON course_lesson_progress(courseId)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_course_lesson_progress_updatedAtEpochMillis ON course_lesson_progress(updatedAtEpochMillis)",
+                )
             }
         }
 
@@ -47,7 +73,7 @@ internal abstract class LearningProgressDatabase : RoomDatabase() {
                 context.applicationContext,
                 LearningProgressDatabase::class.java,
                 DATABASE_NAME,
-            ).addMigrations(MIGRATION_1_2).build().also { instance = it }
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
         }
     }
 }
