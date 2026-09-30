@@ -26,7 +26,10 @@ class CourseSourceReferenceContractTest {
           "chapters":[{"id":"chapter-01","title":"有理数","sections":[{"id":"section-absolute","title":"绝对值","lessons":[{
             "id":"absolute-value-intro","title":"绝对值是距离","aliases":["绝对值"],"goals":["理解绝对值表示距离"],"knowledgePointIds":["absolute-value"],"prerequisiteLessonIds":[],
             "references":[{"label":"图1.2-7","pageStart":13,"pageEnd":$pageEnd}],
-            "steps":[{"type":"explanation","title":null,"text":"绝对值表示数轴上的点到原点的距离。"}],"practice":[],"summary":["绝对值是到原点的距离"]
+            "steps":[
+              {"id":"explain-absolute-value","role":"explanation","content":[{"type":"text","style":"body","text":"绝对值表示数轴上的点到原点的距离。"}]},
+              {"id":"summary-absolute-value","role":"summary","content":[{"type":"text","style":"body","text":"绝对值是到原点的距离"}]}
+            ]
           }]}]}]
         }
     """.trimIndent()
