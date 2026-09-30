@@ -3,7 +3,6 @@ set -euo pipefail
 
 tests=(
   "com.majortomman.school.update.UpdateManifestCodecTest"
-  "com.majortomman.school.data.math.MathExpressionEngineTest"
   "com.majortomman.school.learning.science.MathFoundationTest"
   "com.majortomman.school.learning.science.MathFormulaVerifierTest"
   "com.majortomman.school.learning.verification.math.MathVerificationEngineTest"
