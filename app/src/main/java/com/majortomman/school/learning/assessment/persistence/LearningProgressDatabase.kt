@@ -10,10 +10,10 @@ import com.majortomman.school.learning.progress.persistence.CourseLessonProgress
 import com.majortomman.school.learning.progress.persistence.CourseProgressDao
 
 /**
- * 只保存新版 Assessment 的追加事实与结算快照。
+ * School 的统一学习数据数据库。
  *
- * 它有意与承载旧练习、课程目录和兼容数据的 SchoolDatabase 分离，使答题结算能够独立演进；
- * 业务层必须通过 AssessmentProgressStore 访问，不能在界面层跨库拼装掌握度。
+ * 课程进度、Assessment 事实、结算快照和知识掌握状态在同一持久化边界内演进；
+ * UI 只能通过对应 Store 访问，不能直接拼装数据库状态。
  */
 @Database(
     entities = [
