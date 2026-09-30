@@ -12,17 +12,18 @@ import com.majortomman.school.learning.assessment.persistence.AssessmentProgress
 import com.majortomman.school.learning.assessment.persistence.AssessmentQuestionResultEntity
 import com.majortomman.school.learning.assessment.persistence.AssessmentSessionEntity
 import com.majortomman.school.learning.assessment.persistence.AssessmentSettlementEntity
-import com.majortomman.school.learning.assessment.persistence.MasteryEvidenceEntity
-import com.majortomman.school.learning.assessment.persistence.MasterySnapshotEntity
-import com.majortomman.school.learning.assessment.persistence.MasteryStateEntity
+import com.majortomman.school.learning.evidence.persistence.LearningEvidenceDao
+import com.majortomman.school.learning.evidence.persistence.LearningEvidenceEntity
+import com.majortomman.school.learning.evidence.persistence.MasteryStateEntity
+import com.majortomman.school.learning.evidence.persistence.MasteryUpdateSnapshotEntity
 import com.majortomman.school.learning.progress.persistence.CourseLessonProgressEntity
 import com.majortomman.school.learning.progress.persistence.CourseProgressDao
 
 /**
  * School 的统一学习数据数据库。
  *
- * 课程进度、Assessment 事实、结算快照和知识掌握状态都落在这一持久化边界中。
- * 各业务域只能通过自己的 Store 访问数据，UI 不直接访问 Room。
+ * 课程进度、Assessment 事实、通用 LearningEvidence 和 Mastery projection 位于同一个
+ * 持久化边界。各业务域只能通过自己的 Store 访问数据，UI 不直接访问 Room。
  */
 @Database(
     entities = [
@@ -31,16 +32,17 @@ import com.majortomman.school.learning.progress.persistence.CourseProgressDao
         AssessmentEventEntity::class,
         AssessmentQuestionResultEntity::class,
         AssessmentSettlementEntity::class,
-        MasteryEvidenceEntity::class,
+        LearningEvidenceEntity::class,
         MasteryStateEntity::class,
-        MasterySnapshotEntity::class,
+        MasteryUpdateSnapshotEntity::class,
         CourseLessonProgressEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 internal abstract class SchoolLearningDatabase : RoomDatabase() {
     abstract fun assessmentProgressDao(): AssessmentProgressDao
+    abstract fun learningEvidenceDao(): LearningEvidenceDao
     abstract fun courseProgressDao(): CourseProgressDao
 
     companion object {
@@ -74,6 +76,68 @@ internal abstract class SchoolLearningDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS mastery_evidence")
+                db.execSQL("DROP TABLE IF EXISTS mastery_snapshot")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS learning_evidence (
+                        evidenceId TEXT NOT NULL,
+                        courseId TEXT NOT NULL,
+                        knowledgePointId TEXT NOT NULL,
+                        sourceKind TEXT NOT NULL,
+                        sourceContextId TEXT NOT NULL,
+                        sourceItemId TEXT NOT NULL,
+                        sourceItemRevision INTEGER NOT NULL,
+                        contentRevision TEXT NOT NULL,
+                        outcome TEXT NOT NULL,
+                        score REAL NOT NULL,
+                        weight REAL NOT NULL,
+                        difficulty REAL NOT NULL,
+                        wrongAttemptCount INTEGER NOT NULL,
+                        hintViewCount INTEGER NOT NULL,
+                        explanationViewed INTEGER NOT NULL,
+                        recordedAtEpochMillis INTEGER NOT NULL,
+                        PRIMARY KEY(evidenceId)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_learning_evidence_courseId ON learning_evidence(courseId)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_learning_evidence_knowledgePointId_recordedAtEpochMillis ON learning_evidence(knowledgePointId, recordedAtEpochMillis)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_learning_evidence_sourceKind_sourceContextId ON learning_evidence(sourceKind, sourceContextId)",
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS mastery_update_snapshot (
+                        snapshotId TEXT NOT NULL,
+                        sourceContextId TEXT NOT NULL,
+                        knowledgePointId TEXT NOT NULL,
+                        beforeScore REAL NOT NULL,
+                        afterScore REAL NOT NULL,
+                        beforeEvidenceWeight REAL NOT NULL,
+                        appliedEvidenceWeight REAL NOT NULL,
+                        afterEvidenceWeight REAL NOT NULL,
+                        policyVersion INTEGER NOT NULL,
+                        createdAtEpochMillis INTEGER NOT NULL,
+                        PRIMARY KEY(snapshotId)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_mastery_update_snapshot_sourceContextId ON mastery_update_snapshot(sourceContextId)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_mastery_update_snapshot_knowledgePointId_createdAtEpochMillis ON mastery_update_snapshot(knowledgePointId, createdAtEpochMillis)",
+                )
+            }
+        }
+
         @Volatile
         private var instance: SchoolLearningDatabase? = null
 
@@ -82,7 +146,7 @@ internal abstract class SchoolLearningDatabase : RoomDatabase() {
                 context.applicationContext,
                 SchoolLearningDatabase::class.java,
                 DATABASE_NAME,
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { instance = it }
         }
     }
 }
