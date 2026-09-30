@@ -279,76 +279,68 @@ knowledgePoints
 chapters
 ```
 
-最小结构模板：
+Lesson 不再维护独立的 `practice`、`summary` 或历史多态 step 类型。教学序列统一由稳定 `step.id`、教学角色 `role`、通用 `content`、可选 `activity` 和可选 `assessment` 构成：
 
 ```json
 {
-  "textbook": {
-    "id": "pep-math-7-1",
-    "title": "数学七年级上册",
-    "publisher": "人民教育出版社",
-    "edition": "2024",
-    "grade": "七年级",
-    "semester": "上册",
-    "subject": "数学",
-    "pdf": {
-      "path": "assets/textbook.pdf",
-      "pageCount": 202,
-      "pageIndexOffset": 7
-    }
-  },
-  "knowledgePoints": [
-    {
-      "id": "positive-negative",
-      "name": "正数和负数",
-      "description": "表示相反意义的量",
-      "prerequisiteIds": []
-    }
+  "id": "positive-negative-intro",
+  "title": "为什么需要负数",
+  "aliases": ["正数和负数"],
+  "goals": ["理解相反意义的量"],
+  "knowledgePointIds": ["positive-negative"],
+  "prerequisiteLessonIds": [],
+  "references": [
+    {"label": "教材1—2页", "pageStart": 1, "pageEnd": 2}
   ],
-  "chapters": [
+  "steps": [
     {
-      "id": "chapter-01",
-      "title": "有理数",
-      "sections": [
+      "id": "inquiry-temperature",
+      "role": "inquiry",
+      "content": [
+        {"type": "text", "style": "prompt", "text": "低于0℃怎么表示？"},
+        {"type": "text", "style": "caption", "text": "提示：想想方向"}
+      ]
+    },
+    {
+      "id": "observe-number-line",
+      "role": "explanation",
+      "title": "观察",
+      "content": [
         {
-          "id": "section-01",
-          "title": "正数和负数",
-          "lessons": [
-            {
-              "id": "positive-negative-intro",
-              "title": "为什么需要负数",
-              "aliases": ["正数和负数"],
-              "goals": ["理解相反意义的量"],
-              "knowledgePointIds": ["positive-negative"],
-              "prerequisiteLessonIds": [],
-              "references": [
-                {
-                  "label": "教材1—2页",
-                  "pageStart": 1,
-                  "pageEnd": 2
-                }
-              ],
-              "steps": [
-                {
-                  "type": "question",
-                  "prompt": "低于0℃怎么表示？",
-                  "hint": "想想方向"
-                }
-              ],
-              "practice": [
-                {
-                  "id": "practice-01",
-                  "prompt": "向西8米怎么表示？",
-                  "answer": "-8米",
-                  "analysis": ["方向相反使用负号"],
-                  "knowledgePointIds": ["positive-negative"],
-                  "difficulty": 1
-                }
-              ],
-              "summary": ["正负号用于区分相反方向"]
-            }
-          ]
+          "type": "visualization",
+          "renderer": "mathematics.number-line.basic",
+          "parameters": {"value": -3, "min": -8, "max": 8, "step": 1},
+          "texts": {"title": "在数轴上观察位置", "note": "0 是正负方向的共同基准"}
         }
+      ]
+    },
+    {
+      "id": "practice-west",
+      "role": "practice",
+      "content": [
+        {"type": "text", "style": "prompt", "text": "向西8米怎么表示？"}
+      ],
+      "activity": {
+        "type": "textAnswer",
+        "id": "activity-west",
+        "placeholder": "最终答案"
+      },
+      "assessment": {
+        "type": "exactText",
+        "expected": "-8米",
+        "ignoreCase": false,
+        "explanation": [
+          {"type": "text", "style": "explanation", "text": "方向相反使用负号"}
+        ],
+        "knowledgePointIds": ["positive-negative"],
+        "difficulty": 0.2
+      }
+    },
+    {
+      "id": "summary",
+      "role": "summary",
+      "content": [
+        {"type": "text", "style": "body", "text": "正负号用于区分相反方向"}
       ]
     }
   ]
@@ -357,38 +349,49 @@ chapters
 
 结构和引用规则：
 
-- `textbook.id` 必须与对应 manifest 教材 `id` 完全一致。
-- `knowledgePoints` 至少一个，ID 不得重复；所有 `prerequisiteIds` 必须存在且知识点依赖图不能成环。
-- `chapters` 至少一个；每个 chapter 至少一个 section；每个 section 至少一个 lesson。
-- lesson ID 在整本教材内唯一；`prerequisiteLessonIds` 必须引用存在课时且不能形成循环。
-- 每个 lesson 的 `goals`、`knowledgePointIds`、`steps`、`summary` 必须非空；知识点绑定必须真实存在。
-- `references` 页码使用正整数，必须满足 `pageStart <= pageEnd <= textbook.pdf.pageCount`。
-- `practice.id` 在整本教材内唯一；`analysis`、`knowledgePointIds` 必须非空；`difficulty` 必须是 JSON 整数 `1..5`。
-- integer 字段必须是真正的 JSON 整数；字符串 `"1"` 和小数 `1.0` 不作为整数兼容处理。
-- parser 使用严格字段白名单；不要自行增加 `remoteUrl`、`scene` 或其他历史/临时字段。
+- `textbook.id` 必须与 manifest 教材 `id` 完全一致。
+- `knowledgePoints` 至少一个，ID 不得重复；前置知识必须存在且依赖图不能成环。
+- chapter 至少一个 section，section 至少一个 lesson；lesson ID 在整本教材内唯一。
+- lesson 的 `goals`、`knowledgePointIds`、`steps` 必须非空；`prerequisiteLessonIds` 必须引用真实课时且不能成环。
+- step ID 在整本教材内唯一；step 至少包含 content 或 activity。
+- `practice` 与 `checkpoint` 角色必须声明 activity；声明 assessment 时必须同时存在 activity。
+- activity ID 在整本教材内唯一。当前第一版只开放 `textAnswer`，后续 activity 必须通过新的 typed contract 扩展，不接受无类型 Map 或任意脚本。
+- inline assessment 当前开放 `exactText`；`knowledgePointIds` 必须真实存在，`difficulty` 使用 `0.0..1.0`。
+- `references` 满足 `pageStart <= pageEnd <= textbook.pdf.pageCount`。
+- parser 使用严格字段白名单；旧 `practice`、`summary`、`type=question/formula/visualization/...` step 不提供兼容 fallback。
 
-### 7.5 教学步骤类型
+### 7.5 Step role、Content 与 Activity
 
-`steps` 当前只接受：
+Step 的 `role` 只描述教学职责，当前接受：
 
 ```text
 explanation
-question
-keyIdea
-formula
+inquiry
 example
-visualization
+keyIdea
+practice
 checkpoint
 summary
 ```
 
-字段形状以 App 当前 `CourseDocumentParser` 为准。特别规则：
+表达形式放在 `content[]`，不再把 formula、visualization 等表达载体伪装成教学步骤。共享 Content 当前接受：
 
-- `formula.expression` 保存不带 `$...$`、`\(...\)`、`\[...\]` 定界符的纯 LaTeX。
-- 数学表达式不要混入中文说明，也不要用 `²`、`×`、`÷`、`≤`、`π` 等 Unicode 数学符号替代 LaTeX 命令。
-- `visualization` 只允许调用 App 已注册 renderer；结构固定为 `type`、`renderer`、`parameters`、`texts`。
-- renderer、参数名、参数类型和文本槽位必须通过 `SchoolVisualizationCatalog` 校验；课程不能声明任意执行代码。
-- 旧 `scene` 步骤不作为兼容格式保留。
+```text
+heading
+text
+formula
+list
+table
+visualization
+```
+
+Assessment 契约另外支持 image；course step 在正式 course asset catalog 落地前禁止 image。
+
+- `text.style` 使用 `body`、`prompt`、`caption`、`explanation`。
+- `formula.expression` 保存不带数学定界符的纯 LaTeX，不混入中文说明或 Unicode 数学符号。
+- `visualization` 仍由 `renderer + parameters + texts` 构成并通过 `SchoolVisualizationCatalog` 严格验证。
+- Activity 描述“用户如何产生语义结果”；Assessment 描述“如何解释稳定结果”；Renderer 不承担判题或 Lesson 流程。
+- Course 只声明 spec，不保存拖动坐标、pressed、pointer id 等 UI 临时状态。
 
 ### 7.6 PDF 契约
 
