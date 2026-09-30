@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.Query
 import androidx.room.Upsert
+import androidx.room.withTransaction
 import com.majortomman.school.learning.assessment.persistence.LearningProgressDatabase
 import com.majortomman.school.learning.progress.CourseProgressSnapshot
 import com.majortomman.school.learning.progress.LessonProgressStatus
@@ -90,26 +91,25 @@ class CourseProgressStore internal constructor(
         nextLessonId: String?,
         atEpochMillis: Long = System.currentTimeMillis(),
     ) {
-        database.runInTransaction {
-            // Room's suspending DAO methods cannot run inside the blocking lambda.
-        }
-        dao.upsert(
-            CourseLessonProgressEntity(
-                courseId = courseId,
-                lessonId = currentLessonId,
-                status = LessonProgressStatus.COMPLETED.name,
-                updatedAtEpochMillis = atEpochMillis,
-            ),
-        )
-        if (nextLessonId != null) {
+        database.withTransaction {
             dao.upsert(
                 CourseLessonProgressEntity(
                     courseId = courseId,
-                    lessonId = nextLessonId,
-                    status = LessonProgressStatus.IN_PROGRESS.name,
-                    updatedAtEpochMillis = atEpochMillis + 1,
+                    lessonId = currentLessonId,
+                    status = LessonProgressStatus.COMPLETED.name,
+                    updatedAtEpochMillis = atEpochMillis,
                 ),
             )
+            if (nextLessonId != null) {
+                dao.upsert(
+                    CourseLessonProgressEntity(
+                        courseId = courseId,
+                        lessonId = nextLessonId,
+                        status = LessonProgressStatus.IN_PROGRESS.name,
+                        updatedAtEpochMillis = atEpochMillis + 1,
+                    ),
+                )
+            }
         }
     }
 
