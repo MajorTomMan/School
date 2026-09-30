@@ -11,6 +11,7 @@ import com.majortomman.school.learning.assessment.domain.QuestionKey
 import com.majortomman.school.learning.assessment.domain.QuestionSetDefinition
 import com.majortomman.school.learning.assessment.domain.SessionId
 import com.majortomman.school.learning.mastery.domain.MasteryState
+import com.majortomman.school.learning.persistence.SchoolLearningDatabase
 
 /**
  * Assessment 有界上下文的持久化入口。
@@ -19,7 +20,7 @@ import com.majortomman.school.learning.mastery.domain.MasteryState
  * 或把课程进度与知识掌握状态混为一体。
  */
 class AssessmentProgressStore internal constructor(
-    private val database: LearningProgressDatabase,
+    private val database: SchoolLearningDatabase,
     private val settlementPlanner: AssessmentSettlementPlanner = AssessmentSettlementPlanner(),
 ) {
     private val dao: AssessmentProgressDao
@@ -299,7 +300,7 @@ class AssessmentProgressStore internal constructor(
 
     companion object {
         fun create(context: Context): AssessmentProgressStore = AssessmentProgressStore(
-            database = LearningProgressDatabase.get(context),
+            database = SchoolLearningDatabase.get(context),
         )
     }
 }
