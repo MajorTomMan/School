@@ -53,7 +53,7 @@ import com.majortomman.school.learning.assessment.contract.CourseAssessmentQuest
 import com.majortomman.school.learning.assessment.contract.KnowledgePointDefinition
 import com.majortomman.school.learning.assessment.domain.AnswerInputSpec
 import com.majortomman.school.learning.assessment.domain.JudgeOutcome
-import com.majortomman.school.learning.assessment.domain.KnowledgePointId
+import com.majortomman.school.learning.knowledge.KnowledgePointId
 import com.majortomman.school.learning.assessment.domain.QuestionCompletionStatus
 import com.majortomman.school.learning.assessment.domain.UserAnswer
 import com.majortomman.school.learning.assessment.persistence.AssessmentProgressStore
