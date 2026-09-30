@@ -40,7 +40,6 @@ fun TodayScreen(
     val lesson = lessons.firstOrNull { it.id == plan.newLessonId } ?: return
     val completed = lessons.count { it.status == LessonProgressStatus.COMPLETED }
     val progress = if (lessons.isEmpty()) 0f else completed.toFloat() / lessons.size.toFloat()
-    val review = lessons.lastOrNull { it.status == LessonProgressStatus.COMPLETED }
     val currentIndex = lessons.indexOfFirst { it.id == lesson.id }
     val next = lessons.getOrNull(currentIndex + 1)
 
@@ -85,7 +84,6 @@ fun TodayScreen(
         Spacer(Modifier.height(30.dp))
         SchoolSectionLabel("今天建议")
         Spacer(Modifier.height(8.dp))
-        review?.let { LearningSuggestionRow("复习", it.title, "回顾概念，巩固基础", "约 10 分钟") { onStartLesson(it.id) } }
         LearningSuggestionRow("练习", lesson.title, "完成当前知识点的应用练习", "约 15 分钟") { onStartLesson(lesson.id) }
         next?.let { LearningSuggestionRow("阅读", it.title, "为下一节内容做准备", "约 10 分钟") { onStartLesson(it.id) } }
 
