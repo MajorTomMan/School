@@ -98,6 +98,18 @@ internal interface LearningEvidenceDao {
     )
     suspend fun evidenceForContext(contextId: String): List<LearningEvidenceEntity>
 
+    @Query(
+        """
+        SELECT knowledgePointId,
+               COUNT(*) AS evidenceCount,
+               MAX(recordedAtEpochMillis) AS lastEvidenceAtEpochMillis
+        FROM learning_evidence
+        WHERE knowledgePointId IN (:knowledgePointIds)
+        GROUP BY knowledgePointId
+        """,
+    )
+    suspend fun evidenceStats(knowledgePointIds: List<String>): List<KnowledgePointEvidenceStats>
+
     @Query("SELECT * FROM mastery_state WHERE knowledgePointId = :knowledgePointId")
     suspend fun findMasteryState(knowledgePointId: String): MasteryStateEntity?
 
@@ -142,6 +154,12 @@ data class LearningEvidenceApplyResult(
     val evidence: List<LearningEvidence>,
     val masteryUpdates: List<MasteryUpdate>,
     val masteryPolicyVersion: Int,
+)
+
+data class KnowledgePointEvidenceStats(
+    val knowledgePointId: String,
+    val evidenceCount: Int,
+    val lastEvidenceAtEpochMillis: Long?,
 )
 
 data class MasteryHistoryPoint(
