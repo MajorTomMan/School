@@ -5,7 +5,7 @@ import com.majortomman.school.learning.assessment.domain.AnswerRule
 import com.majortomman.school.learning.assessment.domain.AssessmentEvidenceFactory
 import com.majortomman.school.learning.assessment.domain.Difficulty
 import com.majortomman.school.learning.assessment.domain.KnowledgeBinding
-import com.majortomman.school.learning.assessment.domain.KnowledgePointId
+import com.majortomman.school.learning.knowledge.KnowledgePointId
 import com.majortomman.school.learning.assessment.domain.QuestionCompletionStatus
 import com.majortomman.school.learning.assessment.domain.QuestionDefinition
 import com.majortomman.school.learning.assessment.domain.QuestionId
