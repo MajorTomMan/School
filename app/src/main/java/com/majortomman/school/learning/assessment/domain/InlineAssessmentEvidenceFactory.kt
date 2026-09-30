@@ -1,5 +1,7 @@
 package com.majortomman.school.learning.assessment.domain
 
+import com.majortomman.school.learning.knowledge.KnowledgePointId
+
 import com.majortomman.school.learning.activity.ActivityId
 import com.majortomman.school.learning.evidence.domain.LearningEvidence
 import com.majortomman.school.learning.evidence.domain.LearningEvidenceOutcome
