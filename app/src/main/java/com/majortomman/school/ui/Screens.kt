@@ -34,7 +34,6 @@ fun CoursePathScreen(
 ) {
     val masteredCount = lessons.count { it.status == LessonProgressStatus.COMPLETED }
     val current = lessons.firstOrNull { it.status == LessonProgressStatus.IN_PROGRESS }
-        ?: lessons.firstOrNull { it.status == MasteryStatus.NEEDS_REVIEW }
         ?: lessons.firstOrNull { it.status == LessonProgressStatus.NOT_STARTED }
     val progress = if (lessons.isEmpty()) 0f else masteredCount.toFloat() / lessons.size.toFloat()
 
@@ -100,7 +99,7 @@ private fun CourseLessonRow(number: Int, lesson: Lesson, onClick: () -> Unit) {
             when (lesson.status) {
                 LessonProgressStatus.COMPLETED -> "已完成"
                 LessonProgressStatus.IN_PROGRESS -> "当前  ›"
-                        LessonProgressStatus.NOT_STARTED -> "›"
+                LessonProgressStatus.NOT_STARTED -> "›"
             },
             color = markerColor,
             style = MaterialTheme.typography.labelMedium,
