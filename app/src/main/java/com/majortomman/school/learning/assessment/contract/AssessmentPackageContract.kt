@@ -1,6 +1,6 @@
 package com.majortomman.school.learning.assessment.contract
 
-import com.majortomman.school.learning.assessment.domain.KnowledgePointId
+import com.majortomman.school.learning.knowledge.KnowledgePointId
 import com.majortomman.school.learning.assessment.domain.QuestionSetId
 import com.majortomman.school.learning.content.ContentAssetId
 import com.majortomman.school.learning.course.CourseDocument
