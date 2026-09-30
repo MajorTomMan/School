@@ -20,9 +20,7 @@ import com.majortomman.school.learning.assessment.domain.QuestionSkipped
 import com.majortomman.school.learning.assessment.domain.SessionId
 import com.majortomman.school.learning.assessment.domain.SessionSummary
 import com.majortomman.school.learning.assessment.domain.UserAnswer
-import com.majortomman.school.learning.mastery.domain.MasteryEvidence
-import com.majortomman.school.learning.mastery.domain.MasteryEvidenceOutcome
-import com.majortomman.school.learning.mastery.domain.MasteryState
+import com.majortomman.school.learning.evidence.domain.LearningEvidence
 import com.majortomman.school.learning.mastery.domain.MasteryUpdate
 
 data class PersistedAssessmentSession(
@@ -40,7 +38,7 @@ data class PersistedLearningEvent(
 
 data class AssessmentSettlementSnapshot(
     val summary: SessionSummary,
-    val evidence: List<MasteryEvidence>,
+    val evidence: List<LearningEvidence>,
     val masteryUpdates: List<MasteryUpdate>,
     val settledAtEpochMillis: Long,
     val alreadySettled: Boolean,
@@ -204,74 +202,6 @@ internal fun SessionSummary.toSettlementEntity(
     explanationViewedQuestionCount = explanationViewedQuestionCount,
     masteryPolicyVersion = policyVersion,
     settledAtEpochMillis = settledAtEpochMillis,
-)
-
-internal fun MasteryEvidence.toEntity(): MasteryEvidenceEntity = MasteryEvidenceEntity(
-    sessionId = sessionId.value,
-    knowledgePointId = knowledgePointId.value,
-    questionId = questionId.value,
-    questionRevision = questionRevision,
-    outcome = outcome.name,
-    score = score,
-    weight = weight,
-    difficulty = difficulty.value,
-    wrongAttemptCount = wrongAttemptCount,
-    hintViewCount = hintViewCount,
-    explanationViewed = explanationViewed,
-)
-
-internal fun MasteryEvidenceEntity.toDomain(): MasteryEvidence = MasteryEvidence(
-    knowledgePointId = KnowledgePointId(knowledgePointId),
-    questionId = QuestionId(questionId),
-    questionRevision = questionRevision,
-    sessionId = SessionId(sessionId),
-    outcome = enumValueOrError(outcome, "mastery evidence outcome"),
-    score = score,
-    weight = weight,
-    difficulty = Difficulty(difficulty),
-    wrongAttemptCount = wrongAttemptCount,
-    hintViewCount = hintViewCount,
-    explanationViewed = explanationViewed,
-)
-
-internal fun MasteryStateEntity.toDomain(): MasteryState = MasteryState(
-    knowledgePointId = KnowledgePointId(knowledgePointId),
-    score = score,
-    accumulatedEvidenceWeight = accumulatedEvidenceWeight,
-)
-
-internal fun MasteryUpdate.toStateEntity(updatedAtEpochMillis: Long): MasteryStateEntity =
-    MasteryStateEntity(
-        knowledgePointId = knowledgePointId.value,
-        score = afterScore,
-        accumulatedEvidenceWeight = afterEvidenceWeight,
-        lastPolicyVersion = policyVersion,
-        updatedAtEpochMillis = updatedAtEpochMillis,
-    )
-
-internal fun MasteryUpdate.toSnapshotEntity(
-    sessionId: SessionId,
-    createdAtEpochMillis: Long,
-): MasterySnapshotEntity = MasterySnapshotEntity(
-    sessionId = sessionId.value,
-    knowledgePointId = knowledgePointId.value,
-    beforeScore = beforeScore,
-    afterScore = afterScore,
-    beforeEvidenceWeight = beforeEvidenceWeight,
-    appliedEvidenceWeight = appliedEvidenceWeight,
-    afterEvidenceWeight = afterEvidenceWeight,
-    policyVersion = policyVersion,
-    createdAtEpochMillis = createdAtEpochMillis,
-)
-
-internal fun MasterySnapshotEntity.toDomain(): MasteryUpdate = MasteryUpdate(
-    knowledgePointId = KnowledgePointId(knowledgePointId),
-    beforeScore = beforeScore,
-    afterScore = afterScore,
-    beforeEvidenceWeight = beforeEvidenceWeight,
-    appliedEvidenceWeight = appliedEvidenceWeight,
-    afterEvidenceWeight = afterEvidenceWeight,
-    policyVersion = policyVersion,
 )
 
 internal fun AssessmentSettlementEntity.verifyAgainst(summary: SessionSummary) {
