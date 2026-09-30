@@ -1,5 +1,7 @@
 package com.majortomman.school.learning.assessment.domain
 
+import com.majortomman.school.learning.knowledge.KnowledgePointId
+
 import java.math.BigInteger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
