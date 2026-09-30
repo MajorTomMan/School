@@ -1,14 +1,14 @@
 package com.majortomman.school.learning.course
 
-import com.majortomman.school.visualization.VisualizationInvocation
+import com.majortomman.school.learning.activity.ActivitySpec
+import com.majortomman.school.learning.assessment.domain.InlineAssessmentSpec
+import com.majortomman.school.learning.content.LearningContent
 
 /**
  * Authored learning course contract.
  *
- * The textbook is a reference source, not the course body. Course packages contain original
- * teaching lessons, structured practice and optional visualization invocations. Visualization
- * input is deliberately limited to renderer + typed parameters + text and is validated before
- * the course becomes active.
+ * Course packages describe teaching structure and declarative content only. Runtime state,
+ * layout, rendering and activity execution remain APK-owned.
  */
 data class CourseDocument(
     val textbook: CourseTextbook,
@@ -61,8 +61,6 @@ data class CourseLesson(
     val prerequisiteLessonIds: List<String>,
     val references: List<CourseSourceReference>,
     val steps: List<CourseStep>,
-    val practice: List<CoursePractice>,
-    val summary: List<String>,
 )
 
 data class CourseSourceReference(
@@ -71,38 +69,31 @@ data class CourseSourceReference(
     val pageEnd: Int,
 )
 
-sealed interface CourseStep
+enum class CourseStepRole {
+    EXPLANATION,
+    INQUIRY,
+    EXAMPLE,
+    KEY_IDEA,
+    PRACTICE,
+    CHECKPOINT,
+    SUMMARY,
+}
 
-data class CourseExplanation(val title: String?, val text: String) : CourseStep
-
-data class CourseQuestion(val prompt: String, val hint: String?) : CourseStep
-
-data class CourseKeyIdea(val title: String?, val text: String) : CourseStep
-
-data class CourseFormula(val expression: String, val note: String?) : CourseStep
-
-data class CourseExample(
-    val title: String,
-    val prompt: String,
-    val steps: List<String>,
-    val answer: String,
-) : CourseStep
-
-data class CourseVisualizationStep(val visualization: VisualizationInvocation) : CourseStep
-
-data class CourseCheckpoint(
-    val prompt: String,
-    val expectedAnswer: String,
-    val explanation: String,
-) : CourseStep
-
-data class CourseSummaryStep(val text: String) : CourseStep
-
-data class CoursePractice(
+data class CourseStep(
     val id: String,
-    val prompt: String,
-    val answer: String,
-    val analysis: List<String>,
-    val knowledgePointIds: List<String>,
-    val difficulty: Int,
-)
+    val role: CourseStepRole,
+    val title: String?,
+    val content: List<LearningContent>,
+    val activity: ActivitySpec? = null,
+    val assessment: InlineAssessmentSpec? = null,
+) {
+    init {
+        require(id.isNotBlank()) { "step id 不能为空" }
+        require(title == null || title.isNotBlank()) { "step title 不能为空字符串" }
+        require(content.isNotEmpty() || activity != null) { "step " + id + " 必须包含内容或活动" }
+        require(assessment == null || activity != null) { "step " + id + " 声明 assessment 时必须同时声明 activity" }
+        require(activity != null || role !in setOf(CourseStepRole.PRACTICE, CourseStepRole.CHECKPOINT)) {
+            "step " + id + " 的 " + role.name.lowercase() + " 必须声明 activity"
+        }
+    }
+}
