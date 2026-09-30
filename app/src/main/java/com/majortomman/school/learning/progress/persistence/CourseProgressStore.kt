@@ -41,12 +41,11 @@ internal interface CourseProgressDao {
     @Query(
         """
         SELECT * FROM course_lesson_progress
-        WHERE courseId = :courseId
-        ORDER BY updatedAtEpochMillis DESC, lessonId DESC
+        WHERE courseId = :courseId AND lessonId = :lessonId
         LIMIT 1
         """,
     )
-    suspend fun latest(courseId: String): CourseLessonProgressEntity?
+    suspend fun find(courseId: String, lessonId: String): CourseLessonProgressEntity?
 
     @Upsert
     suspend fun upsert(entity: CourseLessonProgressEntity)
@@ -101,14 +100,17 @@ class CourseProgressStore internal constructor(
                 ),
             )
             if (nextLessonId != null) {
-                dao.upsert(
-                    CourseLessonProgressEntity(
-                        courseId = courseId,
-                        lessonId = nextLessonId,
-                        status = LessonProgressStatus.IN_PROGRESS.name,
-                        updatedAtEpochMillis = atEpochMillis + 1,
-                    ),
-                )
+                val next = dao.find(courseId, nextLessonId)
+                if (next?.status != LessonProgressStatus.COMPLETED.name) {
+                    dao.upsert(
+                        CourseLessonProgressEntity(
+                            courseId = courseId,
+                            lessonId = nextLessonId,
+                            status = LessonProgressStatus.IN_PROGRESS.name,
+                            updatedAtEpochMillis = atEpochMillis + 1,
+                        ),
+                    )
+                }
             }
         }
     }
