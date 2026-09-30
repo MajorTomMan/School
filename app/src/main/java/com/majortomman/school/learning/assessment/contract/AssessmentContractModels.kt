@@ -1,7 +1,7 @@
 package com.majortomman.school.learning.assessment.contract
 
 import com.majortomman.school.learning.assessment.domain.AnswerInputSpec
-import com.majortomman.school.learning.assessment.domain.KnowledgePointId
+import com.majortomman.school.learning.knowledge.KnowledgePointId
 import com.majortomman.school.learning.assessment.domain.QuestionDefinition
 import com.majortomman.school.learning.assessment.domain.QuestionSetDefinition
 import com.majortomman.school.learning.assessment.domain.QuestionSetId
