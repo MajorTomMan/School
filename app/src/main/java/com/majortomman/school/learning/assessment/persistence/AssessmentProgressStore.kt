@@ -10,6 +10,8 @@ import com.majortomman.school.learning.assessment.domain.QuestionDefinition
 import com.majortomman.school.learning.assessment.domain.QuestionKey
 import com.majortomman.school.learning.assessment.domain.QuestionSetDefinition
 import com.majortomman.school.learning.assessment.domain.SessionId
+import com.majortomman.school.learning.evidence.persistence.LearningEvidenceStore
+import com.majortomman.school.learning.evidence.persistence.MasteryHistoryPoint
 import com.majortomman.school.learning.mastery.domain.MasteryState
 import com.majortomman.school.learning.persistence.SchoolLearningDatabase
 
@@ -25,6 +27,7 @@ class AssessmentProgressStore internal constructor(
 ) {
     private val dao: AssessmentProgressDao
         get() = database.assessmentProgressDao()
+    private val evidenceStore = LearningEvidenceStore(database)
 
     suspend fun startSession(
         courseId: String,
@@ -167,34 +170,23 @@ class AssessmentProgressStore internal constructor(
 
         val attempts = dao.attemptsForSession(sessionId.value).map(AssessmentAttemptEntity::toDomain)
         val events = dao.eventsForSession(sessionId.value).map(AssessmentEventEntity::toDomain)
-        val knowledgePointIds = questionSet.questions
-            .flatMap(QuestionDefinition::knowledgeBindings)
-            .map { it.knowledgePointId }
-            .distinct()
-        val currentMastery = buildMap {
-            knowledgePointIds.forEach { id ->
-                dao.findMasteryState(id.value)?.let { put(id, it.toDomain()) }
-            }
-        }
         val plan = settlementPlanner.plan(
+            courseId = session.courseId,
+            contentRevision = session.contentRevision,
             sessionId = sessionId,
             questionSet = questionSet,
             attempts = attempts,
             events = events.map(PersistedLearningEvent::event),
-            currentMastery = currentMastery,
         )
 
         dao.insertQuestionResults(plan.summary.questionResults.map { it.toEntity(sessionId) })
-        if (plan.evidence.isNotEmpty()) {
-            dao.insertMasteryEvidence(plan.evidence.map { it.toEntity() })
-        }
-        plan.masteryUpdates.forEach { update ->
-            dao.upsertMasteryState(update.toStateEntity(settledAtEpochMillis))
-            dao.insertMasterySnapshot(update.toSnapshotEntity(sessionId, settledAtEpochMillis))
-        }
+        val appliedEvidence = evidenceStore.recordInsideTransaction(
+            evidence = plan.evidence,
+            recordedAtEpochMillis = settledAtEpochMillis,
+        )
         dao.insertSettlement(
             plan.summary.toSettlementEntity(
-                policyVersion = plan.masteryPolicyVersion,
+                policyVersion = appliedEvidence.masteryPolicyVersion,
                 settledAtEpochMillis = settledAtEpochMillis,
             ),
         )
@@ -208,8 +200,8 @@ class AssessmentProgressStore internal constructor(
 
         AssessmentSettlementSnapshot(
             summary = plan.summary,
-            evidence = plan.evidence,
-            masteryUpdates = plan.masteryUpdates,
+            evidence = appliedEvidence.evidence,
+            masteryUpdates = appliedEvidence.masteryUpdates,
             settledAtEpochMillis = settledAtEpochMillis,
             alreadySettled = false,
         )
@@ -221,17 +213,15 @@ class AssessmentProgressStore internal constructor(
         }
 
     suspend fun masteryState(knowledgePointId: KnowledgePointId): MasteryState? =
-        dao.findMasteryState(knowledgePointId.value)?.toDomain()
+        evidenceStore.masteryState(knowledgePointId)
 
     suspend fun masteryHistory(knowledgePointId: KnowledgePointId): List<MasteryHistoryPoint> =
-        dao.masterySnapshotsForKnowledgePoint(knowledgePointId.value).map(
-            MasterySnapshotEntity::toHistoryPoint,
-        )
+        evidenceStore.masteryHistory(knowledgePointId)
 
     suspend fun clearAll() {
         database.withTransaction {
             dao.clearSessions()
-            dao.clearMasteryStates()
+            evidenceStore.clearInsideTransaction()
         }
     }
 
@@ -262,12 +252,8 @@ class AssessmentProgressStore internal constructor(
         settlement.verifyAgainst(summary)
         return AssessmentSettlementSnapshot(
             summary = summary,
-            evidence = dao.masteryEvidenceForSession(settlement.sessionId).map(
-                MasteryEvidenceEntity::toDomain,
-            ),
-            masteryUpdates = dao.masterySnapshotsForSession(settlement.sessionId).map(
-                MasterySnapshotEntity::toDomain,
-            ),
+            evidence = evidenceStore.evidenceForContext(settlement.sessionId),
+            masteryUpdates = evidenceStore.masteryUpdatesForContext(settlement.sessionId),
             settledAtEpochMillis = settlement.settledAtEpochMillis,
             alreadySettled = alreadySettled,
         )
