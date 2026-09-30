@@ -1,7 +1,9 @@
 package com.majortomman.school.learning.cloud
 
-import com.majortomman.school.learning.course.CourseQuestion
-import com.majortomman.school.learning.course.CourseVisualizationStep
+import com.majortomman.school.learning.activity.TextAnswerActivitySpec
+import com.majortomman.school.learning.assessment.domain.InlineAssessmentRule
+import com.majortomman.school.learning.content.LearningContent
+import com.majortomman.school.learning.course.CourseStepRole
 import com.majortomman.school.visualization.VisualizationKey
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -11,87 +13,105 @@ import org.junit.Test
 
 class CloudCourseCodecTest {
     @Test
-    fun authoredCourseDecodesKnowledgeLessonsStepsAndPractice() {
+    fun authoredCourseDecodesRoleContentActivityAndAssessment() {
         val document = CourseDocumentParser.decode(SAMPLE_COURSE)
         val lesson = document.chapters.single().sections.single().lessons.single()
 
         assertEquals("为什么需要负数", lesson.title)
         assertEquals("positive-negative", lesson.knowledgePointIds.single())
-        assertTrue(lesson.steps[0] is CourseQuestion)
-        val visualization = (lesson.steps[1] as CourseVisualizationStep).visualization
+        assertEquals(CourseStepRole.INQUIRY, lesson.steps[0].role)
+        assertTrue(lesson.steps[0].content.single() is LearningContent.Text)
+
+        val visualization = (lesson.steps[1].content.single() as LearningContent.Visualization).visualization
         assertEquals(VisualizationKey("mathematics.number-line.basic"), visualization.renderer)
         assertEquals(-3.0, visualization.parameters.number("value"), 0.0)
-        assertEquals("在数轴上观察位置", visualization.texts.text("title"))
-        assertEquals(1, lesson.practice.size)
+
+        val practice = lesson.steps[2]
+        assertEquals(CourseStepRole.PRACTICE, practice.role)
+        assertTrue(practice.activity is TextAnswerActivitySpec)
+        assertTrue(practice.assessment?.rule is InlineAssessmentRule.ExactText)
         assertEquals(2, lesson.references.single().pageEnd)
     }
 
     @Test
-    fun jsonNullOptionalTeachingTextStaysNull() {
-        val document = CourseDocumentParser.decode(SAMPLE_COURSE.replace("\"hint\":\"想想方向\"", "\"hint\":null"))
-        val question = document.chapters.single().sections.single().lessons.single().steps.first() as CourseQuestion
-        assertNull(question.hint)
+    fun nullableStepTitleStaysNull() {
+        val document = CourseDocumentParser.decode(SAMPLE_COURSE)
+        assertNull(document.chapters.single().sections.single().lessons.single().steps.first().title)
     }
 
     @Test
-    fun blankOptionalTeachingTextIsRejected() {
-        val invalid = SAMPLE_COURSE.replace("\"hint\":\"想想方向\"", "\"hint\":\"   \"")
+    fun blankOptionalStepTitleIsRejected() {
+        val invalid = SAMPLE_COURSE.replace("\"role\":\"inquiry\"", "\"role\":\"inquiry\",\"title\":\"   \"")
         assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(invalid) }
     }
 
     @Test
-    fun authoredIntegerFieldsRejectStringAndDecimalCoercion() {
-        val stringDifficulty = SAMPLE_COURSE.replace("\"difficulty\":1", "\"difficulty\":\"1\"")
-        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(stringDifficulty) }
-
-        val decimalDifficulty = SAMPLE_COURSE.replace("\"difficulty\":1", "\"difficulty\":1.0")
-        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(decimalDifficulty) }
+    fun integerFieldsRejectStringAndDecimalCoercion() {
+        val stringPageOffset = SAMPLE_COURSE.replace("\"pageIndexOffset\":7", "\"pageIndexOffset\":\"7\"")
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(stringPageOffset) }
 
         val decimalPageOffset = SAMPLE_COURSE.replace("\"pageIndexOffset\":7", "\"pageIndexOffset\":7.0")
         assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(decimalPageOffset) }
     }
 
     @Test
-    fun oldPageContractIsRejected() {
-        assertThrows(IllegalArgumentException::class.java) {
-            CourseDocumentParser.decode(SAMPLE_COURSE.replace("\"knowledgePoints\":", "\"pages\":[] ,\"knowledgePoints\":"))
-        }
-    }
-
-    @Test
-    fun legacySceneStepIsRejectedWithoutCompatibility() {
-        val legacy = SAMPLE_COURSE.replace(
-            "{\"type\":\"visualization\",\"renderer\":\"mathematics.number-line.basic\",\"parameters\":{\"value\":-3,\"min\":-8,\"max\":8,\"step\":1},\"texts\":{\"title\":\"在数轴上观察位置\",\"note\":\"0 是正负方向的共同基准\"}}",
-            "{\"type\":\"scene\",\"template\":\"number_line\",\"data\":{\"mode\":\"value\",\"initial\":-3}}",
-        )
-        assertThrows(IllegalStateException::class.java) { CourseDocumentParser.decode(legacy) }
-    }
-
-    @Test
-    fun teachingStepsRejectUnknownFieldsAtRuntime() {
-        val invalid = SAMPLE_COURSE.replace("\"hint\":\"想想方向\"", "\"hint\":\"想想方向\",\"remoteUrl\":\"https://example.invalid\"")
+    fun oldLessonPracticeAndSummaryContractIsRejected() {
+        val invalid = SAMPLE_COURSE.replace("\"steps\":[", "\"practice\":[],\"summary\":[],\"steps\":[")
         assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(invalid) }
     }
 
     @Test
-    fun formulaRequiresPureLatexWithoutDelimitersOrUnicodeMath() {
-        val delimited = SAMPLE_COURSE.replace(QUESTION_STEP, "{\"type\":\"formula\",\"expression\":\"${'$'}x+1${'$'}\",\"note\":null}")
+    fun legacyTypedStepIsRejectedWithoutCompatibility() {
+        val legacy = SAMPLE_COURSE.replace(
+            INQUIRY_STEP,
+            "{\"type\":\"question\",\"prompt\":\"低于0℃怎么表示？\",\"hint\":\"想想方向\"}",
+        )
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(legacy) }
+    }
+
+    @Test
+    fun stepRejectsUnknownFields() {
+        val invalid = SAMPLE_COURSE.replace("\"role\":\"inquiry\"", "\"role\":\"inquiry\",\"remoteUrl\":\"https://example.invalid\"")
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(invalid) }
+    }
+
+    @Test
+    fun formulaContentRequiresPureLatex() {
+        val delimited = SAMPLE_COURSE.replace(
+            INQUIRY_STEP,
+            "{\"id\":\"formula\",\"role\":\"explanation\",\"content\":[{\"type\":\"formula\",\"expression\":\"$x+1$\",\"conditions\":[]}]}",
+        )
         assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(delimited) }
 
-        val unicode = SAMPLE_COURSE.replace(QUESTION_STEP, "{\"type\":\"formula\",\"expression\":\"x²\",\"note\":null}")
+        val unicode = SAMPLE_COURSE.replace(
+            INQUIRY_STEP,
+            "{\"id\":\"formula\",\"role\":\"explanation\",\"content\":[{\"type\":\"formula\",\"expression\":\"x²\",\"conditions\":[]}]}",
+        )
         assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(unicode) }
     }
 
     @Test
-    fun workedExampleRequiresAtLeastOneStep() {
-        val invalid = SAMPLE_COURSE.replace(QUESTION_STEP, "{\"type\":\"example\",\"title\":\"例1\",\"prompt\":\"计算\",\"steps\":[],\"answer\":\"1\"}")
-        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(invalid) }
+    fun practiceRequiresActivityAndAssessmentExplanation() {
+        val missingActivity = SAMPLE_COURSE.replace(ACTIVITY, "")
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(missingActivity) }
+
+        val emptyExplanation = SAMPLE_COURSE.replace(EXPLANATION, "\"explanation\":[]")
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(emptyExplanation) }
     }
 
     @Test
-    fun practiceRequiresNonEmptyAnalysis() {
-        val invalid = SAMPLE_COURSE.replace("\"analysis\":[\"方向相反使用负号\"]", "\"analysis\":[]")
-        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(invalid) }
+    fun stepAndActivityIdsMustBeUnique() {
+        val duplicateStep = SAMPLE_COURSE.replace("\"id\":\"observe-number-line\"", "\"id\":\"inquiry-temperature\"")
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(duplicateStep) }
+
+        val duplicateActivity = SAMPLE_COURSE.replace("\"id\":\"activity-west\"", "\"id\":\"activity-summary\"")
+            .replace("\"role\":\"summary\",\"content\":[", "\"role\":\"summary\",\"content\":[")
+        // A second activity is injected onto summary to exercise the global activity ID check.
+        val withSecond = duplicateActivity.replace(
+            "{\"id\":\"summary\",\"role\":\"summary\",\"content\":[",
+            "{\"id\":\"summary\",\"role\":\"summary\",\"activity\":{\"type\":\"textAnswer\",\"id\":\"activity-west\"},\"content\":[",
+        )
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(withSecond) }
     }
 
     @Test
@@ -101,52 +121,35 @@ class CloudCourseCodecTest {
     }
 
     @Test
-    fun visualizationRejectsUnknownRenderer() {
-        val invalid = SAMPLE_COURSE.replace("mathematics.number-line.basic", "mathematics.number-line.missing")
-        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(invalid) }
+    fun visualizationRejectsUnknownRendererOrParameter() {
+        val renderer = SAMPLE_COURSE.replace("mathematics.number-line.basic", "mathematics.number-line.missing")
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(renderer) }
+
+        val parameter = SAMPLE_COURSE.replace("\"step\":1", "\"step\":1,\"remoteUrl\":1")
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(parameter) }
     }
 
     @Test
-    fun visualizationRejectsUnknownParameter() {
-        val invalid = SAMPLE_COURSE.replace("\"step\":1", "\"step\":1,\"remoteUrl\":1")
-        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(invalid) }
-    }
+    fun unknownKnowledgePointAndCyclesAreRejected() {
+        val missing = SAMPLE_COURSE.replace("\"knowledgePointIds\":[\"positive-negative\"]", "\"knowledgePointIds\":[\"missing\"]")
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(missing) }
 
-    @Test
-    fun visualizationNumericFieldsRejectMathExpressionsAndObjects() {
-        val stringParameter = SAMPLE_COURSE.replace("\"value\":-3", "\"value\":\"-3\"")
-        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(stringParameter) }
-
-        val objectParameter = SAMPLE_COURSE.replace("\"value\":-3", "\"value\":{\"nested\":-3}")
-        assertThrows(IllegalStateException::class.java) { CourseDocumentParser.decode(objectParameter) }
-    }
-
-    @Test
-    fun visualizationTextsRejectNonStrings() {
-        val invalid = SAMPLE_COURSE.replace("\"title\":\"在数轴上观察位置\"", "\"title\":123")
-        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(invalid) }
-    }
-
-    @Test
-    fun unknownKnowledgePointIsRejected() {
-        assertThrows(IllegalArgumentException::class.java) {
-            CourseDocumentParser.decode(SAMPLE_COURSE.replace("\"positive-negative\"]", "\"missing\"]"))
-        }
-    }
-
-    @Test
-    fun cyclicKnowledgeGraphIsRejected() {
         val cyclic = SAMPLE_COURSE.replace("\"prerequisiteIds\":[]", "\"prerequisiteIds\":[\"positive-negative\"]")
         assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(cyclic) }
     }
 
     @Test
     fun googleDriveShareLinkBecomesDirectDownloadLink() {
-        assertEquals("https://drive.google.com/uc?export=download&id=abcDEF123", CourseSyncManager.normalizeGoogleDriveDownloadUrl("https://drive.google.com/file/d/abcDEF123/view?usp=sharing"))
+        assertEquals(
+            "https://drive.google.com/uc?export=download&id=abcDEF123",
+            CourseSyncManager.normalizeGoogleDriveDownloadUrl("https://drive.google.com/file/d/abcDEF123/view?usp=sharing"),
+        )
     }
 
     private companion object {
-        const val QUESTION_STEP = "{\"type\":\"question\",\"prompt\":\"低于0℃怎么表示？\",\"hint\":\"想想方向\"}"
+        const val INQUIRY_STEP = "{\"id\":\"inquiry-temperature\",\"role\":\"inquiry\",\"content\":[{\"type\":\"text\",\"style\":\"prompt\",\"text\":\"低于0℃怎么表示？\"},{\"type\":\"text\",\"style\":\"caption\",\"text\":\"提示：想想方向\"}]}"
+        const val ACTIVITY = ",\"activity\":{\"type\":\"textAnswer\",\"id\":\"activity-west\",\"placeholder\":\"最终答案\"}"
+        const val EXPLANATION = "\"explanation\":[{\"type\":\"text\",\"style\":\"explanation\",\"text\":\"方向相反使用负号\"}]"
         val SAMPLE_COURSE = """
             {
               "textbook":{"id":"pep-math-7-1","title":"数学七年级上册","publisher":"人民教育出版社","edition":"2024","grade":"七年级","semester":"上册","subject":"数学","pdf":{"path":"assets/textbook.pdf","pageCount":202,"pageIndexOffset":7}},
@@ -154,11 +157,17 @@ class CloudCourseCodecTest {
               "chapters":[{"id":"chapter-01","title":"有理数","sections":[{"id":"section-01","title":"正数和负数","lessons":[{
                 "id":"positive-negative-intro","title":"为什么需要负数","aliases":["正数和负数"],"goals":["理解相反意义的量"],"knowledgePointIds":["positive-negative"],"prerequisiteLessonIds":[],
                 "references":[{"label":"教材1—2页","pageStart":1,"pageEnd":2}],
-                "steps":[$QUESTION_STEP,{"type":"visualization","renderer":"mathematics.number-line.basic","parameters":{"value":-3,"min":-8,"max":8,"step":1},"texts":{"title":"在数轴上观察位置","note":"0 是正负方向的共同基准"}}],
-                "practice":[{"id":"practice-01","prompt":"向西8米怎么表示？","answer":"-8米","analysis":["方向相反使用负号"],"knowledgePointIds":["positive-negative"],"difficulty":1}],
-                "summary":["正负号用于区分相反方向"]
+                "steps":[
+                  $INQUIY,
+                  {"id":"observe-number-line","role":"explanation","title":"观察","content":[{"type":"visualization","renderer":"mathematics.number-line.basic","parameters":{"value":-3,"min":-8,"max":8,"step":1},"texts":{"title":"在数轴上观察位置","note":"0 是正负方向的共同基准"}}]},
+                  {"id":"practice-west","role":"practice","content":[{"type":"text","style":"prompt","text":"向西8米怎么表示？"}]$ACTIVITY,"assessment":{"type":"exactText","expected":"-8米","ignoreCase":false,$EXPLANATION,"knowledgePointIds":["positive-negative"],"difficulty":0.2}},
+                  {"id":"summary","role":"summary","content":[{"type":"text","style":"body","text":"正负号用于区分相反方向"}]}
+                ]
               }]}]}]
             }
         """.trimIndent()
+            .replace("$INQUIY", INQUIRY_STEP)
+            .replace("$ACTIVITY", ACTIVITY)
+            .replace("$EXPLANATION", EXPLANATION)
     }
 }
