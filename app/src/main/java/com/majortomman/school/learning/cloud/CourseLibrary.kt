@@ -1,6 +1,14 @@
 package com.majortomman.school.learning.cloud
 
 import android.content.Context
+import com.majortomman.school.learning.assessment.contract.ASSESSMENTS_FILE_NAME
+import com.majortomman.school.learning.assessment.contract.AssessmentDocument
+import com.majortomman.school.learning.assessment.contract.AssessmentDocumentParser
+import com.majortomman.school.learning.assessment.contract.AssessmentPackageContract
+import com.majortomman.school.learning.assessment.contract.KNOWLEDGE_POINTS_FILE_NAME
+import com.majortomman.school.learning.assessment.contract.KnowledgePointDocument
+import com.majortomman.school.learning.assessment.contract.KnowledgePointDocumentParser
+import com.majortomman.school.learning.content.ContentAssetId
 import com.majortomman.school.learning.course.CourseDocument
 import com.majortomman.school.learning.course.CourseLesson
 import java.io.File
@@ -11,6 +19,8 @@ data class InstalledCourse(
     val rootPath: String,
     val document: CourseDocument,
     val contentVersion: Long,
+    val assessments: AssessmentDocument? = null,
+    val assessmentKnowledgePoints: KnowledgePointDocument? = null,
 ) {
     val id: String get() = document.textbook.id
     val title: String get() = document.textbook.title
@@ -19,6 +29,10 @@ data class InstalledCourse(
     val semester: String get() = document.textbook.semester
     val pdfFile: File get() = File(rootPath, document.textbook.pdf.path)
     val lessons: List<CourseLesson> get() = document.chapters.flatMap { chapter -> chapter.sections.flatMap { section -> section.lessons } }
+
+    fun assessmentAssetFiles(): Map<ContentAssetId, File> = assessments?.assets.orEmpty().associate { asset ->
+        asset.id to File(rootPath, asset.path)
+    }
 
     fun printedPageToPdfIndex(printedPage: Int): Int = printedPage + document.textbook.pdf.pageIndexOffset - 1
 
@@ -85,7 +99,28 @@ object CourseLibraryRepository {
             require(document.textbook.id == root.name) { "课程目录与教材 ID 不一致" }
             val pdf = File(root, document.textbook.pdf.path)
             require(pdf.isFile) { "课程缺少教材 PDF" }
-            InstalledCourse(root.absolutePath, document, courseFile.lastModified())
+
+            val assessmentsFile = File(root, ASSESSMENTS_FILE_NAME)
+            val knowledgePointsFile = File(root, KNOWLEDGE_POINTS_FILE_NAME)
+            require(assessmentsFile.isFile == knowledgePointsFile.isFile) {
+                "$ASSESSMENTS_FILE_NAME 与 $KNOWLEDGE_POINTS_FILE_NAME 必须同时存在"
+            }
+            val assessments = assessmentsFile.takeIf(File::isFile)?.let {
+                AssessmentDocumentParser.decode(it.readText(Charsets.UTF_8))
+            }
+            val assessmentKnowledgePoints = knowledgePointsFile.takeIf(File::isFile)?.let {
+                KnowledgePointDocumentParser.decode(it.readText(Charsets.UTF_8))
+            }
+            if (assessments != null && assessmentKnowledgePoints != null) {
+                AssessmentPackageContract.validate(document, assessments, assessmentKnowledgePoints)
+            }
+            InstalledCourse(
+                rootPath = root.absolutePath,
+                document = document,
+                contentVersion = courseFile.lastModified(),
+                assessments = assessments,
+                assessmentKnowledgePoints = assessmentKnowledgePoints,
+            )
         }.getOrNull()
     }
 }
