@@ -6,7 +6,7 @@ import androidx.room.Index
 import androidx.room.Query
 import androidx.room.Upsert
 import androidx.room.withTransaction
-import com.majortomman.school.learning.assessment.persistence.LearningProgressDatabase
+import com.majortomman.school.learning.persistence.SchoolLearningDatabase
 import com.majortomman.school.learning.progress.CourseProgressSnapshot
 import com.majortomman.school.learning.progress.LessonProgressStatus
 import kotlinx.coroutines.flow.Flow
@@ -55,7 +55,7 @@ internal interface CourseProgressDao {
 }
 
 class CourseProgressStore internal constructor(
-    private val database: LearningProgressDatabase,
+    private val database: SchoolLearningDatabase,
 ) {
     private val dao: CourseProgressDao
         get() = database.courseProgressDao()
@@ -121,6 +121,6 @@ class CourseProgressStore internal constructor(
 
     companion object {
         fun create(context: android.content.Context): CourseProgressStore =
-            CourseProgressStore(LearningProgressDatabase.get(context))
+            CourseProgressStore(SchoolLearningDatabase.get(context))
     }
 }
