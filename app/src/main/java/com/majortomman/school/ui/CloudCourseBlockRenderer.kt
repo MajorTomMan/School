@@ -26,217 +26,162 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.majortomman.school.learning.course.CourseCheckpoint
-import com.majortomman.school.learning.course.CourseExample
-import com.majortomman.school.learning.course.CourseExplanation
-import com.majortomman.school.learning.course.CourseFormula
-import com.majortomman.school.learning.course.CourseKeyIdea
-import com.majortomman.school.learning.course.CourseLesson
-import com.majortomman.school.learning.course.CoursePractice
-import com.majortomman.school.learning.course.CourseQuestion
+import com.majortomman.school.learning.activity.TextAnswerActivitySpec
+import com.majortomman.school.learning.assessment.domain.InlineAssessmentRule
+import com.majortomman.school.learning.content.LearningContent
 import com.majortomman.school.learning.course.CourseStep
-import com.majortomman.school.learning.course.CourseSummaryStep
-import com.majortomman.school.learning.course.CourseVisualizationStep
-import com.majortomman.school.learning.science.math.MathFormulaStatus
-import com.majortomman.school.learning.science.math.MathFormulaVerifier
+import com.majortomman.school.learning.course.CourseStepRole
 import com.majortomman.school.visualization.SchoolVisualization
 
 @Composable
-internal fun AuthoredTeachingPageContent(steps: List<CourseStep>, lesson: CourseLesson) {
+internal fun AuthoredTeachingContent(steps: List<CourseStep>) {
     steps.forEachIndexed { index, step ->
-        if (index > 0) Spacer(Modifier.height(SchoolUiMetrics.sectionGap))
+        if (index > 0) {
+            Spacer(Modifier.height(SchoolUiMetrics.sectionGap))
+            SchoolDivider()
+            Spacer(Modifier.height(18.dp))
+        }
         AuthoredStep(step)
     }
 }
 
 @Composable
-internal fun AuthoredPracticePage(practice: CoursePractice, number: Int, total: Int) {
-    var workProcess by rememberSaveable(practice.id, "work") { mutableStateOf("") }
-    var answerDraft by rememberSaveable(practice.id, "answer") { mutableStateOf("") }
-    var checked by rememberSaveable(practice.id, "checked") { mutableStateOf(false) }
-    var correct by rememberSaveable(practice.id, "correct") { mutableStateOf(false) }
-    var hintRevealed by rememberSaveable(practice.id, "hint") { mutableStateOf(false) }
-    var solutionRevealed by rememberSaveable(practice.id, "solution") { mutableStateOf(false) }
+private fun AuthoredStep(step: CourseStep) {
+    val title = step.title ?: defaultTitle(step.role)
+    if (title != null) {
+        SchoolSectionLabel(title, color = roleColor(step.role))
+        Spacer(Modifier.height(14.dp))
+    }
+    LearningContentList(step.content)
+    step.activity?.let {
+        Spacer(Modifier.height(18.dp))
+        when (it) {
+            is TextAnswerActivitySpec -> TextAnswerActivity(step, it)
+        }
+    }
+}
 
-    SchoolSectionLabel("练习 $number / $total", color = MaterialTheme.colorScheme.secondary)
-    Spacer(Modifier.height(14.dp))
-    Text(text = practice.prompt, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Medium)
-    Spacer(Modifier.height(24.dp))
+@Composable
+private fun LearningContentList(content: List<LearningContent>) {
+    content.forEachIndexed { index, item ->
+        if (index > 0) Spacer(Modifier.height(12.dp))
+        when (item) {
+            is LearningContent.Heading -> Text(item.text, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            is LearningContent.Text -> Text(
+                item.text,
+                color = when (item.style) {
+                    com.majortomman.school.learning.content.LearningTextStyle.PROMPT -> MaterialTheme.colorScheme.onBackground
+                    com.majortomman.school.learning.content.LearningTextStyle.CAPTION -> MaterialTheme.colorScheme.onSurfaceVariant
+                    com.majortomman.school.learning.content.LearningTextStyle.EXPLANATION -> MaterialTheme.colorScheme.onSurfaceVariant
+                    com.majortomman.school.learning.content.LearningTextStyle.BODY -> MaterialTheme.colorScheme.onBackground
+                },
+                style = if (item.style == com.majortomman.school.learning.content.LearningTextStyle.PROMPT) MaterialTheme.typography.titleLarge else MaterialTheme.typography.bodyLarge,
+                fontWeight = if (item.style == com.majortomman.school.learning.content.LearningTextStyle.PROMPT) FontWeight.Medium else FontWeight.Normal,
+            )
+            is LearningContent.Formula -> {
+                SchoolFormula(
+                    latex = item.expression,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                    color = MaterialTheme.colorScheme.secondary,
+                    style = MaterialTheme.typography.headlineMedium,
+                )
+                item.conditions.forEach { condition ->
+                    Text(condition, modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+                }
+            }
+            is LearningContent.ItemList -> item.items.forEach { value ->
+                Row(modifier = Modifier.padding(vertical = 3.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
+                    Text("•", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyLarge)
+                    Text(value, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+            is LearningContent.Table -> {
+                item.caption?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge) }
+                Text(item.columns.joinToString("   "), color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                item.rows.forEach { row -> Text(row.joinToString("   "), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium) }
+            }
+            is LearningContent.Visualization -> Box(Modifier.fillMaxWidth().height(360.dp)) {
+                SchoolVisualization(item.visualization, Modifier.fillMaxWidth())
+            }
+            is LearningContent.Image -> error("Course image content must be rejected by CourseDocumentParser")
+        }
+    }
+}
 
-    PracticeDraftField(
-        label = "做题过程（可选）",
-        hint = "把计算、推导或你的判断过程写在这里。过程和最终答案分开保存。",
-        value = workProcess,
-        minHeight = 112,
-        onValueChange = { if (it.length <= 12_000) workProcess = it },
-    )
-    Spacer(Modifier.height(18.dp))
-    PracticeDraftField(
-        label = "最终答案",
-        hint = "这里只写最后答案",
-        value = answerDraft,
-        minHeight = 48,
+@Composable
+private fun TextAnswerActivity(step: CourseStep, spec: TextAnswerActivitySpec) {
+    var answer by rememberSaveable(spec.id.value) { mutableStateOf("") }
+    var checked by rememberSaveable(spec.id.value, "checked") { mutableStateOf(false) }
+    val assessment = step.assessment
+    val correct = if (!checked || assessment == null) null else when (val rule = assessment.rule) {
+        is InlineAssessmentRule.ExactText -> {
+            val actual = answer.trim()
+            val expected = rule.expected.trim()
+            if (rule.ignoreCase) actual.equals(expected, ignoreCase = true) else actual == expected
+        }
+    }
+
+    BasicTextField(
+        value = answer,
         onValueChange = {
-            answerDraft = it.take(1_000)
+            answer = it.take(2_000)
             checked = false
-            solutionRevealed = false
+        },
+        modifier = Modifier.fillMaxWidth().heightIn(min = SchoolUiMetrics.textInputMinHeight).padding(vertical = 8.dp),
+        textStyle = TextStyle(
+            color = MaterialTheme.colorScheme.onBackground,
+            fontSize = MaterialTheme.typography.bodyLarge.fontSize,
+            lineHeight = MaterialTheme.typography.bodyLarge.lineHeight,
+        ),
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+        decorationBox = { inner ->
+            Box(Modifier.fillMaxWidth()) {
+                if (answer.isBlank()) {
+                    Text(spec.placeholder ?: "输入答案", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
+                }
+                inner()
+            }
         },
     )
+    SchoolDivider()
+    Spacer(Modifier.height(12.dp))
+    SchoolPrimaryAction(
+        label = if (assessment == null) "完成" else "提交",
+        enabled = answer.isNotBlank(),
+        onClick = { checked = true },
+    )
 
-    Spacer(Modifier.height(18.dp))
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
+    if (checked && assessment != null) {
+        Spacer(Modifier.height(12.dp))
+        val color = if (correct == true) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
         Text(
-            text = "检查答案",
-            modifier = Modifier.clickable(enabled = answerDraft.isNotBlank()) {
-                correct = practiceAnswerMatches(answerDraft, practice.answer)
-                checked = true
-            }.padding(vertical = 10.dp),
-            color = if (answerDraft.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
+            if (correct == true) "✓ 回答正确。" else "答案还不正确，可以检查后再试。",
+            color = color,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
         )
-        if (!correct && practice.analysis.isNotEmpty()) {
-            Text(
-                text = if (hintRevealed) "收起提示" else "查看提示",
-                modifier = Modifier.clickable { hintRevealed = !hintRevealed }.padding(vertical = 10.dp),
-                color = MaterialTheme.colorScheme.secondary,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-            )
-        }
-    }
-
-    if (hintRevealed && practice.analysis.isNotEmpty()) {
-        Text("提示：${practice.analysis.first()}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
-    }
-
-    if (checked) {
-        Spacer(Modifier.height(12.dp))
-        val feedbackColor = if (correct) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
-        Box(Modifier.fillMaxWidth().height(2.dp).background(feedbackColor.copy(alpha = 0.72f)))
-        Spacer(Modifier.height(10.dp))
-        Text(if (correct) "回答正确。" else "答案还不正确，可以检查过程或查看提示后再试。", color = feedbackColor, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-        if (!correct) {
-            Text(
-                text = if (solutionRevealed) "收起参考答案与解析" else "查看参考答案与解析",
-                modifier = Modifier.clickable { solutionRevealed = !solutionRevealed }.padding(top = 12.dp, bottom = 8.dp),
-                color = MaterialTheme.colorScheme.secondary,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-            )
-        }
-    }
-
-    if (correct || solutionRevealed) {
-        Spacer(Modifier.height(12.dp))
-        Text("答案：${practice.answer}", color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        practice.analysis.forEach { item ->
-            Text(text = "— $item", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+        if (correct == true) {
+            Spacer(Modifier.height(8.dp))
+            LearningContentList(assessment.explanation)
         }
     }
 }
 
 @Composable
-private fun PracticeDraftField(
-    label: String,
-    hint: String,
-    value: String,
-    minHeight: Int,
-    onValueChange: (String) -> Unit,
-) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        Text(label, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth().heightIn(min = minHeight.dp).padding(vertical = 6.dp),
-            textStyle = TextStyle(color = MaterialTheme.colorScheme.onBackground, fontSize = MaterialTheme.typography.bodyLarge.fontSize, lineHeight = MaterialTheme.typography.bodyLarge.lineHeight),
-            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            decorationBox = { innerTextField ->
-                Box(Modifier.fillMaxWidth()) {
-                    if (value.isBlank()) Text(hint, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.68f), style = MaterialTheme.typography.bodyMedium)
-                    innerTextField()
-                }
-            },
-        )
-        Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)))
-    }
+private fun roleColor(role: CourseStepRole) = when (role) {
+    CourseStepRole.EXPLANATION, CourseStepRole.EXAMPLE -> MaterialTheme.colorScheme.primary
+    CourseStepRole.INQUIRY, CourseStepRole.KEY_IDEA -> MaterialTheme.colorScheme.secondary
+    CourseStepRole.PRACTICE -> MaterialTheme.colorScheme.primary
+    CourseStepRole.CHECKPOINT -> MaterialTheme.colorScheme.tertiary
+    CourseStepRole.SUMMARY -> MaterialTheme.colorScheme.secondary
 }
 
-private fun practiceAnswerMatches(actual: String, expected: String): Boolean {
-    val normalizedActual = normalizePracticeAnswer(actual)
-    val normalizedExpected = normalizePracticeAnswer(expected)
-    if (normalizedActual == normalizedExpected) return true
-    if (normalizedActual.isBlank() || normalizedExpected.isBlank()) return false
-    val verification = MathFormulaVerifier.verify("($actual)=($expected)", sampleRelation = true)
-    return verification.status == MathFormulaStatus.TRUE_AT_VALUES || verification.status == MathFormulaStatus.SAMPLE_MATCH
-}
-
-private fun normalizePracticeAnswer(value: String): String = value.trim().replace(" ", "").replace('−', '-').replace('×', '*').replace('·', '*').replace('÷', '/').lowercase()
-
-@Composable
-private fun AuthoredStep(step: CourseStep) {
-    when (step) {
-        is CourseExplanation -> {
-            step.title?.let {
-                OpenSectionTitle(it, MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.height(10.dp))
-            }
-            Text(step.text, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f), style = MaterialTheme.typography.bodyLarge)
-        }
-        is CourseQuestion -> {
-            OpenSectionTitle("先想一想", MaterialTheme.colorScheme.secondary)
-            Spacer(Modifier.height(10.dp))
-            Text(step.prompt, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Medium)
-            step.hint?.takeIf { it.isNotBlank() }?.let {
-                Text("提示：$it", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 12.dp))
-            }
-        }
-        is CourseKeyIdea -> {
-            Box(Modifier.fillMaxWidth().height(2.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)))
-            Spacer(Modifier.height(10.dp))
-            step.title?.let { Text(it, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold) }
-            Text(step.text, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Medium, modifier = Modifier.padding(top = 6.dp))
-        }
-        is CourseFormula -> {
-            Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)))
-            SchoolFormula(latex = step.expression, modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp), color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.headlineMedium)
-            step.note?.let {
-                Text(it, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
-            }
-            Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)))
-        }
-        is CourseExample -> {
-            OpenSectionTitle(step.title, MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(10.dp))
-            Text(step.prompt, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-            step.steps.forEachIndexed { index, item ->
-                Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.Top) {
-                    Text("${index + 1}", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.padding(horizontal = 6.dp))
-                    Text(item, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.82f), style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-            Text("答案：${step.answer}", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, modifier = Modifier.padding(top = 14.dp))
-        }
-        is CourseVisualizationStep -> Box(Modifier.fillMaxWidth().height(380.dp)) {
-            SchoolVisualization(step.visualization, Modifier.fillMaxWidth())
-        }
-        is CourseCheckpoint -> {
-            OpenSectionTitle("检查一下", MaterialTheme.colorScheme.tertiary)
-            Spacer(Modifier.height(10.dp))
-            Text(step.prompt, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge)
-            Text("参考：${step.expectedAnswer}", color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 12.dp))
-            Text(step.explanation, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
-        }
-        is CourseSummaryStep -> Text(step.text, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.84f), style = MaterialTheme.typography.bodyLarge)
-    }
-}
-
-@Composable
-private fun OpenSectionTitle(title: String, color: androidx.compose.ui.graphics.Color) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.height(2.dp).weight(0.08f).background(color))
-        Text(title, modifier = Modifier.weight(0.92f), color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-    }
+private fun defaultTitle(role: CourseStepRole): String? = when (role) {
+    CourseStepRole.EXPLANATION -> null
+    CourseStepRole.INQUIRY -> "先想一想"
+    CourseStepRole.EXAMPLE -> "例题"
+    CourseStepRole.KEY_IDEA -> "关键理解"
+    CourseStepRole.PRACTICE -> "动手试一试"
+    CourseStepRole.CHECKPOINT -> "检查一下"
+    CourseStepRole.SUMMARY -> "小结"
 }
