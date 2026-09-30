@@ -43,6 +43,7 @@ internal fun AuthoredTeachingContent(
     steps: List<CourseStep>,
     activeStepId: String,
     assessmentOutcome: InlineAssessmentOutcome?,
+    activityEnabled: Boolean = true,
     onActivityResult: (CourseStep, ActivityResult) -> Unit,
 ) {
     steps.forEachIndexed { index, step ->
@@ -55,6 +56,7 @@ internal fun AuthoredTeachingContent(
             step = step,
             active = step.id == activeStepId,
             assessmentOutcome = if (step.id == activeStepId) assessmentOutcome else null,
+            activityEnabled = activityEnabled,
             onActivityResult = onActivityResult,
         )
     }
@@ -65,6 +67,7 @@ private fun AuthoredStep(
     step: CourseStep,
     active: Boolean,
     assessmentOutcome: InlineAssessmentOutcome?,
+    activityEnabled: Boolean,
     onActivityResult: (CourseStep, ActivityResult) -> Unit,
 ) {
     val title = step.title ?: defaultTitle(step.role)
@@ -81,6 +84,7 @@ private fun AuthoredStep(
                     spec = it,
                     assessmentOutcome = assessmentOutcome,
                     explanation = step.assessment?.explanation.orEmpty(),
+                    enabled = activityEnabled,
                     onResult = { result -> onActivityResult(step, result) },
                 )
             }
@@ -140,6 +144,7 @@ private fun TextAnswerActivity(
     spec: TextAnswerActivitySpec,
     assessmentOutcome: InlineAssessmentOutcome?,
     explanation: List<LearningContent>,
+    enabled: Boolean,
     onResult: (ActivityResult) -> Unit,
 ) {
     val runtime = remember(spec) { ActivityRuntime(spec) }
@@ -147,6 +152,7 @@ private fun TextAnswerActivity(
 
     BasicTextField(
         value = state.draft,
+        enabled = enabled,
         onValueChange = { value ->
             state = runtime.dispatch(ActivityEvent.TextChanged(value)).state as ActivityState.TextAnswer
         },
@@ -170,7 +176,7 @@ private fun TextAnswerActivity(
     Spacer(Modifier.height(12.dp))
     SchoolPrimaryAction(
         label = "提交",
-        enabled = state.draft.isNotBlank(),
+        enabled = enabled && state.draft.isNotBlank(),
         onClick = {
             val transition = runtime.dispatch(ActivityEvent.Submit)
             state = transition.state as ActivityState.TextAnswer
