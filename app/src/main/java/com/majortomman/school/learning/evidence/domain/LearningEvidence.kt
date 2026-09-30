@@ -1,7 +1,7 @@
 package com.majortomman.school.learning.evidence.domain
 
 import com.majortomman.school.learning.assessment.domain.Difficulty
-import com.majortomman.school.learning.assessment.domain.KnowledgePointId
+import com.majortomman.school.learning.knowledge.KnowledgePointId
 
 enum class LearningEvidenceSourceKind {
     ASSESSMENT_QUESTION,
