@@ -14,7 +14,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -30,7 +29,6 @@ fun InteractiveLessonScreen(
     onBack: () -> Unit,
     onComplete: () -> Unit,
 ) {
-    val pages = remember(lesson) { composeLessonPresentation(lesson) }
     val textbookReference = lesson.references.firstOrNull()
 
     Column(
@@ -49,37 +47,27 @@ fun InteractiveLessonScreen(
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())
                 .padding(horizontal = SchoolUiMetrics.pageHorizontal, vertical = 22.dp),
         ) {
-            Text(
-                "MATHEMATICS / JUNIOR HIGH / SCHOOL",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelSmall,
-            )
+            Text("MATHEMATICS / JUNIOR HIGH / SCHOOL", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
             Spacer(Modifier.padding(top = 5.dp))
-            Text(
-                lesson.title,
-                color = MaterialTheme.colorScheme.onBackground,
-                style = MaterialTheme.typography.displayMedium,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                course.title,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.titleSmall,
-            )
-            lesson.goals.firstOrNull()?.takeIf(String::isNotBlank)?.let {
-                Spacer(Modifier.padding(top = 7.dp))
-                Text(it, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.bodyLarge)
+            Text(lesson.title, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
+            Text(course.title, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleSmall)
+
+            Spacer(Modifier.padding(top = 18.dp))
+            SchoolSectionLabel("学习目标")
+            Spacer(Modifier.padding(top = 6.dp))
+            lesson.goals.forEachIndexed { index, goal ->
+                Text(
+                    "${index + 1}.  $goal",
+                    color = MaterialTheme.colorScheme.onBackground,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(vertical = 4.dp),
+                )
             }
 
-            Spacer(Modifier.padding(top = 14.dp))
-            pages.forEachIndexed { index, page ->
-                if (index > 0) {
-                    Spacer(Modifier.padding(top = 14.dp))
-                    SchoolDivider()
-                    Spacer(Modifier.padding(top = 14.dp))
-                }
-                LessonPresentationPageContent(page, lesson)
-            }
+            Spacer(Modifier.height(28.dp))
+            SchoolDivider()
+            Spacer(Modifier.height(22.dp))
+            AuthoredTeachingContent(lesson.steps)
             Spacer(Modifier.padding(top = SchoolUiMetrics.pageBottom))
         }
 
@@ -93,40 +81,5 @@ fun InteractiveLessonScreen(
                 onClick = onComplete,
             )
         }
-    }
-}
-
-@Composable
-private fun LessonPresentationPageContent(page: LessonPresentationPage, lesson: CourseLesson) {
-    when (page) {
-        is LessonPresentationPage.Overview -> {
-            SchoolSectionLabel("学习目标")
-            Spacer(Modifier.padding(top = 6.dp))
-            page.goals.forEachIndexed { index, goal ->
-                Text(
-                    "${index + 1}.  $goal",
-                    color = MaterialTheme.colorScheme.onBackground,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(vertical = 4.dp),
-                )
-            }
-        }
-
-        is LessonPresentationPage.Teaching -> AuthoredTeachingPageContent(page.steps, lesson)
-
-        is LessonPresentationPage.Summary -> {
-            SchoolSectionLabel("小结")
-            Spacer(Modifier.padding(top = 6.dp))
-            page.items.forEachIndexed { index, item ->
-                Text(
-                    "${index + 1}.  $item",
-                    color = MaterialTheme.colorScheme.onBackground,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(vertical = 4.dp),
-                )
-            }
-        }
-
-        is LessonPresentationPage.Practice -> AuthoredPracticePage(page.practice, page.number, page.total)
     }
 }
