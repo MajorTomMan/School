@@ -1,258 +1,84 @@
 package com.majortomman.school.learning.capability
 
-enum class NumberDomain {
-    NOT_APPLICABLE,
-    NATURAL,
-    INTEGER,
-    RATIONAL,
-    REAL,
-    COMPLEX,
-}
+@JvmInline
+value class CapabilityKey(val value: String) {
+    init {
+        require(KEY.matches(value)) { "capability key 格式无效：$value" }
+    }
 
-enum class ExtensionPolicy {
-    NONE,
-    NECESSARY_ONLY,
-    OPTIONAL,
-}
+    override fun toString(): String = value
 
-enum class ContentOrigin {
-    TEXTBOOK_QUOTE,
-    TEXTBOOK_SUMMARY,
-    SCHOOL_EXPLANATION,
-    OPTIONAL_EXTENSION,
-    SIMULATION_DESCRIPTION,
-}
-
-enum class ConceptId {
-    VARIABLE,
-    CORRESPONDING_VALUE,
-    FUNCTION,
-    COORDINATE_POINT,
-    FUNCTION_GRAPH,
-    REAL_PART,
-    IMAGINARY_PART,
-    COMPLEX_PLANE,
-    SPACE_POINT,
-    SPACE_PROJECTION,
-    EXACT_NUMBER,
-    RATIONAL_NUMBER,
-    RADICAL,
-    PI_CONSTANT,
-    SCIENTIFIC_NOTATION,
-    POLYNOMIAL,
-    FACTORIZATION,
-    EQUATION,
-    INEQUALITY,
-    DISCRIMINANT,
-    FUNCTION_DOMAIN,
-    VECTOR,
-    DOT_PRODUCT,
-    CROSS_PRODUCT,
-    LINE,
-    CIRCLE,
-    PLANE,
-    GEOMETRIC_TRANSFORMATION,
-    PROOF_STEP,
-    PHYSICAL_QUANTITY,
-    PHYSICAL_MODEL,
-    MODEL_ASSUMPTION,
-    UNIT,
-    DIMENSION,
-    SIGNIFICANT_FIGURES,
-    MEASUREMENT_UNCERTAINTY,
-    ELECTRIC_CURRENT,
-    VOLTAGE,
-    RESISTANCE,
-    CIRCUIT_TOPOLOGY,
-    SERIES_CIRCUIT,
-    PARALLEL_CIRCUIT,
-    KIRCHHOFF_CURRENT_LAW,
-    KIRCHHOFF_VOLTAGE_LAW,
-    ELECTRIC_POWER,
-    ELECTRIC_ENERGY,
-    JOULE_HEAT,
-    AMMETER,
-    VOLTMETER,
-    CAPACITOR,
-    INDUCTOR,
-    DIODE,
-    ELEMENT,
-    PERIODIC_TABLE,
-    CHEMICAL_FORMULA,
-    FORMULA_GROUP,
-    HYDRATE,
-    ION,
-    ION_CHARGE,
-    SUBSTANCE_STATE,
-    CHEMICAL_EQUATION,
-    IONIC_EQUATION,
-    ATOM_COUNT,
-    MASS_CONSERVATION,
-    CHARGE_CONSERVATION,
-    OXIDATION_STATE,
-    REDOX_REACTION,
-    RELATIVE_MOLECULAR_MASS,
-    MOLE,
-    MOLAR_MASS,
-    MOLARITY,
-    STOICHIOMETRY,
-    LIMITING_REAGENT,
-    THEORETICAL_YIELD,
-    MOLECULE_GRAPH,
-    ORGANIC_ATOM,
-    BOND_ORDER,
-    STRUCTURAL_FORMULA,
-    SKELETAL_FORMULA,
-    CARBON_SKELETON,
-    FUNCTIONAL_GROUP,
-    HOMOLOGOUS_SERIES,
-    STRUCTURAL_ISOMERISM,
-    AROMATIC_COMPOUND,
-    ORGANIC_REACTION,
-    ADDITION_REACTION,
-    SUBSTITUTION_REACTION,
-    ELIMINATION_REACTION,
-    OXIDATION_REACTION,
-    ESTERIFICATION,
-    STEREOCHEMISTRY,
-    CELL_STRUCTURE,
-    BIOLOGICAL_PROCESS,
-    WORD_MEANING,
-    WORD_FORM,
-    SENTENCE_STRUCTURE,
-    SENTENCE_ORDER,
-    DIALOGUE_CONTEXT,
-    LISTENING_COMPREHENSION,
-    PRONUNCIATION,
-    JAPANESE_READING,
-    JAPANESE_PARTICLE,
-    JAPANESE_CONJUGATION,
-    SPEECH_REGISTER,
-}
-
-enum class OperationId {
-    SUBSTITUTE,
-    SOLVE_RELATION,
-    VERIFY_EQUALITY,
-    PARSE_EXPRESSION,
-    SIMPLIFY_EXPRESSION,
-    APPROXIMATE_EXACT_VALUE,
-    ADD_POLYNOMIAL,
-    MULTIPLY_POLYNOMIAL,
-    DIFFERENTIATE_POLYNOMIAL,
-    SOLVE_LINEAR_EQUATION,
-    SOLVE_QUADRATIC_EQUATION,
-    SOLVE_LINEAR_INEQUALITY,
-    CHECK_FUNCTION_DOMAIN,
-    COMPUTE_VECTOR,
-    INTERSECT_GEOMETRY,
-    TRANSFORM_GEOMETRY,
-    VALIDATE_PROOF_STRUCTURE,
-    VALIDATE_MODEL_CONDITIONS,
-    CONVERT_UNIT,
-    CHECK_DIMENSION,
-    ROUND_SIGNIFICANT_FIGURES,
-    CHECK_CIRCUIT_TOPOLOGY,
-    SOLVE_DC_CIRCUIT,
-    COMPUTE_EQUIVALENT_RESISTANCE,
-    COMPUTE_ELECTRICAL_POWER,
-    SIMULATE_SWITCH,
-    PARSE_CHEMICAL_FORMULA,
-    COUNT_ATOMS,
-    CALCULATE_MOLAR_MASS,
-    PARSE_CHEMICAL_EQUATION,
-    VERIFY_CHEMICAL_CONSERVATION,
-    BALANCE_EQUATION,
-    REDUCE_IONIC_EQUATION,
-    CALCULATE_STOICHIOMETRY,
-    FIND_LIMITING_REAGENT,
-    CALCULATE_THEORETICAL_YIELD,
-    PARSE_ORGANIC_STRUCTURE,
-    VALIDATE_ORGANIC_VALENCE,
-    LAYOUT_MOLECULE,
-    DETECT_FUNCTIONAL_GROUPS,
-    ANALYZE_CARBON_SKELETON,
-    COMPARE_MOLECULE_ISOMORPHISM,
-    COMPARE_STRUCTURAL_ISOMERS,
-    MATCH_ORGANIC_REACTION_TEMPLATE,
-    VERIFY_ORGANIC_REACTION_CONSERVATION,
-    PLOT_2D,
-    PLOT_COMPLEX,
-    PROJECT_3D,
-    LABEL_DIAGRAM,
-    NORMALIZE_LANGUAGE_ANSWER,
-    VERIFY_WORD_FORM,
-    ORDER_SENTENCE,
-    VERIFY_PARTICLE,
-    VERIFY_CONJUGATION,
-    SWITCH_READING,
-    PLAY_AUDIO,
-}
-
-enum class WidgetType {
-    RELATION_CALCULATOR,
-    FORMULA_VERIFIER,
-    EXACT_EXPRESSION,
-    UNIT_CONVERTER,
-    DIMENSION_CHECKER,
-    POLYNOMIAL_WORKBENCH,
-    EQUATION_SOLVER,
-    VECTOR_GEOMETRY,
-    PROOF_STEPS,
-    CIRCUIT_EDITOR,
-    CIRCUIT_SOLVER,
-    ELECTRICAL_POWER,
-    CHEMICAL_FORMULA_INSPECTOR,
-    CHEMICAL_EQUATION,
-    CHEMICAL_STOICHIOMETRY,
-    MOLECULE_EDITOR,
-    MOLECULE_VIEWER,
-    FUNCTIONAL_GROUP_INSPECTOR,
-    ISOMER_COMPARATOR,
-    ORGANIC_REACTION,
-    COORDINATE_GRAPH_2D,
-    COMPLEX_PLANE,
-    COORDINATE_3D,
-    BIOLOGY_DIAGRAM,
-    LANGUAGE_SENTENCE,
-    LANGUAGE_DIALOGUE,
-    JAPANESE_READING,
-    LISTENING,
-}
-
-data class LessonCapability(
-    val allowedConcepts: Set<ConceptId>,
-    val enabledOperations: Set<OperationId>,
-    val enabledWidgets: Set<WidgetType>,
-    val numberDomain: NumberDomain,
-    val extensionPolicy: ExtensionPolicy = ExtensionPolicy.NECESSARY_ONLY,
-) {
-    fun allows(concept: ConceptId): Boolean = concept in allowedConcepts
-
-    fun allows(operation: OperationId): Boolean = operation in enabledOperations
-
-    fun allows(widget: WidgetType): Boolean = widget in enabledWidgets
-
-    fun validate(
-        requestedConcepts: Set<ConceptId> = emptySet(),
-        requestedOperations: Set<OperationId> = emptySet(),
-        requestedWidgets: Set<WidgetType> = emptySet(),
-    ): CapabilityValidation {
-        val blockedConcepts = requestedConcepts - allowedConcepts
-        val blockedOperations = requestedOperations - enabledOperations
-        val blockedWidgets = requestedWidgets - enabledWidgets
-        return CapabilityValidation(
-            allowed = blockedConcepts.isEmpty() && blockedOperations.isEmpty() && blockedWidgets.isEmpty(),
-            blockedConcepts = blockedConcepts,
-            blockedOperations = blockedOperations,
-            blockedWidgets = blockedWidgets,
-        )
+    private companion object {
+        val KEY = Regex("^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$")
     }
 }
 
-data class CapabilityValidation(
-    val allowed: Boolean,
-    val blockedConcepts: Set<ConceptId>,
-    val blockedOperations: Set<OperationId>,
-    val blockedWidgets: Set<WidgetType>,
-)
+@JvmInline
+value class SubjectId(val value: String) {
+    init {
+        require(ID.matches(value)) { "subject id 格式无效：$value" }
+    }
+
+    override fun toString(): String = value
+
+    private companion object {
+        val ID = Regex("^[a-z][a-z0-9_-]*$")
+    }
+}
+
+enum class CapabilityKind {
+    VISUALIZATION,
+    ACTIVITY,
+    VERIFICATION,
+    NOTATION,
+    PRESENTATION,
+}
+
+data class CapabilityDescriptor(
+    val key: CapabilityKey,
+    val subject: SubjectId,
+    val kind: CapabilityKind,
+    val schemaVersion: Int = 1,
+) {
+    init {
+        require(schemaVersion > 0) { "capability schemaVersion 必须大于 0" }
+    }
+}
+
+interface SubjectModule {
+    val id: SubjectId
+    val capabilities: List<CapabilityDescriptor>
+}
+
+class CapabilityRegistry(modules: List<SubjectModule>) {
+    private val modulesById: Map<SubjectId, SubjectModule>
+    private val capabilitiesByKey: Map<CapabilityKey, CapabilityDescriptor>
+
+    init {
+        val duplicateModules = modules.groupBy(SubjectModule::id).filterValues { it.size > 1 }.keys
+        require(duplicateModules.isEmpty()) { "subject module 重复：${duplicateModules.joinToString()}" }
+
+        val descriptors = modules.flatMap { module ->
+            module.capabilities.onEach { descriptor ->
+                require(descriptor.subject == module.id) {
+                    "capability ${descriptor.key} 的 subject ${descriptor.subject} 与 module ${module.id} 不一致"
+                }
+            }
+        }
+        val duplicateCapabilities = descriptors.groupBy(CapabilityDescriptor::key).filterValues { it.size > 1 }.keys
+        require(duplicateCapabilities.isEmpty()) { "capability key 重复：${duplicateCapabilities.joinToString()}" }
+
+        modulesById = modules.associateBy(SubjectModule::id)
+        capabilitiesByKey = descriptors.associateBy(CapabilityDescriptor::key)
+    }
+
+    fun module(id: SubjectId): SubjectModule? = modulesById[id]
+    fun capability(key: CapabilityKey): CapabilityDescriptor? = capabilitiesByKey[key]
+    fun supports(key: CapabilityKey, schemaVersion: Int = 1): Boolean =
+        capabilitiesByKey[key]?.schemaVersion == schemaVersion
+
+    fun capabilities(subject: SubjectId? = null, kind: CapabilityKind? = null): List<CapabilityDescriptor> =
+        capabilitiesByKey.values.filter { descriptor ->
+            (subject == null || descriptor.subject == subject) && (kind == null || descriptor.kind == kind)
+        }
+}
