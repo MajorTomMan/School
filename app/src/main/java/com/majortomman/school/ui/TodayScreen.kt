@@ -35,6 +35,7 @@ fun TodayScreen(
     lessons: List<Lesson>,
     courseTitle: String,
     onStartLesson: (String) -> Unit,
+    onOpenPractice: () -> Unit,
     onOpenPath: () -> Unit,
 ) {
     val lesson = lessons.firstOrNull { it.id == plan.newLessonId } ?: return
@@ -84,7 +85,7 @@ fun TodayScreen(
         Spacer(Modifier.height(30.dp))
         SchoolSectionLabel("今天建议")
         Spacer(Modifier.height(8.dp))
-        LearningSuggestionRow("练习", lesson.title, "完成当前知识点的应用练习", "约 15 分钟") { onStartLesson(lesson.id) }
+        LearningSuggestionRow("练习", lesson.title, "完成当前课程的正式题组", "约 15 分钟", onClick = onOpenPractice)
         next?.let { LearningSuggestionRow("阅读", it.title, "为下一节内容做准备", "约 10 分钟") { onStartLesson(it.id) } }
 
         Spacer(Modifier.height(30.dp))
