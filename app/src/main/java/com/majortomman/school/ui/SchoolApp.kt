@@ -27,25 +27,29 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.majortomman.school.data.AiSettings
+import com.majortomman.school.data.AppSettingsRepository
 import com.majortomman.school.data.DailyPlan
-import com.majortomman.school.data.LearningProgress
 import com.majortomman.school.data.Lesson
-import com.majortomman.school.data.MasteryStatus
-import com.majortomman.school.data.PreferencesRepository
-import com.majortomman.school.data.math.MathQuestionBankRepository
+import com.majortomman.school.learning.assessment.persistence.AssessmentProgressStore
 import com.majortomman.school.learning.cloud.CourseLibraryRepository
 import com.majortomman.school.learning.cloud.InstalledCourse
 import com.majortomman.school.learning.course.CourseLesson
+import com.majortomman.school.learning.progress.CourseProgressSnapshot
+import com.majortomman.school.learning.progress.LessonProgressStatus
+import com.majortomman.school.learning.progress.persistence.CourseProgressStore
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 
 private enum class MainTab(val label: String, val symbol: String) {
@@ -57,8 +61,8 @@ private enum class MainTab(val label: String, val symbol: String) {
 
 @Composable
 fun SchoolApp(
-    repository: PreferencesRepository,
-    mathQuestionRepository: MathQuestionBankRepository,
+    settingsRepository: AppSettingsRepository,
+    courseProgressStore: CourseProgressStore,
     initialCourseId: String? = null,
 ) {
     var selectedTabName by rememberSaveable { mutableStateOf(MainTab.LEARN.name) }
@@ -69,26 +73,50 @@ fun SchoolApp(
     var openedTextbookPage by rememberSaveable { mutableStateOf<Int?>(null) }
     var readingRangeStart by rememberSaveable { mutableStateOf<Int?>(null) }
     var readingRangeEnd by rememberSaveable { mutableStateOf<Int?>(null) }
+
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val progress by repository.learningProgress.collectAsState(initial = LearningProgress())
-    val aiSettings by repository.aiSettings.collectAsState(initial = AiSettings())
+    val assessmentProgressStore = remember(context) { AssessmentProgressStore.create(context) }
+    val aiSettings by settingsRepository.aiSettings.collectAsState(initial = AiSettings())
     val libraryState by CourseLibraryRepository.state.collectAsState()
 
     val activeCourse = libraryState.course(activeCourseId)
-    val lessons = activeCourse?.lessons.orEmpty().mapIndexed { index, lesson ->
-        lesson.toUiLesson(progress.lessonStatuses[lesson.id] ?: if (index == 0) MasteryStatus.LEARNING else MasteryStatus.NOT_STARTED)
+    val progressFlow = remember(activeCourse?.id) {
+        activeCourse?.id?.let(courseProgressStore::observeCourse)
+            ?: flowOf(CourseProgressSnapshot(courseId = ""))
     }
-    val currentLesson = lessons.firstOrNull { it.status == MasteryStatus.LEARNING }
-        ?: lessons.firstOrNull { it.status == MasteryStatus.NEEDS_REVIEW }
-        ?: lessons.firstOrNull { it.status == MasteryStatus.NOT_STARTED }
-        ?: lessons.firstOrNull()
-    val dailyPlan = currentLesson?.let { DailyPlan(it.id, emptyList(), it.estimatedMinutes) }
+    val progress by progressFlow.collectAsState(initial = CourseProgressSnapshot(activeCourse?.id.orEmpty()))
+
+    val lessons = activeCourse?.lessons.orEmpty().mapIndexed { index, lesson ->
+        val defaultStatus = if (index == 0 && progress.lessonStatuses.isEmpty()) {
+            LessonProgressStatus.IN_PROGRESS
+        } else {
+            LessonProgressStatus.NOT_STARTED
+        }
+        lesson.toUiLesson(progress.lessonStatuses[lesson.id] ?: defaultStatus)
+    }
+    val currentLesson = lessons.firstOrNull { it.status == LessonProgressStatus.IN_PROGRESS }
+        ?: lessons.firstOrNull { it.status == LessonProgressStatus.NOT_STARTED }
+        ?: lessons.lastOrNull()
+    val dailyPlan = currentLesson?.let { DailyPlan(it.id, it.estimatedMinutes) }
     val selectedTab = MainTab.valueOf(selectedTabName)
     val openedCourseLesson = activeCourse?.lessons?.firstOrNull { it.id == openedLessonId }
     val openedLessonIndex = activeCourse?.lessons?.indexOfFirst { it.id == openedLessonId } ?: -1
     val nextCourseLesson = activeCourse?.lessons?.getOrNull(openedLessonIndex + 1).takeIf { openedLessonIndex >= 0 }
     val openedTextbook = libraryState.course(openedCourseId)
-    val readingRange = if (readingRangeStart != null && readingRangeEnd != null) readingRangeStart!!..readingRangeEnd!! else null
+    val readingRange = if (readingRangeStart != null && readingRangeEnd != null) {
+        readingRangeStart!!..readingRangeEnd!!
+    } else {
+        null
+    }
+
+    fun openLesson(course: InstalledCourse, lessonId: String) {
+        openedLessonId = lessonId
+        val uiLesson = lessons.firstOrNull { it.id == lessonId }
+        if (uiLesson?.status == LessonProgressStatus.NOT_STARTED) {
+            scope.launch { courseProgressStore.startLesson(course.id, lessonId) }
+        }
+    }
 
     LaunchedEffect(libraryState.courses.map { it.id }) {
         if (activeCourseId == null && libraryState.courses.size == 1) {
@@ -137,7 +165,13 @@ fun SchoolApp(
                     onBack = { openedLessonId = null },
                     onComplete = {
                         val nextId = nextCourseLesson?.id
-                        scope.launch { repository.finishLessonAndStartNext(lesson.id, nextId) }
+                        scope.launch {
+                            courseProgressStore.finishLessonAndStartNext(
+                                courseId = activeCourse.id,
+                                currentLessonId = lesson.id,
+                                nextLessonId = nextId,
+                            )
+                        }
                         if (nextCourseLesson != null) {
                             openedLessonId = nextCourseLesson.id
                         } else {
@@ -174,7 +208,7 @@ fun SchoolApp(
                                             plan = dailyPlan,
                                             lessons = lessons,
                                             courseTitle = activeCourse.title,
-                                            onStartLesson = { openedLessonId = it },
+                                            onStartLesson = { openLesson(activeCourse, it) },
                                             onOpenPath = { selectedTabName = MainTab.COURSES.name },
                                         )
                                     }
@@ -199,36 +233,34 @@ fun SchoolApp(
                                         CoursePathScreen(
                                             courseTitle = activeCourse.title,
                                             lessons = lessons,
-                                            onOpenLesson = { openedLessonId = it },
+                                            onOpenLesson = { openLesson(activeCourse, it) },
                                             onChooseCourse = { activeCourseId = null },
                                         )
                                     }
                                 }
 
-                                MainTab.PRACTICE -> MathQuestionBankScreen(
-                                    repository = mathQuestionRepository,
-                                    textbook = activeCourse,
-                                    onOpenSubjects = { selectedTabName = MainTab.COURSES.name },
-                                    onOpenTextbook = { page ->
-                                        activeCourse?.let { course ->
-                                            openedCourseId = course.id
-                                            openedTextbookPage = page
-                                            readingRangeStart = null
-                                            readingRangeEnd = null
-                                        }
-                                    },
+                                MainTab.PRACTICE -> PracticeScreen(
+                                    course = activeCourse,
+                                    onOpenCourses = { selectedTabName = MainTab.COURSES.name },
                                 )
 
                                 MainTab.MINE -> {
                                     if (mineSettingsOpen) {
                                         MaterialSettingsScreen(
                                             settings = aiSettings,
-                                            onSave = { updated -> scope.launch { repository.saveAiSettings(updated) } },
+                                            onSave = { updated ->
+                                                scope.launch { settingsRepository.saveAiSettings(updated) }
+                                            },
                                             onOpenSubjects = {
                                                 mineSettingsOpen = false
                                                 selectedTabName = MainTab.COURSES.name
                                             },
-                                            onClearProgress = { scope.launch { repository.clearLearningProgress() } },
+                                            onClearProgress = {
+                                                scope.launch {
+                                                    courseProgressStore.clearAll()
+                                                    assessmentProgressStore.clearAll()
+                                                }
+                                            },
                                             onBack = { mineSettingsOpen = false },
                                         )
                                     } else {
@@ -264,7 +296,7 @@ fun SchoolApp(
     }
 }
 
-private fun CourseLesson.toUiLesson(status: MasteryStatus): Lesson {
+private fun CourseLesson.toUiLesson(status: LessonProgressStatus): Lesson {
     val start = references.minOfOrNull { it.pageStart } ?: 1
     val end = references.maxOfOrNull { it.pageEnd } ?: start
     return Lesson(
@@ -275,8 +307,6 @@ private fun CourseLesson.toUiLesson(status: MasteryStatus): Lesson {
         textbookPages = start..end,
         status = status,
         objectives = goals,
-        explanation = "",
-        commonMistake = "",
     )
 }
 
