@@ -1,6 +1,6 @@
 package com.majortomman.school.learning.assessment.contract
 
-import com.majortomman.school.learning.assessment.domain.KnowledgePointId
+import com.majortomman.school.learning.knowledge.KnowledgePointId
 import org.json.JSONObject
 
 object KnowledgePointDocumentParser {
