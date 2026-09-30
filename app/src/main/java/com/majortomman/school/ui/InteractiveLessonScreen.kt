@@ -16,20 +16,26 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.majortomman.school.learning.activity.ActivityResult
+import com.majortomman.school.learning.assessment.domain.InlineAssessmentEvidenceFactory
 import com.majortomman.school.learning.assessment.domain.InlineAssessmentEvaluator
 import com.majortomman.school.learning.assessment.domain.InlineAssessmentOutcome
 import com.majortomman.school.learning.cloud.InstalledCourse
 import com.majortomman.school.learning.course.CourseLesson
 import com.majortomman.school.learning.course.CourseStep
+import com.majortomman.school.learning.evidence.persistence.LearningEvidenceStore
 import com.majortomman.school.learning.runtime.LessonRuntime
 import com.majortomman.school.learning.runtime.LessonRuntimeEvent
+import kotlinx.coroutines.launch
 
 @Composable
 fun InteractiveLessonScreen(
@@ -40,9 +46,15 @@ fun InteractiveLessonScreen(
     onBack: () -> Unit,
     onComplete: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val runtime = remember(lesson) { LessonRuntime(lesson) }
+    val evidenceStore = remember(context) { LearningEvidenceStore.create(context) }
+    val wrongAttempts = remember(lesson) { mutableStateMapOf<String, Int>() }
     var runtimeState by remember(lesson) { mutableStateOf(runtime.state) }
     var assessmentFeedback by remember(lesson) { mutableStateOf<Pair<String, InlineAssessmentOutcome>?>(null) }
+    var evidenceInFlight by remember(lesson) { mutableStateOf(false) }
+    var persistenceError by remember(lesson) { mutableStateOf<String?>(null) }
     val textbookReference = lesson.references.firstOrNull()
     val currentStep = lesson.steps[runtimeState.currentStepIndex]
     val visibleSteps = lesson.steps.take(runtimeState.currentStepIndex + 1)
@@ -53,6 +65,7 @@ fun InteractiveLessonScreen(
     }
 
     fun handleActivityResult(step: CourseStep, result: ActivityResult) {
+        persistenceError = null
         val assessment = step.assessment
         if (assessment == null) {
             runtime.dispatch(LessonRuntimeEvent.ActivityCompleted(step.id))
@@ -60,15 +73,56 @@ fun InteractiveLessonScreen(
             applyTransition()
             return
         }
+
         val evaluated = InlineAssessmentEvaluator.evaluate(assessment, result)
-        assessmentFeedback = step.id to evaluated.outcome
-        runtime.dispatch(
-            LessonRuntimeEvent.AssessmentEvaluated(
-                stepId = step.id,
-                correct = evaluated.outcome == InlineAssessmentOutcome.CORRECT,
-            ),
-        )
-        applyTransition()
+        when (evaluated.outcome) {
+            InlineAssessmentOutcome.INVALID -> {
+                assessmentFeedback = step.id to InlineAssessmentOutcome.INVALID
+            }
+
+            InlineAssessmentOutcome.INCORRECT -> {
+                wrongAttempts[step.id] = (wrongAttempts[step.id] ?: 0) + 1
+                assessmentFeedback = step.id to InlineAssessmentOutcome.INCORRECT
+                runtime.dispatch(
+                    LessonRuntimeEvent.AssessmentEvaluated(
+                        stepId = step.id,
+                        correct = false,
+                    ),
+                )
+                applyTransition()
+            }
+
+            InlineAssessmentOutcome.CORRECT -> {
+                val evidence = InlineAssessmentEvidenceFactory.createForCompletedActivity(
+                    courseId = course.id,
+                    contentRevision = course.contentVersion.toString(),
+                    lessonId = lesson.id,
+                    stepId = step.id,
+                    activityId = result.activityId,
+                    assessment = assessment,
+                    wrongAttemptCount = wrongAttempts[step.id] ?: 0,
+                )
+                evidenceInFlight = true
+                scope.launch {
+                    runCatching { evidenceStore.record(evidence) }
+                        .onSuccess {
+                            wrongAttempts.remove(step.id)
+                            assessmentFeedback = step.id to InlineAssessmentOutcome.CORRECT
+                            runtime.dispatch(
+                                LessonRuntimeEvent.AssessmentEvaluated(
+                                    stepId = step.id,
+                                    correct = true,
+                                ),
+                            )
+                            applyTransition()
+                        }
+                        .onFailure {
+                            persistenceError = "学习记录保存失败，请重新提交。"
+                        }
+                    evidenceInFlight = false
+                }
+            }
+        }
     }
 
     Column(
@@ -111,8 +165,17 @@ fun InteractiveLessonScreen(
                 steps = visibleSteps,
                 activeStepId = currentStep.id,
                 assessmentOutcome = assessmentFeedback?.takeIf { it.first == currentStep.id }?.second,
+                activityEnabled = !evidenceInFlight,
                 onActivityResult = ::handleActivityResult,
             )
+            persistenceError?.let { message ->
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
             Spacer(Modifier.padding(top = SchoolUiMetrics.pageBottom))
         }
 
