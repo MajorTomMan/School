@@ -227,6 +227,13 @@ class AssessmentProgressStore internal constructor(
             MasterySnapshotEntity::toHistoryPoint,
         )
 
+    suspend fun clearAll() {
+        database.withTransaction {
+            dao.clearSessions()
+            dao.clearMasteryStates()
+        }
+    }
+
     private suspend fun loadPersistedSession(
         entity: AssessmentSessionEntity,
     ): PersistedAssessmentSession = PersistedAssessmentSession(
