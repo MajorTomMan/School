@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.sp
 import com.majortomman.school.ai.AnswerEvaluation
 import com.majortomman.school.ai.OpenAiCompatibleClient
 import com.majortomman.school.data.AiSettings
-import com.majortomman.school.data.PreferencesRepository
+import com.majortomman.school.data.AppSettingsRepository
 import com.majortomman.school.learning.assessment.application.AssessmentIntent
 import com.majortomman.school.learning.assessment.application.AssessmentQuestionPageState
 import com.majortomman.school.learning.assessment.contract.CourseAssessmentQuestion
@@ -55,7 +55,7 @@ internal fun AssessmentAiJudgeSection(
     dispatch: (AssessmentIntent) -> Unit,
 ) {
     val context = LocalContext.current
-    val settingsFlow = remember(context) { PreferencesRepository(context.applicationContext).aiSettings }
+    val settingsFlow = remember(context) { AppSettingsRepository(context.applicationContext).aiSettings }
     val settings by settingsFlow.collectAsState(initial = AiSettings())
     val scope = rememberCoroutineScope()
     var aiBusy by remember(question.definition.key) { mutableStateOf(false) }
