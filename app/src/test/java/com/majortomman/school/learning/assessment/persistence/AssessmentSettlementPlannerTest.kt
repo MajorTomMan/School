@@ -48,11 +48,12 @@ class AssessmentSettlementPlannerTest {
         )
 
         val plan = AssessmentSettlementPlanner().plan(
+            courseId = "course-1",
+            contentRevision = "rev-1",
             sessionId = sessionId,
             questionSet = questionSet,
             attempts = attempts,
             events = events,
-            currentMastery = emptyMap(),
         )
 
         assertEquals(2, plan.summary.totalQuestionCount)
@@ -64,12 +65,6 @@ class AssessmentSettlementPlannerTest {
         assertEquals(1, plan.evidence.size)
         assertClose(0.51, plan.evidence.single().score)
 
-        val update = plan.masteryUpdates.single()
-        assertClose(0.5, update.beforeScore)
-        assertClose(1.0, update.beforeEvidenceWeight)
-        assertClose(0.505, update.afterScore)
-        assertTrue(update.afterScore > 0.0)
-        assertTrue(update.afterScore < 1.0)
     }
 
     @Test
@@ -79,13 +74,11 @@ class AssessmentSettlementPlannerTest {
             questionSet = questionSet,
             attempts = emptyList(),
             events = listOf(QuestionSkipped(sessionId, questionOne.key, 10L)),
-            currentMastery = emptyMap(),
         )
 
         assertEquals(1, plan.summary.skippedCount)
         assertEquals(1, plan.summary.unansweredCount)
         assertTrue(plan.evidence.isEmpty())
-        assertTrue(plan.masteryUpdates.isEmpty())
     }
 
     @Test
@@ -116,9 +109,8 @@ class AssessmentSettlementPlannerTest {
             questionSet = questionSet,
             attempts = listOf(attempt("a-1", questionOne.key, 1, JudgeOutcome.CORRECT, 10L)),
             events = emptyList(),
-            currentMastery = emptyMap(),
         )
-        val valid = plan.summary.toSettlementEntity(plan.masteryPolicyVersion, 20L)
+        val valid = plan.summary.toSettlementEntity(policyVersion = 1, settledAtEpochMillis = 20L)
         valid.verifyAgainst(plan.summary)
 
         val corrupted = valid.copy(wrongSubmissionCount = valid.wrongSubmissionCount + 1)
