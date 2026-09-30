@@ -158,7 +158,7 @@ class CloudCourseCodecTest {
                 "id":"positive-negative-intro","title":"为什么需要负数","aliases":["正数和负数"],"goals":["理解相反意义的量"],"knowledgePointIds":["positive-negative"],"prerequisiteLessonIds":[],
                 "references":[{"label":"教材1—2页","pageStart":1,"pageEnd":2}],
                 "steps":[
-                  $INQUIY,
+                  $INQUIRY_STEP,
                   {"id":"observe-number-line","role":"explanation","title":"观察","content":[{"type":"visualization","renderer":"mathematics.number-line.basic","parameters":{"value":-3,"min":-8,"max":8,"step":1},"texts":{"title":"在数轴上观察位置","note":"0 是正负方向的共同基准"}}]},
                   {"id":"practice-west","role":"practice","content":[{"type":"text","style":"prompt","text":"向西8米怎么表示？"}]$ACTIVITY,"assessment":{"type":"exactText","expected":"-8米","ignoreCase":false,$EXPLANATION,"knowledgePointIds":["positive-negative"],"difficulty":0.2}},
                   {"id":"summary","role":"summary","content":[{"type":"text","style":"body","text":"正负号用于区分相反方向"}]}
