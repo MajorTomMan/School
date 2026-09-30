@@ -10,7 +10,7 @@ import androidx.room.Query
 import androidx.room.Upsert
 import androidx.room.withTransaction
 import com.majortomman.school.learning.assessment.domain.Difficulty
-import com.majortomman.school.learning.assessment.domain.KnowledgePointId
+import com.majortomman.school.learning.knowledge.KnowledgePointId
 import com.majortomman.school.learning.evidence.domain.LearningEvidence
 import com.majortomman.school.learning.evidence.domain.LearningEvidenceOutcome
 import com.majortomman.school.learning.evidence.domain.LearningEvidenceSource
