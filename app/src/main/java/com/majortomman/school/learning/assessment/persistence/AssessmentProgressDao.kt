@@ -4,7 +4,6 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Upsert
 
 @Dao
 internal interface AssessmentProgressDao {
@@ -142,50 +141,6 @@ internal interface AssessmentProgressDao {
     @Query("SELECT * FROM assessment_settlement WHERE sessionId = :sessionId")
     suspend fun findSettlement(sessionId: String): AssessmentSettlementEntity?
 
-    @Insert(onConflict = OnConflictStrategy.ABORT)
-    suspend fun insertMasteryEvidence(entities: List<MasteryEvidenceEntity>)
-
-    @Query(
-        """
-        SELECT * FROM mastery_evidence
-        WHERE sessionId = :sessionId
-        ORDER BY knowledgePointId ASC, questionId ASC, questionRevision ASC
-        """,
-    )
-    suspend fun masteryEvidenceForSession(sessionId: String): List<MasteryEvidenceEntity>
-
-    @Query("SELECT * FROM mastery_state WHERE knowledgePointId = :knowledgePointId")
-    suspend fun findMasteryState(knowledgePointId: String): MasteryStateEntity?
-
-    @Upsert
-    suspend fun upsertMasteryState(entity: MasteryStateEntity)
-
-    @Insert(onConflict = OnConflictStrategy.ABORT)
-    suspend fun insertMasterySnapshot(entity: MasterySnapshotEntity)
-
-    @Query(
-        """
-        SELECT * FROM mastery_snapshot
-        WHERE sessionId = :sessionId
-        ORDER BY knowledgePointId ASC
-        """,
-    )
-    suspend fun masterySnapshotsForSession(sessionId: String): List<MasterySnapshotEntity>
-
-    @Query(
-        """
-        SELECT * FROM mastery_snapshot
-        WHERE knowledgePointId = :knowledgePointId
-        ORDER BY createdAtEpochMillis ASC, sessionId ASC
-        """,
-    )
-    suspend fun masterySnapshotsForKnowledgePoint(
-        knowledgePointId: String,
-    ): List<MasterySnapshotEntity>
-
     @Query("DELETE FROM assessment_session")
     suspend fun clearSessions()
-
-    @Query("DELETE FROM mastery_state")
-    suspend fun clearMasteryStates()
 }
