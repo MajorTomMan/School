@@ -36,7 +36,7 @@ class AssessmentSettlementPlannerTest {
     )
 
     @Test
-    fun plansWrongCountsEvidenceAndSmoothedMasteryFromFacts() {
+    fun plansWrongCountsAndGenericEvidenceFromFacts() {
         val attempts = listOf(
             attempt("a-1", questionOne.key, 1, JudgeOutcome.INCORRECT, 10L),
             attempt("a-2", questionOne.key, 2, JudgeOutcome.INCORRECT, 20L),
@@ -70,6 +70,8 @@ class AssessmentSettlementPlannerTest {
     @Test
     fun skippedAndUnansweredQuestionsDoNotCreateMasteryEvidence() {
         val plan = AssessmentSettlementPlanner().plan(
+            courseId = "course-1",
+            contentRevision = "rev-1",
             sessionId = sessionId,
             questionSet = questionSet,
             attempts = emptyList(),
@@ -105,6 +107,8 @@ class AssessmentSettlementPlannerTest {
     @Test
     fun settlementAggregateVerificationDetectsCorruption() {
         val plan = AssessmentSettlementPlanner().plan(
+            courseId = "course-1",
+            contentRevision = "rev-1",
             sessionId = sessionId,
             questionSet = questionSet,
             attempts = listOf(attempt("a-1", questionOne.key, 1, JudgeOutcome.CORRECT, 10L)),
