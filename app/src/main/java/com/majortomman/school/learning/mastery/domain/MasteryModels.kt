@@ -1,14 +1,7 @@
 package com.majortomman.school.learning.mastery.domain
 
-import com.majortomman.school.learning.assessment.domain.Difficulty
 import com.majortomman.school.learning.assessment.domain.KnowledgePointId
-import com.majortomman.school.learning.assessment.domain.QuestionCompletionStatus
-import com.majortomman.school.learning.assessment.domain.QuestionDefinition
-import com.majortomman.school.learning.assessment.domain.QuestionId
-import com.majortomman.school.learning.assessment.domain.QuestionResult
-import com.majortomman.school.learning.assessment.domain.QuestionSetDefinition
-import com.majortomman.school.learning.assessment.domain.SessionId
-import com.majortomman.school.learning.assessment.domain.SessionSummary
+import com.majortomman.school.learning.evidence.domain.LearningEvidence
 
 data class MasteryState(
     val knowledgePointId: KnowledgePointId,
@@ -19,111 +12,6 @@ data class MasteryState(
         require(score.isFinite() && score in 0.0..1.0) { "mastery score 必须位于 0.0 到 1.0" }
         require(accumulatedEvidenceWeight.isFinite() && accumulatedEvidenceWeight >= 0.0) {
             "accumulatedEvidenceWeight 不能小于 0"
-        }
-    }
-}
-
-enum class MasteryEvidenceOutcome {
-    FIRST_TRY_CORRECT,
-    RECOVERED_CORRECT,
-    FINAL_INCORRECT,
-}
-
-data class MasteryEvidence(
-    val knowledgePointId: KnowledgePointId,
-    val questionId: QuestionId,
-    val questionRevision: Int,
-    val sessionId: SessionId,
-    val outcome: MasteryEvidenceOutcome,
-    val score: Double,
-    val weight: Double,
-    val difficulty: Difficulty,
-    val wrongAttemptCount: Int,
-    val hintViewCount: Int,
-    val explanationViewed: Boolean,
-) {
-    init {
-        require(questionRevision > 0) { "questionRevision 必须大于 0" }
-        require(score.isFinite() && score in 0.0..1.0) { "evidence score 必须位于 0.0 到 1.0" }
-        require(weight.isFinite() && weight > 0.0) { "evidence weight 必须大于 0" }
-        require(wrongAttemptCount >= 0) { "wrongAttemptCount 不能小于 0" }
-        require(hintViewCount >= 0) { "hintViewCount 不能小于 0" }
-    }
-}
-
-interface MasteryEvidenceScorer {
-    fun score(result: QuestionResult): Double?
-}
-
-/**
- * 第一版可解释评分：首次答对证据最强，错误次数、提示和完整解析会降低证据强度。
- * 跳过与未作答不产生正负证据；最终答错产生 0 分证据。
- */
-object DefaultMasteryEvidenceScorer : MasteryEvidenceScorer {
-    override fun score(result: QuestionResult): Double? {
-        val base = when (result.status) {
-            QuestionCompletionStatus.FIRST_TRY_CORRECT -> 1.0
-            QuestionCompletionStatus.RECOVERED_CORRECT -> when (result.wrongAttemptCount) {
-                0 -> 1.0
-                1 -> 0.75
-                2 -> 0.60
-                else -> 0.45
-            }
-
-            QuestionCompletionStatus.FINAL_INCORRECT -> 0.0
-            QuestionCompletionStatus.SKIPPED,
-            QuestionCompletionStatus.UNANSWERED,
-            -> return null
-        }
-
-        var adjusted = base
-        if (result.hintViewCount > 0) {
-            adjusted *= 0.85
-        }
-        if (result.explanationViewed) {
-            adjusted = minOf(adjusted, 0.35)
-        }
-        return adjusted.coerceIn(0.0, 1.0)
-    }
-}
-
-object MasteryEvidenceFactory {
-    fun create(
-        questionSet: QuestionSetDefinition,
-        summary: SessionSummary,
-        scorer: MasteryEvidenceScorer = DefaultMasteryEvidenceScorer,
-    ): List<MasteryEvidence> {
-        require(summary.questionSetId == questionSet.id) { "summary 与 questionSet 不匹配" }
-
-        val definitions = questionSet.questions.associateBy(QuestionDefinition::key)
-        return summary.questionResults.flatMap { result ->
-            val definition = definitions[result.questionKey]
-                ?: error("summary 包含题组外的问题：${result.questionKey}")
-            val evidenceScore = scorer.score(result) ?: return@flatMap emptyList()
-            val outcome = when (result.status) {
-                QuestionCompletionStatus.FIRST_TRY_CORRECT -> MasteryEvidenceOutcome.FIRST_TRY_CORRECT
-                QuestionCompletionStatus.RECOVERED_CORRECT -> MasteryEvidenceOutcome.RECOVERED_CORRECT
-                QuestionCompletionStatus.FINAL_INCORRECT -> MasteryEvidenceOutcome.FINAL_INCORRECT
-                QuestionCompletionStatus.SKIPPED,
-                QuestionCompletionStatus.UNANSWERED,
-                -> error("跳过或未作答不应生成掌握度证据")
-            }
-
-            definition.knowledgeBindings.map { binding ->
-                MasteryEvidence(
-                    knowledgePointId = binding.knowledgePointId,
-                    questionId = definition.key.id,
-                    questionRevision = definition.key.revision,
-                    sessionId = summary.sessionId,
-                    outcome = outcome,
-                    score = evidenceScore,
-                    weight = binding.weight,
-                    difficulty = definition.difficulty,
-                    wrongAttemptCount = result.wrongAttemptCount,
-                    hintViewCount = result.hintViewCount,
-                    explanationViewed = result.explanationViewed,
-                )
-            }
         }
     }
 }
@@ -150,18 +38,37 @@ data class MasteryUpdate(
     }
 }
 
+data class MasteryPrior(
+    val score: Double = 0.5,
+    val evidenceWeight: Double = 1.0,
+) {
+    init {
+        require(score.isFinite() && score in 0.0..1.0) { "初始掌握度必须位于 0.0 到 1.0" }
+        require(evidenceWeight.isFinite() && evidenceWeight > 0.0) {
+            "初始证据权重必须大于 0"
+        }
+    }
+
+    fun stateFor(id: KnowledgePointId): MasteryState = MasteryState(
+        knowledgePointId = id,
+        score = score,
+        accumulatedEvidenceWeight = evidenceWeight,
+    )
+}
+
 interface MasteryPolicy {
     val version: Int
 
     fun update(
         current: MasteryState,
-        evidence: List<MasteryEvidence>,
+        evidence: List<LearningEvidence>,
     ): MasteryUpdate
 }
 
 /**
- * 使用累计证据权重进行平滑更新，避免一次练习把掌握度直接推到 0 或 100。
- * 难题提供略强证据，简单题提供略弱证据，但差异被限制在 0.75 到 1.25 倍。
+ * 使用累计证据权重进行平滑更新。
+ *
+ * Policy 只消费语义 Evidence，不知道 Evidence 来自独立 Assessment 还是 Lesson Activity。
  */
 class WeightedMasteryPolicy(
     override val version: Int = 1,
@@ -172,7 +79,7 @@ class WeightedMasteryPolicy(
 
     override fun update(
         current: MasteryState,
-        evidence: List<MasteryEvidence>,
+        evidence: List<LearningEvidence>,
     ): MasteryUpdate {
         require(evidence.all { it.knowledgePointId == current.knowledgePointId }) {
             "一次 update 只能处理同一个知识点"
