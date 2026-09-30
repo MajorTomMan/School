@@ -15,8 +15,8 @@ import com.majortomman.school.learning.mastery.domain.MasteryState
 /**
  * Assessment 有界上下文的持久化入口。
  *
- * 旧的 SchoolDatabase 继续承载历史练习与课程目录；新答题系统只通过本仓库读写事实、
- * 结算和掌握度快照，避免界面或其他模块直接跨数据库拼装统计。
+ * 只通过本 Store 读写答题事实、结算和掌握度快照，避免 UI 或其他模块直接访问 Room
+ * 或把课程进度与知识掌握状态混为一体。
  */
 class AssessmentProgressStore internal constructor(
     private val database: LearningProgressDatabase,
