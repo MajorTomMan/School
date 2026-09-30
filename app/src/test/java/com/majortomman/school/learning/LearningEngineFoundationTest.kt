@@ -1,11 +1,11 @@
 package com.majortomman.school.learning
 
-import com.majortomman.school.learning.capability.ConceptId
-import com.majortomman.school.learning.capability.ExtensionPolicy
-import com.majortomman.school.learning.capability.LessonCapability
-import com.majortomman.school.learning.capability.NumberDomain
-import com.majortomman.school.learning.capability.OperationId
-import com.majortomman.school.learning.capability.WidgetType
+import com.majortomman.school.learning.capability.CapabilityDescriptor
+import com.majortomman.school.learning.capability.CapabilityKey
+import com.majortomman.school.learning.capability.CapabilityKind
+import com.majortomman.school.learning.capability.CapabilityRegistry
+import com.majortomman.school.learning.capability.SubjectId
+import com.majortomman.school.learning.capability.SubjectModule
 import com.majortomman.school.learning.relation.RelationDefinition
 import com.majortomman.school.learning.relation.RelationSolveResult
 import com.majortomman.school.learning.relation.SolveRule
@@ -17,21 +17,19 @@ import org.junit.Test
 
 class LearningEngineFoundationTest {
     @Test
-    fun capabilityBlocksConceptsOutsideCurrentLesson() {
-        val capability = LessonCapability(
-            allowedConcepts = setOf(ConceptId.FUNCTION, ConceptId.CORRESPONDING_VALUE),
-            enabledOperations = setOf(OperationId.SUBSTITUTE),
-            enabledWidgets = setOf(WidgetType.COORDINATE_GRAPH_2D),
-            numberDomain = NumberDomain.REAL,
-            extensionPolicy = ExtensionPolicy.NECESSARY_ONLY,
-        )
+    fun capabilityRegistryUsesStableKeysWithoutCentralSubjectEnums() {
+        val mathematics = object : SubjectModule {
+            override val id = SubjectId("mathematics")
+            override val capabilities = listOf(
+                CapabilityDescriptor(CapabilityKey("mathematics.number-line"), id, CapabilityKind.VISUALIZATION),
+                CapabilityDescriptor(CapabilityKey("mathematics.place-on-number-line"), id, CapabilityKind.ACTIVITY),
+            )
+        }
+        val registry = CapabilityRegistry(listOf(mathematics))
 
-        val validation = capability.validate(
-            requestedConcepts = setOf(ConceptId.FUNCTION, ConceptId.COMPLEX_PLANE),
-        )
-
-        assertFalse(validation.allowed)
-        assertTrue(ConceptId.COMPLEX_PLANE in validation.blockedConcepts)
+        assertTrue(registry.supports(CapabilityKey("mathematics.number-line")))
+        assertFalse(registry.supports(CapabilityKey("physics.force-diagram")))
+        assertEquals(1, registry.capabilities(SubjectId("mathematics"), CapabilityKind.ACTIVITY).size)
     }
 
     @Test
