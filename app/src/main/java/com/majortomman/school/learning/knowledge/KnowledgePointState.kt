@@ -1,7 +1,7 @@
 package com.majortomman.school.learning.knowledge
 
 import android.content.Context
-import com.majortomman.school.learning.assessment.domain.KnowledgePointId
+import com.majortomman.school.learning.knowledge.KnowledgePointId
 import com.majortomman.school.learning.mastery.domain.MasteryState
 import com.majortomman.school.learning.persistence.SchoolLearningDatabase
 
