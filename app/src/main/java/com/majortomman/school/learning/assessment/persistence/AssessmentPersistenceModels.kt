@@ -9,7 +9,7 @@ import com.majortomman.school.learning.assessment.domain.ExplanationViewed
 import com.majortomman.school.learning.assessment.domain.HintViewed
 import com.majortomman.school.learning.assessment.domain.JudgeOutcome
 import com.majortomman.school.learning.assessment.domain.JudgeResult
-import com.majortomman.school.learning.assessment.domain.KnowledgePointId
+import com.majortomman.school.learning.knowledge.KnowledgePointId
 import com.majortomman.school.learning.assessment.domain.QuestionCompletionStatus
 import com.majortomman.school.learning.assessment.domain.QuestionId
 import com.majortomman.school.learning.assessment.domain.QuestionKey
