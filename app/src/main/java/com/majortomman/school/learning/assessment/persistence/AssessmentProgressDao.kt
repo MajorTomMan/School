@@ -182,4 +182,10 @@ internal interface AssessmentProgressDao {
     suspend fun masterySnapshotsForKnowledgePoint(
         knowledgePointId: String,
     ): List<MasterySnapshotEntity>
+
+    @Query("DELETE FROM assessment_session")
+    suspend fun clearSessions()
+
+    @Query("DELETE FROM mastery_state")
+    suspend fun clearMasteryStates()
 }
