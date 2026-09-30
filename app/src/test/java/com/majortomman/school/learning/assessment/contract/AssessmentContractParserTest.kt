@@ -5,13 +5,13 @@ import com.majortomman.school.learning.assessment.domain.AnswerRule
 import com.majortomman.school.learning.content.LearningContent
 import com.majortomman.school.learning.course.CourseChapter
 import com.majortomman.school.learning.course.CourseDocument
-import com.majortomman.school.learning.course.CourseExplanation
 import com.majortomman.school.learning.course.CourseKnowledgePoint
 import com.majortomman.school.learning.course.CourseLesson
 import com.majortomman.school.learning.course.CoursePdf
-import com.majortomman.school.learning.course.CoursePractice
 import com.majortomman.school.learning.course.CourseSection
 import com.majortomman.school.learning.course.CourseSourceReference
+import com.majortomman.school.learning.course.CourseStep
+import com.majortomman.school.learning.course.CourseStepRole
 import com.majortomman.school.learning.course.CourseTextbook
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -147,9 +147,20 @@ class AssessmentContractParserTest {
                                 knowledgePointIds = listOf("number-line"),
                                 prerequisiteLessonIds = emptyList(),
                                 references = listOf(CourseSourceReference("教材第8—9页", 8, 9)),
-                                steps = listOf(CourseExplanation(null, "数轴把数和直线上的位置对应起来。")),
-                                practice = listOf(CoursePractice("number-line-practice", "数轴原点表示什么数？", "0", listOf("原点表示0。"), listOf("number-line"), 1)),
-                                summary = listOf("数轴包含原点、正方向和单位长度。"),
+                                steps = listOf(
+                                    CourseStep(
+                                        id = "number-line-explanation",
+                                        role = CourseStepRole.EXPLANATION,
+                                        title = null,
+                                        content = listOf(LearningContent.Text("数轴把数和直线上的位置对应起来。")),
+                                    ),
+                                    CourseStep(
+                                        id = "number-line-summary",
+                                        role = CourseStepRole.SUMMARY,
+                                        title = null,
+                                        content = listOf(LearningContent.Text("数轴包含原点、正方向和单位长度。")),
+                                    ),
+                                ),
                             ),
                         ),
                     ),
