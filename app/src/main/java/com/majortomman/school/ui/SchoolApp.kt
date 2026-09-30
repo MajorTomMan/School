@@ -209,6 +209,7 @@ fun SchoolApp(
                                             lessons = lessons,
                                             courseTitle = activeCourse.title,
                                             onStartLesson = { openLesson(activeCourse, it) },
+                                            onOpenPractice = { selectedTabName = MainTab.PRACTICE.name },
                                             onOpenPath = { selectedTabName = MainTab.COURSES.name },
                                         )
                                     }
@@ -266,7 +267,8 @@ fun SchoolApp(
                                     } else {
                                         MyScreen(
                                             currentCourseTitle = activeCourse?.title,
-                                            recentLessonTitle = currentLesson?.title,
+                                            recentLessonTitle = progress.lastLessonId
+                                                ?.let { lastId -> lessons.firstOrNull { it.id == lastId }?.title },
                                             onOpenCourses = { selectedTabName = MainTab.COURSES.name },
                                             onOpenSettings = { mineSettingsOpen = true },
                                         )
