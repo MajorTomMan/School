@@ -27,7 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.majortomman.school.data.DailyPlan
 import com.majortomman.school.data.Lesson
-import com.majortomman.school.data.MasteryStatus
+import com.majortomman.school.learning.progress.LessonProgressStatus
 
 @Composable
 fun TodayScreen(
@@ -38,9 +38,9 @@ fun TodayScreen(
     onOpenPath: () -> Unit,
 ) {
     val lesson = lessons.firstOrNull { it.id == plan.newLessonId } ?: return
-    val mastered = lessons.count { it.status == MasteryStatus.MASTERED }
-    val progress = if (lessons.isEmpty()) 0f else mastered.toFloat() / lessons.size.toFloat()
-    val review = lessons.firstOrNull { it.status == MasteryStatus.NEEDS_REVIEW } ?: lessons.firstOrNull { it.status == MasteryStatus.MASTERED }
+    val completed = lessons.count { it.status == LessonProgressStatus.COMPLETED }
+    val progress = if (lessons.isEmpty()) 0f else completed.toFloat() / lessons.size.toFloat()
+    val review = lessons.lastOrNull { it.status == LessonProgressStatus.COMPLETED }
     val currentIndex = lessons.indexOfFirst { it.id == lesson.id }
     val next = lessons.getOrNull(currentIndex + 1)
 
@@ -76,7 +76,7 @@ fun TodayScreen(
                     color = MaterialTheme.colorScheme.primary,
                     trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f),
                 )
-                Text("已完成 $mastered / ${lessons.size} 节", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
+                Text("已完成 $completed / ${lessons.size} 节", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -99,7 +99,7 @@ fun TodayScreen(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(courseTitle, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text("${lessons.size} 节 · 已完成 $mastered 节", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                Text("${lessons.size} 节 · 已完成 $completed 节", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
             }
             Text("查看课程  ›", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
         }
