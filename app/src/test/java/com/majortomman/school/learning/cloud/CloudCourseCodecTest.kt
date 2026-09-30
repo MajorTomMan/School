@@ -166,8 +166,5 @@ class CloudCourseCodecTest {
               }]}]}]
             }
         """.trimIndent()
-            .replace("$INQUIY", INQUIRY_STEP)
-            .replace("$ACTIVITY", ACTIVITY)
-            .replace("$EXPLANATION", EXPLANATION)
     }
 }
