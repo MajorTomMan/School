@@ -2,6 +2,7 @@ package com.majortomman.school.learning.mastery.domain
 
 import com.majortomman.school.learning.assessment.domain.AnswerInputSpec
 import com.majortomman.school.learning.assessment.domain.AnswerRule
+import com.majortomman.school.learning.assessment.domain.AssessmentEvidenceFactory
 import com.majortomman.school.learning.assessment.domain.Difficulty
 import com.majortomman.school.learning.assessment.domain.KnowledgeBinding
 import com.majortomman.school.learning.assessment.domain.KnowledgePointId
@@ -14,6 +15,10 @@ import com.majortomman.school.learning.assessment.domain.QuestionSetDefinition
 import com.majortomman.school.learning.assessment.domain.QuestionSetId
 import com.majortomman.school.learning.assessment.domain.SessionId
 import com.majortomman.school.learning.assessment.domain.SessionSummary
+import com.majortomman.school.learning.evidence.domain.LearningEvidence
+import com.majortomman.school.learning.evidence.domain.LearningEvidenceOutcome
+import com.majortomman.school.learning.evidence.domain.LearningEvidenceSource
+import com.majortomman.school.learning.evidence.domain.LearningEvidenceSourceKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -24,7 +29,7 @@ class MasteryModelsTest {
     private val questionKey = QuestionKey(QuestionId("q-1"), revision = 1)
 
     @Test
-    fun `evidence score reflects wrong attempts hints and explanation`() {
+    fun assessmentEvidenceScoreReflectsWrongAttemptsHintsAndExplanation() {
         val recovered = result(
             status = QuestionCompletionStatus.RECOVERED_CORRECT,
             wrongAttemptCount = 2,
@@ -32,17 +37,17 @@ class MasteryModelsTest {
         )
         val withExplanation = recovered.copy(explanationViewed = true)
 
-        assertEquals(0.51, DefaultMasteryEvidenceScorer.score(recovered)!!, 0.0001)
-        assertEquals(0.35, DefaultMasteryEvidenceScorer.score(withExplanation)!!, 0.0001)
+        assertEquals(0.51, AssessmentEvidenceFactory.score(recovered)!!, 0.0001)
+        assertEquals(0.35, AssessmentEvidenceFactory.score(withExplanation)!!, 0.0001)
         assertNull(
-            DefaultMasteryEvidenceScorer.score(
+            AssessmentEvidenceFactory.score(
                 result(status = QuestionCompletionStatus.SKIPPED),
             ),
         )
     }
 
     @Test
-    fun `factory creates one evidence item for every knowledge binding`() {
+    fun assessmentFactoryCreatesGenericEvidenceForEveryKnowledgeBinding() {
         val secondKnowledgePoint = KnowledgePointId("opposite-numbers")
         val question = question(
             bindings = listOf(
@@ -66,25 +71,33 @@ class MasteryModelsTest {
             ),
         )
 
-        val evidence = MasteryEvidenceFactory.create(questionSet, summary)
+        val evidence = AssessmentEvidenceFactory.create(
+            courseId = "course-1",
+            contentRevision = "rev-1",
+            questionSet = questionSet,
+            summary = summary,
+        )
 
         assertEquals(2, evidence.size)
         assertEquals(setOf(knowledgePointId, secondKnowledgePoint), evidence.map { it.knowledgePointId }.toSet())
         assertEquals(0.75, evidence.first { it.knowledgePointId == knowledgePointId }.score, 0.0001)
         assertEquals(0.4, evidence.first { it.knowledgePointId == secondKnowledgePoint }.weight, 0.0001)
+        assertEquals(LearningEvidenceSourceKind.ASSESSMENT_QUESTION, evidence.first().source.kind)
     }
 
     @Test
-    fun `weighted policy smooths new evidence instead of replacing mastery`() {
+    fun weightedPolicySmoothsGenericEvidenceInsteadOfReplacingMastery() {
         val policy = WeightedMasteryPolicy(version = 1)
         val current = MasteryState(
             knowledgePointId = knowledgePointId,
             score = 0.60,
             accumulatedEvidenceWeight = 4.0,
         )
-        val evidence = evidence(score = 1.0, difficulty = Difficulty(0.5))
 
-        val update = policy.update(current, listOf(evidence))
+        val update = policy.update(
+            current,
+            listOf(evidence(score = 1.0, difficulty = Difficulty(0.5))),
+        )
 
         assertEquals(0.60, update.beforeScore, 0.0001)
         assertEquals(0.68, update.afterScore, 0.0001)
@@ -94,7 +107,7 @@ class MasteryModelsTest {
     }
 
     @Test
-    fun `final wrong evidence lowers mastery without resetting it to zero`() {
+    fun finalWrongEvidenceLowersMasteryWithoutResettingItToZero() {
         val policy = WeightedMasteryPolicy()
         val current = MasteryState(
             knowledgePointId = knowledgePointId,
@@ -133,14 +146,12 @@ class MasteryModelsTest {
             QuestionCompletionStatus.UNANSWERED,
             QuestionCompletionStatus.SKIPPED,
             -> 0
-
             else -> wrongAttemptCount + if (status == QuestionCompletionStatus.FINAL_INCORRECT) 0 else 1
         },
         validAttemptCount = when (status) {
             QuestionCompletionStatus.UNANSWERED,
             QuestionCompletionStatus.SKIPPED,
             -> 0
-
             else -> wrongAttemptCount + if (status == QuestionCompletionStatus.FINAL_INCORRECT) 0 else 1
         },
         invalidSubmissionCount = 0,
@@ -150,24 +161,24 @@ class MasteryModelsTest {
         wasEverSkipped = status == QuestionCompletionStatus.SKIPPED,
     )
 
-    private fun evidence(
-        score: Double,
-        difficulty: Difficulty,
-    ): MasteryEvidence = MasteryEvidence(
+    private fun evidence(score: Double, difficulty: Difficulty): LearningEvidence = LearningEvidence(
+        id = "evidence-1",
+        courseId = "course-1",
         knowledgePointId = knowledgePointId,
-        questionId = questionKey.id,
-        questionRevision = questionKey.revision,
-        sessionId = sessionId,
+        source = LearningEvidenceSource(
+            kind = LearningEvidenceSourceKind.LESSON_ACTIVITY,
+            contextId = "lesson:course-1:lesson-1:step-1",
+            itemId = "activity-1",
+            contentRevision = "rev-1",
+        ),
         outcome = if (score == 0.0) {
-            MasteryEvidenceOutcome.FINAL_INCORRECT
+            LearningEvidenceOutcome.FINAL_INCORRECT
         } else {
-            MasteryEvidenceOutcome.FIRST_TRY_CORRECT
+            LearningEvidenceOutcome.FIRST_TRY_CORRECT
         },
         score = score,
         weight = 1.0,
         difficulty = difficulty,
         wrongAttemptCount = if (score == 0.0) 1 else 0,
-        hintViewCount = 0,
-        explanationViewed = false,
     )
 }
