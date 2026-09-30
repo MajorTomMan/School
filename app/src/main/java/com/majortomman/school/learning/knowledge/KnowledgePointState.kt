@@ -2,7 +2,20 @@ package com.majortomman.school.learning.knowledge
 
 import android.content.Context
 import com.majortomman.school.learning.assessment.domain.KnowledgePointId
+import com.majortomman.school.learning.mastery.domain.MasteryState
 import com.majortomman.school.learning.persistence.SchoolLearningDatabase
+
+data class KnowledgePointEvidenceSummary(
+    val evidenceCount: Int,
+    val lastEvidenceAtEpochMillis: Long?,
+) {
+    init {
+        require(evidenceCount >= 0) { "evidenceCount 不能小于 0" }
+        require(lastEvidenceAtEpochMillis == null || lastEvidenceAtEpochMillis >= 0L) {
+            "lastEvidenceAtEpochMillis 不能小于 0"
+        }
+    }
+}
 
 data class KnowledgePointState(
     val id: KnowledgePointId,
@@ -15,11 +28,29 @@ data class KnowledgePointState(
         get() = evidenceCount > 0
 }
 
+object KnowledgePointStateProjector {
+    fun project(
+        ids: Collection<KnowledgePointId>,
+        mastery: Map<KnowledgePointId, MasteryState>,
+        evidence: Map<KnowledgePointId, KnowledgePointEvidenceSummary>,
+    ): List<KnowledgePointState> = ids.distinct().map { id ->
+        val masteryState = mastery[id]
+        val summary = evidence[id]
+        KnowledgePointState(
+            id = id,
+            masteryScore = masteryState?.score,
+            accumulatedEvidenceWeight = masteryState?.accumulatedEvidenceWeight ?: 0.0,
+            evidenceCount = summary?.evidenceCount ?: 0,
+            lastEvidenceAtEpochMillis = summary?.lastEvidenceAtEpochMillis,
+        )
+    }
+}
+
 /**
  * Read-only projection of learning state.
  *
- * This layer summarizes evidence and mastery. It does not choose lessons, mutate CourseProgress
- * or advance LessonRuntime.
+ * It summarizes evidence and mastery only. It does not choose lessons, mutate CourseProgress,
+ * emit navigation decisions or advance LessonRuntime.
  */
 class KnowledgePointStateReader internal constructor(
     private val database: SchoolLearningDatabase,
@@ -30,20 +61,19 @@ class KnowledgePointStateReader internal constructor(
 
         val dao = database.learningEvidenceDao()
         val rawIds = orderedIds.map(KnowledgePointId::value)
-        val mastery = dao.masteryStates(rawIds).associateBy { it.knowledgePointId }
-        val stats = dao.evidenceStats(rawIds).associateBy { it.knowledgePointId }
-
-        return orderedIds.map { id ->
-            val masteryState = mastery[id.value]
-            val evidenceStats = stats[id.value]
-            KnowledgePointState(
-                id = id,
-                masteryScore = masteryState?.score,
-                accumulatedEvidenceWeight = masteryState?.accumulatedEvidenceWeight ?: 0.0,
-                evidenceCount = evidenceStats?.evidenceCount ?: 0,
-                lastEvidenceAtEpochMillis = evidenceStats?.lastEvidenceAtEpochMillis,
-            )
-        }
+        val mastery = dao.masteryStates(rawIds)
+            .associate { row ->
+                val id = KnowledgePointId(row.knowledgePointId)
+                id to MasteryState(id, row.score, row.accumulatedEvidenceWeight)
+            }
+        val evidence = dao.evidenceStats(rawIds)
+            .associate { row ->
+                KnowledgePointId(row.knowledgePointId) to KnowledgePointEvidenceSummary(
+                    evidenceCount = row.evidenceCount,
+                    lastEvidenceAtEpochMillis = row.lastEvidenceAtEpochMillis,
+                )
+            }
+        return KnowledgePointStateProjector.project(orderedIds, mastery, evidence)
     }
 
     companion object {
