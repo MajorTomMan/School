@@ -79,7 +79,7 @@ class CloudCourseCodecTest {
     fun formulaContentRequiresPureLatex() {
         val delimited = SAMPLE_COURSE.replace(
             INQUIRY_STEP,
-            "{\"id\":\"formula\",\"role\":\"explanation\",\"content\":[{\"type\":\"formula\",\"expression\":\"${'\",\"conditions\":[]}]}",
+            "{\"id\":\"formula\",\"role\":\"explanation\",\"content\":[{\"type\":\"formula\",\"expression\":\"\\$x+1\\$\",\"conditions\":[]}]}",
         )
         assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(delimited) }
 
