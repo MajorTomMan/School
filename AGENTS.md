@@ -469,6 +469,11 @@ assets/<question-assets>
 
 - School 只有一个学习数据宿主：`SchoolLearningDatabase`。不得重新引入并行的历史学习数据库。
 - `CourseProgressStore` 只保存“学到哪里”：`NOT_STARTED / IN_PROGRESS / COMPLETED`。课程进度不得包含“已掌握”“需要复习”等知识状态。
+- `KnowledgePointId` 属于共享 Knowledge 层，不属于 Assessment；Assessment、Evidence、Mastery 只能依赖共享知识身份。
+- `LearningEvidence` 是 source-neutral 事实模型；独立 Assessment 与 Lesson 内联 Activity 必须写入同一 Evidence Store，禁止维护第二套掌握度证据。
+- 有判定规则的 Lesson Activity 必须先持久化 Evidence 并完成 Mastery projection，再由 LessonRuntime 推进 Step；持久化失败时不得假装完成。
+- `MasteryPolicy` 只消费 `LearningEvidence`，不得依赖 question/session/renderer/UI 等来源专用对象。
+- `KnowledgePointState` 是只读投影，只汇总 mastery 与 evidence 事实；它不能改变 CourseProgress、导航或 LessonRuntime。
 - `AssessmentProgressStore` 保存答题会话、提交、事件、结算、证据和 mastery projection。UI 不直接访问 Room。
 - CourseProgress 与 Knowledge Mastery 是两个不同系统；完成课时不等于掌握知识点，掌握度变化也不能直接改写课程顺序。
 - 正式练习必须来自已验证的 `assessments.json + knowledge-points.json`；APK 不内置课程专用随机题库、错题数据库或复习调度器作为 fallback。
