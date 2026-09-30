@@ -1,5 +1,6 @@
 package com.majortomman.school.learning.assessment.domain
 
+import com.majortomman.school.learning.knowledge.KnowledgePointId
 import java.math.BigInteger
 
 @JvmInline
@@ -33,15 +34,6 @@ value class SessionId(val value: String) {
 value class AttemptId(val value: String) {
     init {
         require(value.isNotBlank()) { "attemptId 不能为空" }
-    }
-
-    override fun toString(): String = value
-}
-
-@JvmInline
-value class KnowledgePointId(val value: String) {
-    init {
-        require(value.isNotBlank()) { "knowledgePointId 不能为空" }
     }
 
     override fun toString(): String = value
