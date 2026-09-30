@@ -23,7 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.majortomman.school.data.Lesson
-import com.majortomman.school.data.MasteryStatus
+import com.majortomman.school.learning.progress.LessonProgressStatus
 
 @Composable
 fun CoursePathScreen(
@@ -32,10 +32,10 @@ fun CoursePathScreen(
     onOpenLesson: (String) -> Unit,
     onChooseCourse: () -> Unit,
 ) {
-    val masteredCount = lessons.count { it.status == MasteryStatus.MASTERED }
-    val current = lessons.firstOrNull { it.status == MasteryStatus.LEARNING }
+    val masteredCount = lessons.count { it.status == LessonProgressStatus.COMPLETED }
+    val current = lessons.firstOrNull { it.status == LessonProgressStatus.IN_PROGRESS }
         ?: lessons.firstOrNull { it.status == MasteryStatus.NEEDS_REVIEW }
-        ?: lessons.firstOrNull { it.status == MasteryStatus.NOT_STARTED }
+        ?: lessons.firstOrNull { it.status == LessonProgressStatus.NOT_STARTED }
     val progress = if (lessons.isEmpty()) 0f else masteredCount.toFloat() / lessons.size.toFloat()
 
     LazyColumn(
@@ -76,16 +76,14 @@ fun CoursePathScreen(
 @Composable
 private fun CourseLessonRow(number: Int, lesson: Lesson, onClick: () -> Unit) {
     val marker = when (lesson.status) {
-        MasteryStatus.MASTERED -> "✓"
-        MasteryStatus.LEARNING -> "●"
-        MasteryStatus.NEEDS_REVIEW -> "↻"
-        MasteryStatus.NOT_STARTED -> "○"
+        LessonProgressStatus.COMPLETED -> "✓"
+        LessonProgressStatus.IN_PROGRESS -> "●"
+        LessonProgressStatus.NOT_STARTED -> "○"
     }
     val markerColor = when (lesson.status) {
-        MasteryStatus.MASTERED -> MaterialTheme.colorScheme.tertiary
-        MasteryStatus.LEARNING -> MaterialTheme.colorScheme.primary
-        MasteryStatus.NEEDS_REVIEW -> MaterialTheme.colorScheme.secondary
-        MasteryStatus.NOT_STARTED -> MaterialTheme.colorScheme.onSurfaceVariant
+        LessonProgressStatus.COMPLETED -> MaterialTheme.colorScheme.tertiary
+        LessonProgressStatus.IN_PROGRESS -> MaterialTheme.colorScheme.primary
+        LessonProgressStatus.NOT_STARTED -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     Row(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 14.dp),
@@ -95,15 +93,14 @@ private fun CourseLessonRow(number: Int, lesson: Lesson, onClick: () -> Unit) {
         Text(marker, color = markerColor, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Text("$number", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(lesson.title, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleMedium, fontWeight = if (lesson.status == MasteryStatus.LEARNING) FontWeight.Bold else FontWeight.Medium)
+            Text(lesson.title, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleMedium, fontWeight = if (lesson.status == LessonProgressStatus.IN_PROGRESS) FontWeight.Bold else FontWeight.Medium)
             lesson.subtitle.takeIf(String::isNotBlank)?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 1) }
         }
         Text(
             when (lesson.status) {
-                MasteryStatus.MASTERED -> "已完成"
-                MasteryStatus.LEARNING -> "当前  ›"
-                MasteryStatus.NEEDS_REVIEW -> "复习  ›"
-                MasteryStatus.NOT_STARTED -> "›"
+                LessonProgressStatus.COMPLETED -> "已完成"
+                LessonProgressStatus.IN_PROGRESS -> "当前  ›"
+                        LessonProgressStatus.NOT_STARTED -> "›"
             },
             color = markerColor,
             style = MaterialTheme.typography.labelMedium,
