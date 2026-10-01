@@ -1,12 +1,19 @@
 package com.majortomman.school.visualization
 
+import com.majortomman.school.visualization.renderers.math.MathematicsVisualizationModule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
+import org.junit.Before
 import org.junit.Test
 
 class VisualizationContractTest {
+    @Before
+    fun installVisualizationProvider() {
+        MathematicsVisualizationModule.install()
+    }
+
     @Test
     fun catalogRegistersOneSharedNumberLineFamily() {
         val keys = SchoolVisualizationCatalog.registeredKeys().map(VisualizationKey::value).toSet()
