@@ -110,7 +110,7 @@ internal class VisualizationRegistry(providers: Collection<VisualizationProvider
             VisualizationError(listOf("未注册的可视化 renderer：${invocation.renderer.value}"), modifier)
             return
         }
-        val issues = renderer.validate(invocation)
+        val issues = validate(invocation)
         if (issues.isNotEmpty()) {
             VisualizationError(issues, modifier)
             return
