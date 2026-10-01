@@ -321,9 +321,12 @@ Lesson 不再维护独立的 `practice`、`summary` 或历史多态 step 类型�
         {"type": "text", "style": "prompt", "text": "向西8米怎么表示？"}
       ],
       "activity": {
-        "type": "textAnswer",
         "id": "activity-west",
-        "placeholder": "最终答案"
+        "capability": "core.text-answer",
+        "schemaVersion": 1,
+        "parameters": {
+          "placeholder": "最终答案"
+        }
       },
       "assessment": {
         "type": "exactText",
@@ -355,8 +358,10 @@ Lesson 不再维护独立的 `practice`、`summary` 或历史多态 step 类型�
 - lesson 的 `goals`、`knowledgePointIds`、`steps` 必须非空；`prerequisiteLessonIds` 必须引用真实课时且不能成环。
 - step ID 在整本教材内唯一；step 至少包含 content 或 activity。
 - `practice` 与 `checkpoint` 角色必须声明 activity；声明 assessment 时必须同时存在 activity。
-- activity ID 在整本教材内唯一。当前第一版只开放 `textAnswer`，后续 activity 必须通过新的 typed contract 扩展，不接受无类型 Map 或任意脚本。
-- inline assessment 当前开放 `exactText`；`knowledgePointIds` 必须真实存在，`difficulty` 使用 `0.0..1.0`。
+- activity ID 在整本教材内唯一。Activity 固定使用 `id + capability + schemaVersion + parameters`；`parameters` 只在对应 capability decoder 中转成 typed spec，运行时不得保留无类型 Map。
+- 当前内置 Activity capability 包括 `core.text-answer@1` 与 `mathematics.place-on-number-line@1`。数轴 Activity 参数为 `min/max/step/initialValue`，语义状态由 ActivityRuntime 持有。
+- inline assessment 当前开放 `exactText` 与 `exactNumber`；`exactNumber` 必须声明 `expected` 与非负 `tolerance`。knowledge point 引用必须真实存在，`difficulty` 使用 `0.0..1.0`。
+- staging 必须验证每个 Activity/Visualization capability 的 key、kind 与 schemaVersion；缺能力或版本不兼容的课程不得进入 active。
 - `references` 满足 `pageStart <= pageEnd <= textbook.pdf.pageCount`。
 - parser 使用严格字段白名单；旧 `practice`、`summary`、`type=question/formula/visualization/...` step 不提供兼容 fallback。
 
@@ -391,7 +396,8 @@ Assessment 契约另外支持 image；course step 在正式 course asset catalog
 - `formula.expression` 保存不带数学定界符的纯 LaTeX，不混入中文说明或 Unicode 数学符号。
 - `visualization` 仍由 `renderer + parameters + texts` 构成并通过 `SchoolVisualizationCatalog` 严格验证。
 - Activity 描述“用户如何产生语义结果”；Assessment 描述“如何解释稳定结果”；Renderer 不承担判题或 Lesson 流程。
-- Course 只声明 spec，不保存拖动坐标、pressed、pointer id 等 UI 临时状态。
+- 数轴等交互遵循 `raw input → PositionSelected(value) → ActivityState → NumberPositionResult → Assessment`；Slider/手势控件属于 Activity Host，不属于 Renderer。
+- Course 只声明 typed spec，不保存拖动像素坐标、pressed、pointer id 等 UI 临时状态。
 
 ### 7.6 PDF 契约
 
