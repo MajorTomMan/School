@@ -1,5 +1,6 @@
 package com.majortomman.school.learning.assessment.contract
 
+import com.majortomman.school.visualization.renderers.math.MathematicsVisualizationModule
 import com.majortomman.school.learning.assessment.domain.AnswerInputSpec
 import com.majortomman.school.learning.assessment.domain.AnswerRule
 import com.majortomman.school.learning.content.LearningContent
@@ -16,9 +17,15 @@ import com.majortomman.school.learning.course.CourseTextbook
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 class AssessmentContractParserTest {
+    @Before
+    fun installVisualizationProvider() {
+        MathematicsVisualizationModule.install()
+    }
+
     @Test
     fun parsesAllInitialQuestionTypesAndContentNodes() {
         val assessments = AssessmentDocumentParser.decode(validAssessmentsJson())
