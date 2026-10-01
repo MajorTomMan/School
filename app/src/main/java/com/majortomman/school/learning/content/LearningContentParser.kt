@@ -66,9 +66,10 @@ internal object LearningContentParser {
     }
 
     private fun decodeVisualization(json: JSONObject, location: String): LearningContent.Visualization {
-        json.shape(location, required = setOf("type", "renderer", "parameters", "texts"))
+        json.shape(location, required = setOf("type", "renderer", "schemaVersion", "parameters", "texts"))
         val invocation = VisualizationInvocation(
             renderer = VisualizationKey(json.text("renderer", location)),
+            schemaVersion = json.positiveInt("schemaVersion", location),
             parameters = decodeParameters(json.objectValue("parameters", location), location),
             texts = decodeTexts(json.objectValue("texts", location), location),
         )
@@ -146,4 +147,13 @@ private fun JSONArray.objects(location: String): List<JSONObject> = List(length(
     val value = get(index)
     require(value is JSONObject) { "$location[$index] 必须是对象" }
     value
+}
+
+
+private fun JSONObject.positiveInt(key: String, location: String): Int {
+    val raw = get(key)
+    require(raw is Byte || raw is Short || raw is Int || raw is Long) { "$location.$key 必须是 JSON 整数" }
+    val value = (raw as Number).toLong()
+    require(value in 1..Int.MAX_VALUE.toLong()) { "$location.$key 必须是正整数" }
+    return value.toInt()
 }
