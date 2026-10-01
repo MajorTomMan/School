@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,16 +28,24 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.majortomman.school.learning.activity.ActivityEvent
 import com.majortomman.school.learning.activity.ActivityResult
 import com.majortomman.school.learning.activity.ActivityRuntime
-import com.majortomman.school.learning.activity.ActivityState
+import com.majortomman.school.learning.activity.PlaceOnNumberLineActivitySpec
+import com.majortomman.school.learning.activity.SubmitActivity
+import com.majortomman.school.learning.activity.TextAnswerActivityState
+import com.majortomman.school.learning.activity.TextChanged
 import com.majortomman.school.learning.activity.TextAnswerActivitySpec
+import com.majortomman.school.learning.activity.math.NumberLinePositionState
+import com.majortomman.school.learning.activity.math.PositionSelected
 import com.majortomman.school.learning.assessment.domain.InlineAssessmentOutcome
 import com.majortomman.school.learning.content.LearningContent
 import com.majortomman.school.learning.course.CourseStep
 import com.majortomman.school.learning.course.CourseStepRole
 import com.majortomman.school.visualization.SchoolVisualization
+import com.majortomman.school.visualization.VisualizationInvocation
+import com.majortomman.school.visualization.VisualizationKey
+import com.majortomman.school.visualization.VisualizationParameterValue
+import com.majortomman.school.visualization.VisualizationParameters
 
 @Composable
 internal fun AuthoredTeachingContent(
@@ -81,6 +90,13 @@ private fun AuthoredStep(
             Spacer(Modifier.height(18.dp))
             when (it) {
                 is TextAnswerActivitySpec -> TextAnswerActivity(
+                    spec = it,
+                    assessmentOutcome = assessmentOutcome,
+                    explanation = step.assessment?.explanation.orEmpty(),
+                    enabled = activityEnabled,
+                    onResult = { result -> onActivityResult(step, result) },
+                )
+                is PlaceOnNumberLineActivitySpec -> PlaceOnNumberLineActivity(
                     spec = it,
                     assessmentOutcome = assessmentOutcome,
                     explanation = step.assessment?.explanation.orEmpty(),
@@ -148,13 +164,13 @@ private fun TextAnswerActivity(
     onResult: (ActivityResult) -> Unit,
 ) {
     val runtime = remember(spec) { ActivityRuntime(spec) }
-    var state by remember(spec.id.value) { mutableStateOf(runtime.state as ActivityState.TextAnswer) }
+    var state by remember(spec.id.value) { mutableStateOf(runtime.state as TextAnswerActivityState) }
 
     BasicTextField(
         value = state.draft,
         enabled = enabled,
         onValueChange = { value ->
-            state = runtime.dispatch(ActivityEvent.TextChanged(value)).state as ActivityState.TextAnswer
+            state = runtime.dispatch(TextChanged(value)).state as TextAnswerActivityState
         },
         modifier = Modifier.fillMaxWidth().heightIn(min = SchoolUiMetrics.textInputMinHeight).padding(vertical = 8.dp),
         textStyle = TextStyle(
@@ -178,12 +194,71 @@ private fun TextAnswerActivity(
         label = "提交",
         enabled = enabled && state.draft.isNotBlank(),
         onClick = {
-            val transition = runtime.dispatch(ActivityEvent.Submit)
-            state = transition.state as ActivityState.TextAnswer
+            val transition = runtime.dispatch(SubmitActivity)
+            state = transition.state as TextAnswerActivityState
             transition.result?.let(onResult)
         },
     )
 
+    ActivityAssessmentFeedback(assessmentOutcome, explanation)
+}
+
+@Composable
+private fun PlaceOnNumberLineActivity(
+    spec: PlaceOnNumberLineActivitySpec,
+    assessmentOutcome: InlineAssessmentOutcome?,
+    explanation: List<LearningContent>,
+    enabled: Boolean,
+    onResult: (ActivityResult) -> Unit,
+) {
+    val runtime = remember(spec) { ActivityRuntime(spec) }
+    var state by remember(spec.id.value) { mutableStateOf(runtime.state as NumberLinePositionState) }
+    val visualization = VisualizationInvocation(
+        renderer = VisualizationKey("mathematics.number-line.basic"),
+        parameters = VisualizationParameters.of(
+            "min" to VisualizationParameterValue.NumberValue(spec.min),
+            "max" to VisualizationParameterValue.NumberValue(spec.max),
+            "step" to VisualizationParameterValue.NumberValue(spec.step),
+            "value" to VisualizationParameterValue.NumberValue(state.selectedValue),
+        ),
+    )
+
+    Box(Modifier.fillMaxWidth().height(260.dp)) {
+        SchoolVisualization(visualization, Modifier.fillMaxWidth())
+    }
+    Text(
+        text = "当前位置：${formatActivityNumber(state.selectedValue)}",
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = MaterialTheme.typography.bodyMedium,
+        modifier = Modifier.fillMaxWidth(),
+        textAlign = TextAlign.Center,
+    )
+    Slider(
+        value = state.selectedValue.toFloat(),
+        enabled = enabled,
+        onValueChange = { raw ->
+            state = runtime.dispatch(PositionSelected(raw.toDouble())).state as NumberLinePositionState
+        },
+        valueRange = spec.min.toFloat()..spec.max.toFloat(),
+    )
+    Spacer(Modifier.height(12.dp))
+    SchoolPrimaryAction(
+        label = "提交",
+        enabled = enabled,
+        onClick = {
+            val transition = runtime.dispatch(SubmitActivity)
+            state = transition.state as NumberLinePositionState
+            transition.result?.let(onResult)
+        },
+    )
+    ActivityAssessmentFeedback(assessmentOutcome, explanation)
+}
+
+@Composable
+private fun ActivityAssessmentFeedback(
+    assessmentOutcome: InlineAssessmentOutcome?,
+    explanation: List<LearningContent>,
+) {
     assessmentOutcome?.let { outcome ->
         Spacer(Modifier.height(12.dp))
         val color = when (outcome) {
@@ -202,6 +277,12 @@ private fun TextAnswerActivity(
             LearningContentList(explanation)
         }
     }
+}
+
+private fun formatActivityNumber(value: Double): String {
+    val integer = value.toLong()
+    return if (kotlin.math.abs(value - integer) < 1e-9) integer.toString()
+    else "%.3f".format(java.util.Locale.US, value).trimEnd('0').trimEnd('.')
 }
 
 @Composable
