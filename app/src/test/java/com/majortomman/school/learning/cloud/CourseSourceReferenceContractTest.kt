@@ -1,6 +1,6 @@
 package com.majortomman.school.learning.cloud
 
-import com.majortomman.school.visualization.renderers.math.MathematicsVisualizationModule
+import com.majortomman.school.startup.SchoolLearningModules
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Before
@@ -8,8 +8,8 @@ import org.junit.Test
 
 class CourseSourceReferenceContractTest {
     @Before
-    fun installVisualizationProvider() {
-        MathematicsVisualizationModule.install()
+    fun installLearningModules() {
+        SchoolLearningModules.install()
     }
 
     @Test
