@@ -54,6 +54,13 @@ data class PlaceOnNumberLineActivitySpec(
         }
         require(max > min) { "number-line activity max 必须大于 min" }
         require(step > 0.0) { "number-line activity step 必须大于 0" }
+        val minFloat = min.toFloat()
+        val maxFloat = max.toFloat()
+        val stepFloat = step.toFloat()
+        require(minFloat.isFinite() && maxFloat.isFinite() && maxFloat > minFloat) {
+            "number-line activity 范围超出 Float 绘制精度"
+        }
+        require(stepFloat.isFinite() && stepFloat > 0f) { "number-line activity step 超出 Float 绘制精度" }
         require((max - min) / step <= 80.0 + 1e-9) { "number-line activity 刻度数量不能超过 80" }
         require(initialValue in min..max) { "number-line activity initialValue 必须位于 min..max" }
     }
