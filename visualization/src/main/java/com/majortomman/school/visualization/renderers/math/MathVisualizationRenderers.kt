@@ -63,6 +63,7 @@ private object MathematicsVisualizationProvider : VisualizationProvider {
 private class ValidatedMathRenderer(private val delegate: VisualizationRenderer) : VisualizationRenderer() {
     override val key = delegate.key
     override val subject = delegate.subject
+    override val schemaVersion = delegate.schemaVersion
     override val schema = delegate.schema
 
     override fun validate(invocation: VisualizationInvocation): List<String> {
