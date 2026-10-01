@@ -1,6 +1,6 @@
 package com.majortomman.school.learning.cloud
 
-import com.majortomman.school.visualization.renderers.math.MathematicsVisualizationModule
+import com.majortomman.school.startup.SchoolLearningModules
 import com.majortomman.school.learning.activity.TextAnswerActivitySpec
 import com.majortomman.school.learning.assessment.domain.InlineAssessmentRule
 import com.majortomman.school.learning.content.LearningContent
@@ -15,8 +15,8 @@ import org.junit.Test
 
 class CloudCourseCodecTest {
     @Before
-    fun installVisualizationProvider() {
-        MathematicsVisualizationModule.install()
+    fun installLearningModules() {
+        SchoolLearningModules.install()
     }
 
     @Test
@@ -119,9 +119,27 @@ class CloudCourseCodecTest {
 
         val secondActivity = SAMPLE_COURSE.replace(
             "{\"id\":\"summary\",\"role\":\"summary\",\"content\":[",
-            "{\"id\":\"summary\",\"role\":\"summary\",\"activity\":{\"type\":\"textAnswer\",\"id\":\"activity-west\"},\"content\":[",
+            "{\"id\":\"summary\",\"role\":\"summary\",\"activity\":{\"id\":\"activity-west\",\"capability\":\"core.text-answer\",\"schemaVersion\":1,\"parameters\":{}},\"content\":[",
         )
         assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(secondActivity) }
+    }
+
+    @Test
+    fun numberLineCapabilityActivityAndNumberAssessmentDecode() {
+        val activity = ",\"activity\":{\"id\":\"activity-west\",\"capability\":\"mathematics.place-on-number-line\",\"schemaVersion\":1,\"parameters\":{\"min\":-10,\"max\":10,\"step\":1,\"initialValue\":0}}"
+        val course = SAMPLE_COURSE
+            .replace(ACTIVITY, activity)
+            .replace("\"type\":\"exactText\",\"expected\":\"-8米\",\"ignoreCase\":false", "\"type\":\"exactNumber\",\"expected\":-8,\"tolerance\":0.000001")
+        val practice = CourseDocumentParser.decode(course).chapters.single().sections.single().lessons.single().steps[2]
+
+        assertTrue(practice.activity is com.majortomman.school.learning.activity.PlaceOnNumberLineActivitySpec)
+        assertTrue(practice.assessment?.rule is InlineAssessmentRule.ExactNumber)
+    }
+
+    @Test
+    fun unsupportedActivitySchemaVersionIsRejected() {
+        val invalid = SAMPLE_COURSE.replace("\"schemaVersion\":1", "\"schemaVersion\":2")
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(invalid) }
     }
 
     @Test
@@ -177,7 +195,7 @@ class CloudCourseCodecTest {
         const val INQUIRY_STEP =
             "{\"id\":\"inquiry-temperature\",\"role\":\"inquiry\",\"content\":[{\"type\":\"text\",\"style\":\"prompt\",\"text\":\"低于0℃怎么表示？\"},{\"type\":\"text\",\"style\":\"caption\",\"text\":\"提示：想想方向\"}]}"
         const val ACTIVITY =
-            ",\"activity\":{\"type\":\"textAnswer\",\"id\":\"activity-west\",\"placeholder\":\"最终答案\"}"
+            ",\"activity\":{\"id\":\"activity-west\",\"capability\":\"core.text-answer\",\"schemaVersion\":1,\"parameters\":{\"placeholder\":\"最终答案\"}}"
         const val EXPLANATION =
             "\"explanation\":[{\"type\":\"text\",\"style\":\"explanation\",\"text\":\"方向相反使用负号\"}]"
 
