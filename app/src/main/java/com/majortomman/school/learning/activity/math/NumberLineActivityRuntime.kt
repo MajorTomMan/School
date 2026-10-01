@@ -3,7 +3,7 @@ package com.majortomman.school.learning.activity.math
 import com.majortomman.school.learning.activity.ActivityCapabilityKeys
 import com.majortomman.school.learning.activity.ActivityEvent
 import com.majortomman.school.learning.activity.ActivityId
-import com.majortomman.school.learning.activity.ActivityResult
+import com.majortomman.school.learning.activity.NumericActivityResult
 import com.majortomman.school.learning.activity.ActivityRuntimeHandler
 import com.majortomman.school.learning.activity.ActivitySpec
 import com.majortomman.school.learning.activity.ActivityState
@@ -27,8 +27,8 @@ data class NumberLinePositionState(
 
 data class NumberPositionResult(
     override val activityId: ActivityId,
-    val value: Double,
-) : ActivityResult
+    override val value: Double,
+) : NumericActivityResult
 
 object PlaceOnNumberLineActivityHandler : ActivityRuntimeHandler {
     override val capability: CapabilityKey = ActivityCapabilityKeys.PLACE_ON_NUMBER_LINE
