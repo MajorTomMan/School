@@ -2,7 +2,7 @@ package com.majortomman.school.learning.cloud
 
 import com.majortomman.school.learning.activity.ActivityId
 import com.majortomman.school.learning.activity.ActivitySpec
-import com.majortomman.school.learning.activity.TextAnswerActivitySpec
+import com.majortomman.school.learning.capability.CapabilityKey
 import com.majortomman.school.learning.assessment.domain.Difficulty
 import com.majortomman.school.learning.assessment.domain.InlineAssessmentRule
 import com.majortomman.school.learning.assessment.domain.InlineAssessmentSpec
@@ -180,16 +180,17 @@ internal object CourseDocumentParser {
         return CourseStep(id, role, json.optionalText("title"), content, activity, assessment)
     }
 
-    private fun decodeActivity(json: JSONObject, location: String, activityIds: MutableSet<String>): ActivitySpec =
-        when (val type = json.text("type")) {
-            "textAnswer" -> {
-                json.requireShape(required = setOf("type", "id"), optional = setOf("placeholder"))
-                val id = json.identifier("id")
-                require(activityIds.add(id)) { "activity ID 重复：$id" }
-                TextAnswerActivitySpec(ActivityId(id), json.optionalText("placeholder"))
-            }
-            else -> error("$location.type 不受支持：$type")
-        }
+    private fun decodeActivity(json: JSONObject, location: String, activityIds: MutableSet<String>): ActivitySpec {
+        json.requireShape(required = setOf("id", "capability", "schemaVersion", "parameters"))
+        val id = json.identifier("id")
+        require(activityIds.add(id)) { "activity ID 重复：$id" }
+        return CourseActivitySpecCatalog.decode(
+            id = ActivityId(id),
+            capability = CapabilityKey(json.text("capability")),
+            schemaVersion = json.positiveInt("schemaVersion"),
+            parameters = json.objectValue("parameters"),
+        )
+    }
 
     private fun decodeInlineAssessment(
         json: JSONObject,
@@ -197,18 +198,28 @@ internal object CourseDocumentParser {
         knowledgeIds: Set<String>,
     ): InlineAssessmentSpec {
         val type = json.text("type")
-        require(type == "exactText") { "$location.type 不受支持：$type" }
-        json.requireShape(
-            required = setOf("type", "expected", "ignoreCase", "explanation", "knowledgePointIds", "difficulty"),
-        )
+        val commonRequired = setOf("type", "explanation", "knowledgePointIds", "difficulty")
+        val rule = when (type) {
+            "exactText" -> {
+                json.requireShape(required = commonRequired + setOf("expected", "ignoreCase"))
+                InlineAssessmentRule.ExactText(json.text("expected"), json.booleanValue("ignoreCase"))
+            }
+            "exactNumber" -> {
+                json.requireShape(required = commonRequired + setOf("expected", "tolerance"))
+                InlineAssessmentRule.ExactNumber(
+                    expected = json.doubleValue("expected"),
+                    tolerance = json.doubleValue("tolerance"),
+                )
+            }
+            else -> error("$location.type 不受支持：$type")
+        }
         val ids = json.stringArray("knowledgePointIds")
         require(ids.all { it in knowledgeIds }) { "$location.knowledgePointIds 包含不存在的知识点" }
-        val difficulty = json.doubleValue("difficulty")
         return InlineAssessmentSpec(
-            rule = InlineAssessmentRule.ExactText(json.text("expected"), json.booleanValue("ignoreCase")),
+            rule = rule,
             explanation = LearningContentParser.decodeArray(json.arrayValue("explanation"), "$location.explanation", allowEmpty = false),
             knowledgePointIds = ids,
-            difficulty = Difficulty(difficulty),
+            difficulty = Difficulty(json.doubleValue("difficulty")),
         )
     }
 
