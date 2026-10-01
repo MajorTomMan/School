@@ -27,10 +27,10 @@ object SchoolLearningModules {
         SchoolCapabilityCatalog.install(CoreSubjectModule)
         SchoolCapabilityCatalog.install(
             MathematicsSubjectModule(
-                visualizationKeys = SchoolVisualizationCatalog.registeredKeys()
-                    .filter { it.value.startsWith("mathematics.") }
-                    .map { it.value }
-                    .sorted(),
+                visualizations = SchoolVisualizationCatalog.registeredCapabilities()
+                    .filterKeys { it.value.startsWith("mathematics.") }
+                    .mapKeys { (key, _) -> key.value }
+                    .toSortedMap(),
             ),
         )
     }
@@ -49,7 +49,7 @@ private object CoreSubjectModule : SubjectModule {
 }
 
 private data class MathematicsSubjectModule(
-    val visualizationKeys: List<String>,
+    val visualizations: Map<String, Int>,
 ) : SubjectModule {
     override val id = SubjectId("mathematics")
     override val capabilities = buildList {
@@ -61,13 +61,13 @@ private data class MathematicsSubjectModule(
                 schemaVersion = 1,
             ),
         )
-        visualizationKeys.forEach { key ->
+        visualizations.forEach { (key, schemaVersion) ->
             add(
                 CapabilityDescriptor(
                     key = com.majortomman.school.learning.capability.CapabilityKey(key),
                     subject = id,
                     kind = CapabilityKind.VISUALIZATION,
-                    schemaVersion = 1,
+                    schemaVersion = schemaVersion,
                 ),
             )
         }
