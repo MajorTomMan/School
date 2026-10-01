@@ -274,10 +274,13 @@ ZIP 实际文件集合 == manifest.files 中 bundled=true 的文件集合
 顶层固定包含：
 
 ```text
+schemaVersion
 textbook
 knowledgePoints
 chapters
 ```
+
+`schemaVersion` 当前必须严格等于 `2`；App 不对旧版本 course contract 提供 fallback。
 
 Lesson 不再维护独立的 `practice`、`summary` 或历史多态 step 类型。教学序列统一由稳定 `step.id`、教学角色 `role`、通用 `content`、可选 `activity` 和可选 `assessment` 构成：
 
@@ -309,6 +312,7 @@ Lesson 不再维护独立的 `practice`、`summary` 或历史多态 step 类型�
         {
           "type": "visualization",
           "renderer": "mathematics.number-line.basic",
+          "schemaVersion": 1,
           "parameters": {"value": -3, "min": -8, "max": 8, "step": 1},
           "texts": {"title": "在数轴上观察位置", "note": "0 是正负方向的共同基准"}
         }
@@ -394,7 +398,7 @@ Assessment 契约另外支持 image；course step 在正式 course asset catalog
 
 - `text.style` 使用 `body`、`prompt`、`caption`、`explanation`。
 - `formula.expression` 保存不带数学定界符的纯 LaTeX，不混入中文说明或 Unicode 数学符号。
-- `visualization` 仍由 `renderer + parameters + texts` 构成并通过 `SchoolVisualizationCatalog` 严格验证。
+- `visualization` 使用 `renderer + schemaVersion + parameters + texts`，并通过 `SchoolVisualizationCatalog` 严格验证 renderer 与 schemaVersion。
 - Activity 描述“用户如何产生语义结果”；Assessment 描述“如何解释稳定结果”；Renderer 不承担判题或 Lesson 流程。
 - 数轴等交互遵循 `raw input → PositionSelected(value) → ActivityState → NumberPositionResult → Assessment`；Slider/手势控件属于 Activity Host，不属于 Renderer。
 - Course 只声明 typed spec，不保存拖动像素坐标、pressed、pointer id 等 UI 临时状态。
@@ -496,6 +500,7 @@ assets/<question-assets>
 {
   "type": "visualization",
   "renderer": "...",
+  "schemaVersion": 1,
   "parameters": {},
   "texts": {}
 }
