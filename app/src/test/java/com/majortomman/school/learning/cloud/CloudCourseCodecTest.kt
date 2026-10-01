@@ -40,6 +40,12 @@ class CloudCourseCodecTest {
     }
 
     @Test
+    fun unsupportedCourseSchemaVersionIsRejected() {
+        val invalid = SAMPLE_COURSE.replace("\"schemaVersion\": 2", "\"schemaVersion\": 1")
+        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(invalid) }
+    }
+
+    @Test
     fun nullableStepTitleStaysNull() {
         val lesson = CourseDocumentParser.decode(SAMPLE_COURSE).chapters.single().sections.single().lessons.single()
         assertNull(lesson.steps.first().title)
@@ -201,6 +207,7 @@ class CloudCourseCodecTest {
 
         val SAMPLE_COURSE = """
             {
+              "schemaVersion": 2,
               "textbook":{"id":"pep-math-7-1","title":"数学七年级上册","publisher":"人民教育出版社","edition":"2024","grade":"七年级","semester":"上册","subject":"数学","pdf":{"path":"assets/textbook.pdf","pageCount":202,"pageIndexOffset":7}},
               "knowledgePoints":[{"id":"positive-negative","name":"正数和负数","description":"表示相反意义的量","prerequisiteIds":[]}],
               "chapters":[{"id":"chapter-01","title":"有理数","sections":[{"id":"section-01","title":"正数和负数","lessons":[{
@@ -208,7 +215,7 @@ class CloudCourseCodecTest {
                 "references":[{"label":"教材1—2页","pageStart":1,"pageEnd":2}],
                 "steps":[
                   $INQUIRY_STEP,
-                  {"id":"observe-number-line","role":"explanation","title":"观察","content":[{"type":"visualization","renderer":"mathematics.number-line.basic","parameters":{"value":-3,"min":-8,"max":8,"step":1},"texts":{"title":"在数轴上观察位置","note":"0 是正负方向的共同基准"}}]},
+                  {"id":"observe-number-line","role":"explanation","title":"观察","content":[{"type":"visualization","renderer":"mathematics.number-line.basic","schemaVersion":1,"parameters":{"value":-3,"min":-8,"max":8,"step":1},"texts":{"title":"在数轴上观察位置","note":"0 是正负方向的共同基准"}}]},
                   {"id":"practice-west","role":"practice","content":[{"type":"text","style":"prompt","text":"向西8米怎么表示？"}]$ACTIVITY,"assessment":{"type":"exactText","expected":"-8米","ignoreCase":false,$EXPLANATION,"knowledgePointIds":["positive-negative"],"difficulty":0.2}},
                   {"id":"summary","role":"summary","content":[{"type":"text","style":"body","text":"正负号用于区分相反方向"}]}
                 ]
