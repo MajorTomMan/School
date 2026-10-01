@@ -1,5 +1,6 @@
 package com.majortomman.school.learning.cloud
 
+import com.majortomman.school.visualization.renderers.math.MathematicsVisualizationModule
 import com.majortomman.school.learning.activity.TextAnswerActivitySpec
 import com.majortomman.school.learning.assessment.domain.InlineAssessmentRule
 import com.majortomman.school.learning.content.LearningContent
@@ -9,9 +10,15 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 class CloudCourseCodecTest {
+    @Before
+    fun installVisualizationProvider() {
+        MathematicsVisualizationModule.install()
+    }
+
     @Test
     fun authoredCourseDecodesRoleContentActivityAndAssessment() {
         val lesson = CourseDocumentParser.decode(SAMPLE_COURSE).chapters.single().sections.single().lessons.single()
