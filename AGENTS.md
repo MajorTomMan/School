@@ -496,6 +496,10 @@ assets/<question-assets>
 ```
 
 - 共享的是绘制能力，不把所有知识点塞进万能 Renderer。
+- `SchoolVisualizationCatalog` 不得硬编码任何学科 renderer；学科能力由 App composition root 显式安装 `VisualizationProvider`。
+- Renderer 只能根据输入语义状态构建/绘制 presentation，不得用 `remember`、Slider、Timer 或业务 coroutine 持有答案、选中值、题目进度等教学语义状态。
+- 缩放、平移、viewport、pressed/hover 等纯展示状态可以由 Visualization Surface/Presentation Host 持有；这些状态不得上浮成课程或知识状态。
+- 需要交互的可视化必须由 ActivityRuntime 持有语义状态并生成新的 visualization invocation；Renderer 不能自行判定“用户已经完成”。
 - Renderer key、参数和文本必须具有明确教学语义。
 - 禁止任意代码、反射、动态类、回调和脚本执行。
 - 数学表达式只进入明确允许的安全 Parser/AST 字段。
