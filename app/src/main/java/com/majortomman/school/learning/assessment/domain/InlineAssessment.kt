@@ -1,8 +1,8 @@
 package com.majortomman.school.learning.assessment.domain
 
 import com.majortomman.school.learning.activity.ActivityResult
-import com.majortomman.school.learning.activity.TextAnswerActivityResult
-import com.majortomman.school.learning.activity.math.NumberPositionResult
+import com.majortomman.school.learning.activity.TextualActivityResult
+import com.majortomman.school.learning.activity.NumericActivityResult
 import com.majortomman.school.learning.content.LearningContent
 import kotlin.math.abs
 
@@ -54,7 +54,7 @@ data class InlineAssessmentResult(
 object InlineAssessmentEvaluator {
     fun evaluate(spec: InlineAssessmentSpec, result: ActivityResult): InlineAssessmentResult = when (val rule = spec.rule) {
         is InlineAssessmentRule.ExactText -> {
-            val answer = (result as? TextAnswerActivityResult)?.value
+            val answer = (result as? TextualActivityResult)?.value
                 ?: return InlineAssessmentResult(InlineAssessmentOutcome.INVALID)
             val expected = rule.expected.trim()
             val actual = answer.trim()
@@ -63,7 +63,7 @@ object InlineAssessmentEvaluator {
         }
 
         is InlineAssessmentRule.ExactNumber -> {
-            val answer = (result as? NumberPositionResult)?.value
+            val answer = (result as? NumericActivityResult)?.value
                 ?: return InlineAssessmentResult(InlineAssessmentOutcome.INVALID)
             val correct = abs(answer - rule.expected) <= rule.tolerance
             InlineAssessmentResult(if (correct) InlineAssessmentOutcome.CORRECT else InlineAssessmentOutcome.INCORRECT)
