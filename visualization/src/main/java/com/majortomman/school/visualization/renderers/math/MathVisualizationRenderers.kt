@@ -190,11 +190,11 @@ private fun validateMathSemantics(invocation: VisualizationInvocation): List<Str
         if (maxBase > minBase) {
             val minFloat = minBase.toFloat()
             val maxFloat = maxBase.toFloat()
-            if (!(maxFloat > minFloat) || !(maxFloat - minFloat).isFinite()) add("幂运算滑块范围超出 Float 绘制精度")
+            if (!(maxFloat > minFloat) || !(maxFloat - minFloat).isFinite()) add("幂运算 base 范围超出 Float 绘制精度")
         }
         if (exponentValid) {
             val exponentInt = round(exponent).toInt()
-            if (!abs(minBase).pow(exponentInt).isFinite() || !abs(maxBase).pow(exponentInt).isFinite()) add("幂运算滑块端点会产生非有限结果")
+            if (!abs(minBase).pow(exponentInt).isFinite() || !abs(maxBase).pow(exponentInt).isFinite()) add("幂运算 base 范围端点会产生非有限结果")
         }
     }
 
