@@ -24,7 +24,7 @@ internal object CourseCapabilityCompatibilityValidator {
                     SchoolCapabilityCatalog.requireSupported(
                         key = CapabilityKey(content.visualization.renderer.value),
                         kind = CapabilityKind.VISUALIZATION,
-                        schemaVersion = 1,
+                        schemaVersion = content.visualization.schemaVersion,
                     )
                 }
             }
