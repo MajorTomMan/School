@@ -101,9 +101,14 @@ class VisualizationTexts private constructor(private val values: Map<String, Str
 
 data class VisualizationInvocation(
     val renderer: VisualizationKey,
+    val schemaVersion: Int = 1,
     val parameters: VisualizationParameters = VisualizationParameters.Empty,
     val texts: VisualizationTexts = VisualizationTexts.Empty,
-)
+) {
+    init {
+        require(schemaVersion > 0) { "visualization schemaVersion 必须大于 0" }
+    }
+}
 
 enum class VisualizationParameterType {
     NUMBER,
