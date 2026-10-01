@@ -46,3 +46,27 @@ internal object CourseActivitySpecCatalog {
         }
     }
 }
+
+
+internal fun JSONObject.requireActivityShape(
+    required: Set<String> = emptySet(),
+    optional: Set<String> = emptySet(),
+) {
+    val actual = keys().asSequence().toSet()
+    val unknown = actual - required - optional
+    val missing = required - actual
+    require(unknown.isEmpty()) { "activity parameters 包含未知字段：" + unknown.sorted() }
+    require(missing.isEmpty()) { "activity parameters 缺少字段：" + missing.sorted() }
+}
+
+internal fun JSONObject.optionalActivityText(key: String): String? {
+    if (!has(key) || isNull(key)) return null
+    require(get(key) is String) { "activity parameter " + key + " 必须是字符串" }
+    return getString(key).trim().also { require(it.isNotEmpty()) { "activity parameter " + key + " 不能为空" } }
+}
+
+internal fun JSONObject.activityNumber(key: String): Double {
+    val raw = get(key)
+    require(raw is Number && raw !is Boolean) { "activity parameter " + key + " 必须是 number" }
+    return raw.toDouble().also { require(it.isFinite()) { "activity parameter " + key + " 必须是有限数" } }
+}
