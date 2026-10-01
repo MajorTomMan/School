@@ -8,13 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableDoubleStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -38,7 +33,6 @@ import com.majortomman.school.visualization.ZoomableVisualizationSurface
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.ceil
-import kotlin.math.round
 
 internal enum class NumberLineVariant {
     BASIC,
@@ -70,10 +64,8 @@ internal class NumberLineRenderer(
 
         when (variant) {
             NumberLineVariant.BASIC -> {
-                var value by remember(key.value) { mutableDoubleStateOf(p.number("value", 0.0).coerceIn(min.toDouble(), max.toDouble())) }
-                NumberLineScaffold(title, note, modifier, slider = {
-                    Slider(value.toFloat(), { value = snap(it.toDouble(), step.toDouble()) }, valueRange = min..max)
-                }) {
+                val value = p.number("value", 0.0).coerceIn(min.toDouble(), max.toDouble())
+                NumberLineScaffold(title, note, modifier) {
                     NumberLineGraphic(
                         min = min,
                         max = max,
@@ -110,11 +102,9 @@ internal class NumberLineRenderer(
                 NumberLineScaffold(title, note, modifier) { NumberLineGraphic(min, max, step, points, context) }
             }
             NumberLineVariant.OPPOSITE -> {
-                var value by remember(key.value) { mutableDoubleStateOf(abs(p.number("value", 3.0)).coerceIn(0.0, maxOf(abs(min), abs(max)).toDouble())) }
+                val value = abs(p.number("value", 3.0)).coerceIn(0.0, maxOf(abs(min), abs(max)).toDouble())
                 val safeValue = value.toFloat()
-                NumberLineScaffold(title, note, modifier, slider = {
-                    Slider(safeValue, { value = snap(it.toDouble(), step.toDouble()) }, valueRange = 0f..maxOf(abs(min), abs(max)))
-                }) {
+                NumberLineScaffold(title, note, modifier) {
                     NumberLineGraphic(
                         min,
                         max,
@@ -129,11 +119,9 @@ internal class NumberLineRenderer(
                 }
             }
             NumberLineVariant.ABSOLUTE_VALUE -> {
-                var value by remember(key.value) { mutableDoubleStateOf(p.number("value", -3.0).coerceIn(min.toDouble(), max.toDouble())) }
+                val value = p.number("value", -3.0).coerceIn(min.toDouble(), max.toDouble())
                 val absolute = abs(value).toFloat()
-                NumberLineScaffold(title, note, modifier, slider = {
-                    Slider(value.toFloat(), { value = snap(it.toDouble(), step.toDouble()) }, valueRange = min..max)
-                }) {
+                NumberLineScaffold(title, note, modifier) {
                     NumberLineGraphic(
                         min,
                         max,
@@ -148,14 +136,9 @@ internal class NumberLineRenderer(
                 }
             }
             NumberLineVariant.COMPARISON -> {
-                var left by remember(key.value + ".left") { mutableDoubleStateOf(p.number("left", -3.0).coerceIn(min.toDouble(), max.toDouble())) }
-                var right by remember(key.value + ".right") { mutableDoubleStateOf(p.number("right", 2.0).coerceIn(min.toDouble(), max.toDouble())) }
-                NumberLineScaffold(title, note, modifier, slider = {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Slider(left.toFloat(), { left = snap(it.toDouble(), step.toDouble()) }, valueRange = min..max)
-                        Slider(right.toFloat(), { right = snap(it.toDouble(), step.toDouble()) }, valueRange = min..max)
-                    }
-                }) {
+                val left = p.number("left", -3.0).coerceIn(min.toDouble(), max.toDouble())
+                val right = p.number("right", 2.0).coerceIn(min.toDouble(), max.toDouble())
+                NumberLineScaffold(title, note, modifier) {
                     NumberLineGraphic(
                         min,
                         max,
@@ -169,15 +152,10 @@ internal class NumberLineRenderer(
                 }
             }
             NumberLineVariant.MOVEMENT -> {
-                var start by remember(key.value + ".start") { mutableDoubleStateOf(p.number("start", -3.0).coerceIn(min.toDouble(), max.toDouble())) }
-                var delta by remember(key.value + ".delta") { mutableDoubleStateOf(p.number("delta", 2.0)) }
+                val start = p.number("start", -3.0).coerceIn(min.toDouble(), max.toDouble())
+                val delta = p.number("delta", 2.0)
                 val end = (start + delta).coerceIn(min.toDouble(), max.toDouble())
-                NumberLineScaffold(title, note, modifier, slider = {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Slider(start.toFloat(), { start = snap(it.toDouble(), step.toDouble()) }, valueRange = min..max)
-                        Slider(delta.toFloat(), { delta = snap(it.toDouble(), step.toDouble()) }, valueRange = (min - start.toFloat())..(max - start.toFloat()))
-                    }
-                }) {
+                NumberLineScaffold(title, note, modifier) {
                     NumberLineGraphic(
                         min,
                         max,
@@ -215,13 +193,11 @@ private fun NumberLineScaffold(
     title: String,
     note: String,
     modifier: Modifier,
-    slider: (@Composable () -> Unit)? = null,
     graphic: @Composable () -> Unit,
 ) {
     Column(modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
         if (title.isNotBlank()) Text(title, modifier = Modifier.fillMaxWidth(), color = Color(0xFFF5F5F7), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
         Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) { graphic() }
-        slider?.invoke()
         if (note.isNotBlank()) Text(note, modifier = Modifier.fillMaxWidth(), color = Color(0xFF8E8E93), fontSize = 12.sp, textAlign = TextAlign.Center)
     }
 }
@@ -337,7 +313,6 @@ private fun pointColor(value: Float, context: VisualizationRenderContext): Color
     else -> context.palette.foreground
 }
 
-private fun snap(value: Double, step: Double): Double = round(value / step) * step
 
 private fun formatNumber(value: Double): String {
     val integer = value.toLong()
