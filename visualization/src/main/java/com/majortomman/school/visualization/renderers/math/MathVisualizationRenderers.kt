@@ -3,16 +3,25 @@ package com.majortomman.school.visualization.renderers.math
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
+import com.majortomman.school.visualization.SchoolVisualizationCatalog
 import com.majortomman.school.visualization.VisualizationInvocation
 import com.majortomman.school.visualization.VisualizationKey
+import com.majortomman.school.visualization.VisualizationProvider
 import com.majortomman.school.visualization.VisualizationRenderContext
 import com.majortomman.school.visualization.VisualizationRenderer
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.round
 
-internal object MathVisualizationRenderers {
-    val all: List<VisualizationRenderer> = listOf(
+object MathematicsVisualizationModule {
+    fun install() {
+        SchoolVisualizationCatalog.install(MathematicsVisualizationProvider)
+    }
+}
+
+private object MathematicsVisualizationProvider : VisualizationProvider {
+    override val id: String = "mathematics"
+    override val renderers: List<VisualizationRenderer> = listOf(
         NumberDevelopmentRenderer(),
         OppositeQuantitiesRenderer(),
         RationalClassificationRenderer(),
