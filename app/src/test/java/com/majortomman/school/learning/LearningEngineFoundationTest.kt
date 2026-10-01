@@ -27,8 +27,8 @@ class LearningEngineFoundationTest {
         }
         val registry = CapabilityRegistry(listOf(mathematics))
 
-        assertTrue(registry.supports(CapabilityKey("mathematics.number-line")))
-        assertFalse(registry.supports(CapabilityKey("physics.force-diagram")))
+        assertTrue(registry.supports(CapabilityKey("mathematics.number-line"), CapabilityKind.VISUALIZATION))
+        assertFalse(registry.supports(CapabilityKey("physics.force-diagram"), CapabilityKind.VISUALIZATION))
         assertEquals(1, registry.capabilities(SubjectId("mathematics"), CapabilityKind.ACTIVITY).size)
     }
 
