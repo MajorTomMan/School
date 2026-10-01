@@ -103,6 +103,7 @@ private fun AuthoredStep(
                     enabled = activityEnabled,
                     onResult = { result -> onActivityResult(step, result) },
                 )
+                else -> error("未提供 Activity UI host：" + it.capability)
             }
         }
     }
