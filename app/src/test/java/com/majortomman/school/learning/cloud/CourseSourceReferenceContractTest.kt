@@ -28,6 +28,7 @@ class CourseSourceReferenceContractTest {
 
     private fun courseJson(pageEnd: Int): String = """
         {
+          "schemaVersion": 2,
           "textbook":{"id":"pep-math-7-1","title":"数学七年级上册","publisher":"人民教育出版社","edition":"2024","grade":"七年级","semester":"上册","subject":"数学","pdf":{"path":"assets/textbook.pdf","pageCount":202,"pageIndexOffset":7}},
           "knowledgePoints":[{"id":"absolute-value","name":"绝对值","description":"到原点的距离","prerequisiteIds":[]}],
           "chapters":[{"id":"chapter-01","title":"有理数","sections":[{"id":"section-absolute","title":"绝对值","lessons":[{
