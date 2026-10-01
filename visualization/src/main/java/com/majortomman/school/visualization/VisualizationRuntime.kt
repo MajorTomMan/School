@@ -51,6 +51,7 @@ internal data class VisualizationRenderContext(
 internal abstract class VisualizationRenderer {
     abstract val key: VisualizationKey
     abstract val subject: VisualizationSubject
+    open val schemaVersion: Int = 1
     abstract val schema: VisualizationSchema
 
     open fun validate(invocation: VisualizationInvocation): List<String> = schema.validate(invocation)
@@ -88,9 +89,17 @@ internal class VisualizationRegistry(providers: Collection<VisualizationProvider
     fun schemas(): Map<VisualizationKey, VisualizationSchema> =
         byKey.mapValues { (_, renderer) -> renderer.schema }
 
+    fun schemaVersions(): Map<VisualizationKey, Int> =
+        byKey.mapValues { (_, renderer) -> renderer.schemaVersion }
+
     fun validate(invocation: VisualizationInvocation): List<String> {
         val renderer = byKey[invocation.renderer]
             ?: return listOf("未注册的可视化 renderer：${invocation.renderer.value}")
+        if (renderer.schemaVersion != invocation.schemaVersion) {
+            return listOf(
+                "可视化 renderer ${invocation.renderer.value} schemaVersion 不兼容：course=${invocation.schemaVersion}, app=${renderer.schemaVersion}",
+            )
+        }
         return renderer.validate(invocation)
     }
 
@@ -132,6 +141,8 @@ object SchoolVisualizationCatalog {
     }
 
     fun registeredKeys(): Set<VisualizationKey> = registry.keys()
+
+    fun registeredCapabilities(): Map<VisualizationKey, Int> = registry.schemaVersions()
 
     internal fun contractSchemas(): Map<VisualizationKey, VisualizationSchema> = registry.schemas()
 
