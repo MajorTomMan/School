@@ -1,10 +1,17 @@
 package com.majortomman.school.visualization
 
+import com.majortomman.school.visualization.renderers.math.MathematicsVisualizationModule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 class SafeMathExpressionTest {
+    @Before
+    fun installVisualizationProvider() {
+        MathematicsVisualizationModule.install()
+    }
+
     @Test
     fun evaluatesPolynomialWithoutExecutingCode() {
         val expression = VisualizationParameterValue.MathExpressionValue.parse("x^2-4*x+1")
