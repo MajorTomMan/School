@@ -23,10 +23,18 @@ interface ActivityResult {
     val activityId: ActivityId
 }
 
+interface TextualActivityResult : ActivityResult {
+    val value: String
+}
+
+interface NumericActivityResult : ActivityResult {
+    val value: Double
+}
+
 data class TextAnswerActivityResult(
     override val activityId: ActivityId,
-    val value: String,
-) : ActivityResult
+    override val value: String,
+) : TextualActivityResult
 
 data class ActivityTransition(
     val state: ActivityState,
