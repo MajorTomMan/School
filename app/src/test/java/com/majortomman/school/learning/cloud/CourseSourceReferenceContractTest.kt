@@ -1,10 +1,17 @@
 package com.majortomman.school.learning.cloud
 
+import com.majortomman.school.visualization.renderers.math.MathematicsVisualizationModule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Before
 import org.junit.Test
 
 class CourseSourceReferenceContractTest {
+    @Before
+    fun installVisualizationProvider() {
+        MathematicsVisualizationModule.install()
+    }
+
     @Test
     fun sourceReferenceDecodesWithPrintedPageRange() {
         val document = CourseDocumentParser.decode(courseJson(pageEnd = 14))
