@@ -34,6 +34,16 @@ class VisualizationContractTest {
     }
 
     @Test
+    fun schemaVersionMismatchIsRejected() {
+        val invocation = VisualizationInvocation(
+            renderer = VisualizationKey("mathematics.number-line.basic"),
+            schemaVersion = 2,
+        )
+        val issues = SchoolVisualizationCatalog.validate(invocation)
+        assertTrue(issues.any { "schemaVersion" in it })
+    }
+
+    @Test
     fun schemaRejectsUnknownParametersAndTexts() {
         val invocation = VisualizationInvocation(
             renderer = VisualizationKey("mathematics.number-line.basic"),
