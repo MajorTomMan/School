@@ -73,12 +73,45 @@ class CapabilityRegistry(modules: List<SubjectModule>) {
     }
 
     fun module(id: SubjectId): SubjectModule? = modulesById[id]
+
     fun capability(key: CapabilityKey): CapabilityDescriptor? = capabilitiesByKey[key]
-    fun supports(key: CapabilityKey, schemaVersion: Int = 1): Boolean =
-        capabilitiesByKey[key]?.schemaVersion == schemaVersion
+
+    fun supports(key: CapabilityKey, kind: CapabilityKind, schemaVersion: Int = 1): Boolean =
+        capabilitiesByKey[key]?.let { it.kind == kind && it.schemaVersion == schemaVersion } == true
 
     fun capabilities(subject: SubjectId? = null, kind: CapabilityKind? = null): List<CapabilityDescriptor> =
         capabilitiesByKey.values.filter { descriptor ->
             (subject == null || descriptor.subject == subject) && (kind == null || descriptor.kind == kind)
         }
+}
+
+object SchoolCapabilityCatalog {
+    private val modules = linkedMapOf<SubjectId, SubjectModule>()
+
+    @Volatile
+    private var registry = CapabilityRegistry(emptyList())
+
+    fun install(module: SubjectModule) {
+        synchronized(this) {
+            val existing = modules[module.id]
+            if (existing != null) {
+                require(existing.capabilities == module.capabilities) {
+                    "subject module ${module.id} 已使用不同 capability 集合注册"
+                }
+                return
+            }
+            val next = modules.toMutableMap().apply { put(module.id, module) }
+            registry = CapabilityRegistry(next.values.toList())
+            modules[module.id] = module
+        }
+    }
+
+    fun requireSupported(key: CapabilityKey, kind: CapabilityKind, schemaVersion: Int) {
+        require(registry.supports(key, kind, schemaVersion)) {
+            "未安装或不兼容的 capability：$key kind=$kind schemaVersion=$schemaVersion"
+        }
+    }
+
+    fun supports(key: CapabilityKey, kind: CapabilityKind, schemaVersion: Int = 1): Boolean =
+        registry.supports(key, kind, schemaVersion)
 }
