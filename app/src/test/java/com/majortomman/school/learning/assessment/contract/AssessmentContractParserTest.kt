@@ -1,6 +1,6 @@
 package com.majortomman.school.learning.assessment.contract
 
-import com.majortomman.school.visualization.renderers.math.MathematicsVisualizationModule
+import com.majortomman.school.startup.SchoolLearningModules
 import com.majortomman.school.learning.assessment.domain.AnswerInputSpec
 import com.majortomman.school.learning.assessment.domain.AnswerRule
 import com.majortomman.school.learning.content.LearningContent
@@ -22,8 +22,8 @@ import org.junit.Test
 
 class AssessmentContractParserTest {
     @Before
-    fun installVisualizationProvider() {
-        MathematicsVisualizationModule.install()
+    fun installLearningModules() {
+        SchoolLearningModules.install()
     }
 
     @Test
