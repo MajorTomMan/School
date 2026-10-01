@@ -11,7 +11,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.majortomman.school.visualization.renderers.math.MathVisualizationRenderers
 
 internal enum class VisualizationSubject {
     MATHEMATICS,
@@ -60,20 +59,38 @@ internal abstract class VisualizationRenderer {
     abstract fun Render(context: VisualizationRenderContext, modifier: Modifier)
 }
 
-internal class VisualizationRegistry(renderers: List<VisualizationRenderer>) {
+internal interface VisualizationProvider {
+    val id: String
+    val renderers: List<VisualizationRenderer>
+}
+
+internal class VisualizationRegistry(providers: Collection<VisualizationProvider>) {
     private val byKey: Map<VisualizationKey, VisualizationRenderer>
 
     init {
-        val duplicateKeys = renderers.groupBy { it.key }.filterValues { it.size > 1 }.keys
-        require(duplicateKeys.isEmpty()) { "重复的可视化 renderer key：${duplicateKeys.joinToString { it.value }}" }
-        byKey = renderers.associateBy { it.key }
+        val providerIds = providers.map(VisualizationProvider::id)
+        require(providerIds.all(String::isNotBlank)) { "VisualizationProvider id 不能为空" }
+        val duplicateProviderIds = providerIds.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
+        require(duplicateProviderIds.isEmpty()) {
+            "重复的 visualization provider id：${duplicateProviderIds.sorted().joinToString()}"
+        }
+
+        val renderers = providers.flatMap(VisualizationProvider::renderers)
+        val duplicateKeys = renderers.groupBy(VisualizationRenderer::key).filterValues { it.size > 1 }.keys
+        require(duplicateKeys.isEmpty()) {
+            "重复的可视化 renderer key：${duplicateKeys.joinToString { it.value }}"
+        }
+        byKey = renderers.associateBy(VisualizationRenderer::key)
     }
 
     fun keys(): Set<VisualizationKey> = byKey.keys
-    fun schemas(): Map<VisualizationKey, VisualizationSchema> = byKey.mapValues { it.value.schema }
+
+    fun schemas(): Map<VisualizationKey, VisualizationSchema> =
+        byKey.mapValues { (_, renderer) -> renderer.schema }
 
     fun validate(invocation: VisualizationInvocation): List<String> {
-        val renderer = byKey[invocation.renderer] ?: return listOf("未注册的可视化 renderer：${invocation.renderer.value}")
+        val renderer = byKey[invocation.renderer]
+            ?: return listOf("未注册的可视化 renderer：${invocation.renderer.value}")
         return renderer.validate(invocation)
     }
 
@@ -94,9 +111,28 @@ internal class VisualizationRegistry(renderers: List<VisualizationRenderer>) {
 }
 
 object SchoolVisualizationCatalog {
-    private val registry = VisualizationRegistry(MathVisualizationRenderers.all)
+    private val providers = linkedMapOf<String, VisualizationProvider>()
+
+    @Volatile
+    private var registry = VisualizationRegistry(emptyList())
+
+    internal fun install(provider: VisualizationProvider) {
+        synchronized(this) {
+            val existing = providers[provider.id]
+            if (existing != null) {
+                require(existing.renderers.map(VisualizationRenderer::key) == provider.renderers.map(VisualizationRenderer::key)) {
+                    "visualization provider ${provider.id} 已使用不同 renderer 集合注册"
+                }
+                return
+            }
+            val next = providers.toMutableMap().apply { put(provider.id, provider) }
+            registry = VisualizationRegistry(next.values)
+            providers[provider.id] = provider
+        }
+    }
 
     fun registeredKeys(): Set<VisualizationKey> = registry.keys()
+
     internal fun contractSchemas(): Map<VisualizationKey, VisualizationSchema> = registry.schemas()
 
     fun validate(invocation: VisualizationInvocation): List<String> = registry.validate(invocation)
@@ -119,8 +155,18 @@ fun SchoolVisualization(invocation: VisualizationInvocation, modifier: Modifier 
 
 @Composable
 private fun VisualizationError(issues: List<String>, modifier: Modifier) {
-    Column(modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("可视化数据无效", color = DefaultVisualizationPalette.danger, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-        issues.forEach { Text("— $it", color = DefaultVisualizationPalette.muted, fontSize = 12.sp) }
+    Column(
+        modifier.fillMaxSize().padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            "可视化数据无效",
+            color = DefaultVisualizationPalette.danger,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        issues.forEach { issue ->
+            Text("— $issue", color = DefaultVisualizationPalette.muted, fontSize = 12.sp)
+        }
     }
 }
