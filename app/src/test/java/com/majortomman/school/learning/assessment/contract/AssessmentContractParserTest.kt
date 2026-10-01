@@ -230,6 +230,7 @@ class AssessmentContractParserTest {
             {
               "type": "visualization",
               "renderer": "mathematics.number-line.points",
+              "schemaVersion": 1,
               "parameters": {"min": -5, "max": 5, "step": 1, "values": [-3, 2]},
               "texts": {"title": "读取数轴", "label0": "A", "label1": "B"}
             }
