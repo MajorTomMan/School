@@ -25,7 +25,11 @@ internal object CourseDocumentParser {
     fun decode(raw: String): CourseDocument = decode(JSONObject(raw))
 
     fun decode(root: JSONObject): CourseDocument {
-        root.requireShape(required = setOf("textbook", "knowledgePoints", "chapters"))
+        root.requireShape(required = setOf("schemaVersion", "textbook", "knowledgePoints", "chapters"))
+        val schemaVersion = root.strictInt("schemaVersion")
+        require(schemaVersion == COURSE_SCHEMA_VERSION) {
+            "course schemaVersion 不受支持：$schemaVersion，当前支持 $COURSE_SCHEMA_VERSION"
+        }
         val textbook = decodeTextbook(root.objectValue("textbook"))
         val knowledgePoints = root.arrayValue("knowledgePoints").objects().map(::decodeKnowledgePoint)
         require(knowledgePoints.isNotEmpty()) { "课程必须声明知识点" }
@@ -258,6 +262,7 @@ internal object CourseDocumentParser {
     }
 }
 
+private const val COURSE_SCHEMA_VERSION = 2
 private val IDENTIFIER = Regex("^[A-Za-z0-9._:-]+$")
 private val CJK = Regex("[\\u3400-\\u9fff]")
 private val NON_LATEX_MATH = "²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉−×÷≤≥≠Σαβγθπ°′″".toSet()
