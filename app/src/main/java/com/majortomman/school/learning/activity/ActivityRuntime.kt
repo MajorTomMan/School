@@ -1,60 +1,112 @@
 package com.majortomman.school.learning.activity
 
-sealed interface ActivityEvent {
-    data class TextChanged(val value: String) : ActivityEvent
-    data object Submit : ActivityEvent
-    data object Reset : ActivityEvent
-}
+import com.majortomman.school.learning.capability.CapabilityKey
 
-sealed interface ActivityState {
+interface ActivityEvent
+
+data class TextChanged(val value: String) : ActivityEvent
+
+data object SubmitActivity : ActivityEvent
+
+data object ResetActivity : ActivityEvent
+
+interface ActivityState {
     val spec: ActivitySpec
-
-    data class TextAnswer(
-        override val spec: TextAnswerActivitySpec,
-        val draft: String = "",
-    ) : ActivityState
 }
 
-sealed interface ActivityResult {
+data class TextAnswerActivityState(
+    override val spec: TextAnswerActivitySpec,
+    val draft: String = "",
+) : ActivityState
+
+interface ActivityResult {
     val activityId: ActivityId
-
-    data class TextAnswer(
-        override val activityId: ActivityId,
-        val value: String,
-    ) : ActivityResult
 }
+
+data class TextAnswerActivityResult(
+    override val activityId: ActivityId,
+    val value: String,
+) : ActivityResult
 
 data class ActivityTransition(
     val state: ActivityState,
     val result: ActivityResult? = null,
 )
 
-class ActivityRuntime(private val spec: ActivitySpec) {
-    var state: ActivityState = initialState(spec)
+interface ActivityRuntimeHandler {
+    val capability: CapabilityKey
+    val schemaVersion: Int
+
+    fun initialState(spec: ActivitySpec): ActivityState
+
+    fun reduce(state: ActivityState, event: ActivityEvent): ActivityTransition
+}
+
+object SchoolActivityRuntimeCatalog {
+    private val handlers = linkedMapOf<CapabilityKey, ActivityRuntimeHandler>()
+
+    fun install(handler: ActivityRuntimeHandler) {
+        synchronized(this) {
+            val existing = handlers[handler.capability]
+            if (existing != null) {
+                require(existing.schemaVersion == handler.schemaVersion) {
+                    "activity runtime ${handler.capability} 已注册 schemaVersion=${existing.schemaVersion}"
+                }
+                return
+            }
+            handlers[handler.capability] = handler
+        }
+    }
+
+    fun requireHandler(spec: ActivitySpec): ActivityRuntimeHandler {
+        val handler = synchronized(this) { handlers[spec.capability] }
+            ?: error("未安装 Activity capability：${spec.capability}")
+        require(handler.schemaVersion == spec.schemaVersion) {
+            "Activity capability ${spec.capability} schemaVersion 不兼容：course=${spec.schemaVersion}, app=${handler.schemaVersion}"
+        }
+        return handler
+    }
+}
+
+object CoreTextAnswerActivityHandler : ActivityRuntimeHandler {
+    override val capability: CapabilityKey = ActivityCapabilityKeys.TEXT_ANSWER
+    override val schemaVersion: Int = 1
+
+    override fun initialState(spec: ActivitySpec): ActivityState {
+        require(spec is TextAnswerActivitySpec) { "core.text-answer 收到错误 spec：${spec::class.simpleName}" }
+        return TextAnswerActivityState(spec)
+    }
+
+    override fun reduce(state: ActivityState, event: ActivityEvent): ActivityTransition {
+        require(state is TextAnswerActivityState) { "core.text-answer 收到错误 state：${state::class.simpleName}" }
+        return when (event) {
+            is TextChanged -> ActivityTransition(state.copy(draft = event.value.take(MAX_TEXT_LENGTH)))
+            SubmitActivity -> {
+                val value = state.draft.trim()
+                ActivityTransition(
+                    state = state,
+                    result = if (value.isBlank()) null else TextAnswerActivityResult(state.spec.id, value),
+                )
+            }
+            ResetActivity -> ActivityTransition(state.copy(draft = ""))
+            else -> ActivityTransition(state)
+        }
+    }
+
+    private const val MAX_TEXT_LENGTH = 2_000
+}
+
+class ActivityRuntime(spec: ActivitySpec) {
+    private val handler = SchoolActivityRuntimeCatalog.requireHandler(spec)
+
+    var state: ActivityState = handler.initialState(spec)
         private set
 
     fun dispatch(event: ActivityEvent): ActivityTransition {
-        val transition = when (val current = state) {
-            is ActivityState.TextAnswer -> reduceTextAnswer(current, event)
-        }
+        val transition = handler.reduce(state, event)
+        require(transition.state.spec.id == state.spec.id) { "Activity handler 不能替换 activity id" }
+        require(transition.state.spec.capability == state.spec.capability) { "Activity handler 不能替换 capability" }
         state = transition.state
         return transition
-    }
-
-    private fun reduceTextAnswer(state: ActivityState.TextAnswer, event: ActivityEvent): ActivityTransition = when (event) {
-        is ActivityEvent.TextChanged -> ActivityTransition(state.copy(draft = event.value.take(MAX_TEXT_LENGTH)))
-        ActivityEvent.Submit -> {
-            val value = state.draft.trim()
-            ActivityTransition(state, if (value.isBlank()) null else ActivityResult.TextAnswer(state.spec.id, value))
-        }
-        ActivityEvent.Reset -> ActivityTransition(state.copy(draft = ""))
-    }
-
-    private companion object {
-        const val MAX_TEXT_LENGTH = 2_000
-
-        fun initialState(spec: ActivitySpec): ActivityState = when (spec) {
-            is TextAnswerActivitySpec -> ActivityState.TextAnswer(spec)
-        }
     }
 }
