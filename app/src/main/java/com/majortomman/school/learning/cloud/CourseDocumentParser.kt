@@ -289,7 +289,7 @@ private fun JSONObject.positiveInt(key: String): Int = strictInt(key).also { req
 
 private fun JSONObject.doubleValue(key: String): Double {
     val raw = get(key)
-    require(raw is Number && raw !is Boolean) { "$key 必须是 JSON number" }
+    require(raw is Number) { "$key 必须是 JSON number" }
     return raw.toDouble().also { require(it.isFinite()) { "$key 必须是有限数" } }
 }
 
