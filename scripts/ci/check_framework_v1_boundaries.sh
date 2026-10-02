@@ -42,6 +42,7 @@ forbidden_paths=(
   "app/src/main/java/com/majortomman/school/ui/MathQuestionBankScreen.kt"
   "app/src/main/java/com/majortomman/school/ui/MathQuestionBankActions.kt"
   "app/src/main/java/com/majortomman/school/ui/LessonPresentation.kt"
+  "app/src/main/java/com/majortomman/school/ui/AssessmentLearningContentRenderer.kt"
 )
 
 failed=0
