@@ -24,11 +24,9 @@ internal class CoursePackStore(context: Context) {
     }
 
     fun readLocalState(textbookId: String): LocalCourseState? {
-        val stateFile = File(File(activeRoot, textbookId), STATE_FILE_NAME)
-        if (!stateFile.isFile) return null
-        return runCatching {
-            CourseManifestCodec.decodeLocalState(stateFile.readText(Charsets.UTF_8))
-        }.getOrNull()
+        val active = File(activeRoot, textbookId)
+        if (!active.isDirectory) return null
+        return runCatching { CourseLocalIntegrityValidator.readValidated(active) }.getOrNull()
     }
 
     /** Returns a stable partial file. It is intentionally not deleted when a Worker is restarted. */
