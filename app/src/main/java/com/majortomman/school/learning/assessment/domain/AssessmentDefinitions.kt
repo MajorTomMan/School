@@ -100,6 +100,7 @@ sealed interface AnswerInputSpec {
     data object Coordinate : AnswerInputSpec
 }
 
+@ConsistentCopyVisibility
 data class RationalValue private constructor(
     val numerator: BigInteger,
     val denominator: BigInteger,
