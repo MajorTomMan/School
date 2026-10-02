@@ -50,9 +50,13 @@ internal data class LearningEvidenceEntity(
     val recordedAtEpochMillis: Long,
 )
 
-@Entity(tableName = "mastery_state")
+@Entity(
+    tableName = "mastery_state",
+    primaryKeys = ["courseId", "knowledgePointId"],
+    indices = [Index(value = ["courseId"])],
+)
 internal data class MasteryStateEntity(
-    @androidx.room.PrimaryKey
+    val courseId: String,
     val knowledgePointId: String,
     val score: Double,
     val accumulatedEvidenceWeight: Double,
@@ -63,13 +67,14 @@ internal data class MasteryStateEntity(
 @Entity(
     tableName = "mastery_update_snapshot",
     indices = [
-        Index(value = ["sourceContextId"]),
-        Index(value = ["knowledgePointId", "createdAtEpochMillis"]),
+        Index(value = ["courseId", "sourceContextId"]),
+        Index(value = ["courseId", "knowledgePointId", "createdAtEpochMillis"]),
     ],
 )
 internal data class MasteryUpdateSnapshotEntity(
     @androidx.room.PrimaryKey
     val snapshotId: String,
+    val courseId: String,
     val sourceContextId: String,
     val knowledgePointId: String,
     val beforeScore: Double,
@@ -104,17 +109,17 @@ internal interface LearningEvidenceDao {
                COUNT(*) AS evidenceCount,
                MAX(recordedAtEpochMillis) AS lastEvidenceAtEpochMillis
         FROM learning_evidence
-        WHERE knowledgePointId IN (:knowledgePointIds)
+        WHERE courseId = :courseId AND knowledgePointId IN (:knowledgePointIds)
         GROUP BY knowledgePointId
         """,
     )
-    suspend fun evidenceStats(knowledgePointIds: List<String>): List<KnowledgePointEvidenceStats>
+    suspend fun evidenceStats(courseId: String, knowledgePointIds: List<String>): List<KnowledgePointEvidenceStats>
 
-    @Query("SELECT * FROM mastery_state WHERE knowledgePointId = :knowledgePointId")
-    suspend fun findMasteryState(knowledgePointId: String): MasteryStateEntity?
+    @Query("SELECT * FROM mastery_state WHERE courseId = :courseId AND knowledgePointId = :knowledgePointId")
+    suspend fun findMasteryState(courseId: String, knowledgePointId: String): MasteryStateEntity?
 
-    @Query("SELECT * FROM mastery_state WHERE knowledgePointId IN (:knowledgePointIds)")
-    suspend fun masteryStates(knowledgePointIds: List<String>): List<MasteryStateEntity>
+    @Query("SELECT * FROM mastery_state WHERE courseId = :courseId AND knowledgePointId IN (:knowledgePointIds)")
+    suspend fun masteryStates(courseId: String, knowledgePointIds: List<String>): List<MasteryStateEntity>
 
     @Upsert
     suspend fun upsertMasteryState(entity: MasteryStateEntity)
@@ -125,20 +130,20 @@ internal interface LearningEvidenceDao {
     @Query(
         """
         SELECT * FROM mastery_update_snapshot
-        WHERE sourceContextId = :contextId
+        WHERE courseId = :courseId AND sourceContextId = :contextId
         ORDER BY knowledgePointId ASC
         """,
     )
-    suspend fun masterySnapshotsForContext(contextId: String): List<MasteryUpdateSnapshotEntity>
+    suspend fun masterySnapshotsForContext(courseId: String, contextId: String): List<MasteryUpdateSnapshotEntity>
 
     @Query(
         """
         SELECT * FROM mastery_update_snapshot
-        WHERE knowledgePointId = :knowledgePointId
+        WHERE courseId = :courseId AND knowledgePointId = :knowledgePointId
         ORDER BY createdAtEpochMillis ASC, snapshotId ASC
         """,
     )
-    suspend fun masterySnapshotsForKnowledgePoint(knowledgePointId: String): List<MasteryUpdateSnapshotEntity>
+    suspend fun masterySnapshotsForKnowledgePoint(courseId: String, knowledgePointId: String): List<MasteryUpdateSnapshotEntity>
 
     @Query("DELETE FROM learning_evidence")
     suspend fun clearEvidence()
@@ -193,6 +198,9 @@ class LearningEvidenceStore internal constructor(
         require(recordedAtEpochMillis >= 0L) { "recordedAtEpochMillis 不能小于 0" }
         val contexts = evidence.map { it.source.contextId }.distinct()
         require(contexts.size == 1) { "一次 evidence record 必须来自同一个 context" }
+        val courseIds = evidence.map(LearningEvidence::courseId).distinct()
+        require(courseIds.size == 1) { "一次 evidence record 必须来自同一个 course" }
+        val courseId = courseIds.single()
 
         val newEvidence = evidence.filter { dao.findEvidence(it.id) == null }
         if (newEvidence.isEmpty()) {
@@ -204,16 +212,17 @@ class LearningEvidenceStore internal constructor(
             .groupBy(LearningEvidence::knowledgePointId)
             .toSortedMap(compareBy(KnowledgePointId::value))
             .map { (knowledgePointId, items) ->
-                val current = dao.findMasteryState(knowledgePointId.value)?.toDomain()
+                val current = dao.findMasteryState(courseId, knowledgePointId.value)?.toDomain()
                     ?: masteryPrior.stateFor(knowledgePointId)
                 masteryPolicy.update(current, items)
             }
 
         val contextId = contexts.single()
         updates.forEach { update ->
-            dao.upsertMasteryState(update.toStateEntity(recordedAtEpochMillis))
+            dao.upsertMasteryState(update.toStateEntity(courseId, recordedAtEpochMillis))
             dao.insertMasterySnapshot(
                 update.toSnapshotEntity(
+                    courseId = courseId,
                     sourceContextId = contextId,
                     createdAtEpochMillis = recordedAtEpochMillis,
                 ),
@@ -222,12 +231,18 @@ class LearningEvidenceStore internal constructor(
         return LearningEvidenceApplyResult(newEvidence, updates, masteryPolicy.version)
     }
 
-    suspend fun masteryState(knowledgePointId: KnowledgePointId): MasteryState? =
-        dao.findMasteryState(knowledgePointId.value)?.toDomain()
+    suspend fun masteryState(courseId: String, knowledgePointId: KnowledgePointId): MasteryState? {
+        require(courseId.isNotBlank()) { "courseId 不能为空" }
+        return dao.findMasteryState(courseId, knowledgePointId.value)?.toDomain()
+    }
 
-    suspend fun masteryStates(knowledgePointIds: Collection<KnowledgePointId>): Map<KnowledgePointId, MasteryState> {
+    suspend fun masteryStates(
+        courseId: String,
+        knowledgePointIds: Collection<KnowledgePointId>,
+    ): Map<KnowledgePointId, MasteryState> {
+        require(courseId.isNotBlank()) { "courseId 不能为空" }
         if (knowledgePointIds.isEmpty()) return emptyMap()
-        return dao.masteryStates(knowledgePointIds.map(KnowledgePointId::value))
+        return dao.masteryStates(courseId, knowledgePointIds.map(KnowledgePointId::value))
             .map(MasteryStateEntity::toDomain)
             .associateBy(MasteryState::knowledgePointId)
     }
@@ -235,13 +250,18 @@ class LearningEvidenceStore internal constructor(
     internal suspend fun evidenceForContext(contextId: String): List<LearningEvidence> =
         dao.evidenceForContext(contextId).map(LearningEvidenceEntity::toDomain)
 
-    internal suspend fun masteryUpdatesForContext(contextId: String): List<MasteryUpdate> =
-        dao.masterySnapshotsForContext(contextId).map(MasteryUpdateSnapshotEntity::toDomain)
+    internal suspend fun masteryUpdatesForContext(courseId: String, contextId: String): List<MasteryUpdate> =
+        dao.masterySnapshotsForContext(courseId, contextId).map(MasteryUpdateSnapshotEntity::toDomain)
 
-    suspend fun masteryHistory(knowledgePointId: KnowledgePointId): List<MasteryHistoryPoint> =
-        dao.masterySnapshotsForKnowledgePoint(knowledgePointId.value).map {
+    suspend fun masteryHistory(
+        courseId: String,
+        knowledgePointId: KnowledgePointId,
+    ): List<MasteryHistoryPoint> {
+        require(courseId.isNotBlank()) { "courseId 不能为空" }
+        return dao.masterySnapshotsForKnowledgePoint(courseId, knowledgePointId.value).map {
             MasteryHistoryPoint(it.sourceContextId, it.toDomain(), it.createdAtEpochMillis)
         }
+    }
 
     suspend fun clearAll() {
         database.withTransaction {
@@ -309,8 +329,12 @@ private fun MasteryStateEntity.toDomain(): MasteryState =
         accumulatedEvidenceWeight = accumulatedEvidenceWeight,
     )
 
-private fun MasteryUpdate.toStateEntity(updatedAtEpochMillis: Long): MasteryStateEntity =
+private fun MasteryUpdate.toStateEntity(
+    courseId: String,
+    updatedAtEpochMillis: Long,
+): MasteryStateEntity =
     MasteryStateEntity(
+        courseId = courseId,
         knowledgePointId = knowledgePointId.value,
         score = afterScore,
         accumulatedEvidenceWeight = afterEvidenceWeight,
@@ -319,11 +343,13 @@ private fun MasteryUpdate.toStateEntity(updatedAtEpochMillis: Long): MasteryStat
     )
 
 private fun MasteryUpdate.toSnapshotEntity(
+    courseId: String,
     sourceContextId: String,
     createdAtEpochMillis: Long,
 ): MasteryUpdateSnapshotEntity =
     MasteryUpdateSnapshotEntity(
-        snapshotId = "$sourceContextId:${knowledgePointId.value}:$createdAtEpochMillis",
+        snapshotId = "$courseId:$sourceContextId:${knowledgePointId.value}:$createdAtEpochMillis",
+        courseId = courseId,
         sourceContextId = sourceContextId,
         knowledgePointId = knowledgePointId.value,
         beforeScore = beforeScore,
