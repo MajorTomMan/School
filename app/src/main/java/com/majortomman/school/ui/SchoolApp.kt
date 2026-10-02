@@ -249,6 +249,7 @@ fun SchoolApp(
                                             currentLessonId = currentLesson.id,
                                             lessons = lessons,
                                             courseTitle = activeCourse.title,
+                                            courseSubject = activeCourse.subject,
                                             reviewSuggestion = reviewSuggestion,
                                             onStartLesson = { openLesson(activeCourse, it) },
                                             onOpenPractice = { selectedTabName = MainTab.PRACTICE.name },
