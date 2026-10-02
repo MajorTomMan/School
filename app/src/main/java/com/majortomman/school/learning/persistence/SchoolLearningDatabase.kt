@@ -37,7 +37,7 @@ import com.majortomman.school.learning.progress.persistence.CourseProgressDao
         MasteryUpdateSnapshotEntity::class,
         CourseLessonProgressEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 internal abstract class SchoolLearningDatabase : RoomDatabase() {
@@ -138,6 +138,54 @@ internal abstract class SchoolLearningDatabase : RoomDatabase() {
             }
         }
 
+
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS mastery_state")
+                db.execSQL("DROP TABLE IF EXISTS mastery_update_snapshot")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS mastery_state (
+                        courseId TEXT NOT NULL,
+                        knowledgePointId TEXT NOT NULL,
+                        score REAL NOT NULL,
+                        accumulatedEvidenceWeight REAL NOT NULL,
+                        lastPolicyVersion INTEGER NOT NULL,
+                        updatedAtEpochMillis INTEGER NOT NULL,
+                        PRIMARY KEY(courseId, knowledgePointId)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_mastery_state_courseId ON mastery_state(courseId)",
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS mastery_update_snapshot (
+                        snapshotId TEXT NOT NULL,
+                        courseId TEXT NOT NULL,
+                        sourceContextId TEXT NOT NULL,
+                        knowledgePointId TEXT NOT NULL,
+                        beforeScore REAL NOT NULL,
+                        afterScore REAL NOT NULL,
+                        beforeEvidenceWeight REAL NOT NULL,
+                        appliedEvidenceWeight REAL NOT NULL,
+                        afterEvidenceWeight REAL NOT NULL,
+                        policyVersion INTEGER NOT NULL,
+                        createdAtEpochMillis INTEGER NOT NULL,
+                        PRIMARY KEY(snapshotId)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_mastery_update_snapshot_courseId_sourceContextId ON mastery_update_snapshot(courseId, sourceContextId)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_mastery_update_snapshot_courseId_knowledgePointId_createdAtEpochMillis ON mastery_update_snapshot(courseId, knowledgePointId, createdAtEpochMillis)",
+                )
+            }
+        }
+
         @Volatile
         private var instance: SchoolLearningDatabase? = null
 
@@ -146,7 +194,7 @@ internal abstract class SchoolLearningDatabase : RoomDatabase() {
                 context.applicationContext,
                 SchoolLearningDatabase::class.java,
                 DATABASE_NAME,
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { instance = it }
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build().also { instance = it }
         }
     }
 }
