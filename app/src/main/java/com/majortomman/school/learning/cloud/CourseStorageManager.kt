@@ -19,6 +19,10 @@ object CourseStorageManager {
         )
     }
 
+    suspend fun installedTextbookIds(context: Context): Set<String> = withContext(Dispatchers.IO) {
+        CourseCacheFiles.installedTextbookIds(File(context.applicationContext.filesDir, ROOT_DIRECTORY))
+    }
+
     suspend fun checkForUpdates(context: Context, textbookIds: Set<String> = emptySet()): CourseUpdateCheckResult {
         val appContext = context.applicationContext
         val result = CourseSyncManager.checkForUpdates(appContext, textbookIds)
@@ -82,6 +86,15 @@ sealed interface CourseCacheClearResult {
 internal object CourseCacheFiles {
     private const val ACTIVE_DIRECTORY = "active"
     private val TEXTBOOK_ID_PATTERN = Regex("[A-Za-z0-9._-]+")
+
+    fun installedTextbookIds(root: File): Set<String> =
+        File(root, ACTIVE_DIRECTORY).listFiles().orEmpty()
+            .filter { directory ->
+                directory.isDirectory &&
+                    TEXTBOOK_ID_PATTERN.matches(directory.name) &&
+                    !(directory.name.startsWith(".") && "-deleting-" in directory.name)
+            }
+            .mapTo(linkedSetOf()) { it.name }
 
     fun snapshot(root: File): CourseStorageSnapshot {
         val active = File(root, ACTIVE_DIRECTORY)
