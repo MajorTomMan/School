@@ -1,6 +1,5 @@
 package com.majortomman.school.learning.content
 
-import com.majortomman.school.visualization.SchoolVisualizationCatalog
 import com.majortomman.school.visualization.VisualizationInvocation
 import com.majortomman.school.visualization.VisualizationKey
 import com.majortomman.school.visualization.VisualizationParameterValue
@@ -73,8 +72,6 @@ internal object LearningContentParser {
             parameters = decodeParameters(json.objectValue("parameters", location), location),
             texts = decodeTexts(json.objectValue("texts", location), location),
         )
-        val issues = SchoolVisualizationCatalog.validate(invocation)
-        require(issues.isEmpty()) { "$location 可视化参数无效：${issues.joinToString("；")}" }
         return LearningContent.Visualization(invocation)
     }
 
