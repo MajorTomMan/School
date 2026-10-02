@@ -171,7 +171,7 @@ internal class CoursePackStore(context: Context) {
         require(document.textbook.id == remote.id) {
             "课程内容教材 ID 与更新清单不一致：${document.textbook.id} != ${remote.id}"
         }
-        CourseCapabilityCompatibilityValidator.validate(document)
+        CourseRuntimeCompatibilityValidator.validate(document)
         AssessmentPackageStagingValidator.validate(remote, staging, document)
         validatePdfAsset(remote, staging, document.textbook.pdf.path, document.textbook.pdf.pageCount)
     }
