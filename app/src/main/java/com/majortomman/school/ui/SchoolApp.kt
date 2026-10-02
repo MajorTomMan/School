@@ -40,7 +40,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.majortomman.school.data.AiSettings
 import com.majortomman.school.data.AppSettingsRepository
-import com.majortomman.school.data.DailyPlan
 import com.majortomman.school.data.Lesson
 import com.majortomman.school.learning.advisor.LearningAdvisor
 import com.majortomman.school.learning.advisor.ReviewAdvice
@@ -105,7 +104,6 @@ fun SchoolApp(
     val currentLesson = lessons.firstOrNull { it.status == LessonProgressStatus.IN_PROGRESS }
         ?: lessons.firstOrNull { it.status == LessonProgressStatus.NOT_STARTED }
         ?: lessons.lastOrNull()
-    val dailyPlan = currentLesson?.let { DailyPlan(it.id, it.estimatedMinutes) }
     val selectedTab = MainTab.valueOf(selectedTabName)
     val reviewSuggestion = activeCourse?.let { course ->
         reviewAdvice?.let { advice ->
@@ -244,11 +242,11 @@ fun SchoolApp(
                         ) { tab ->
                             when (tab) {
                                 MainTab.LEARN -> {
-                                    if (activeCourse == null || dailyPlan == null || lessons.isEmpty()) {
+                                    if (activeCourse == null || currentLesson == null || lessons.isEmpty()) {
                                         NoActiveTextbookScreen { selectedTabName = MainTab.COURSES.name }
                                     } else {
                                         TodayScreen(
-                                            plan = dailyPlan,
+                                            currentLessonId = currentLesson.id,
                                             lessons = lessons,
                                             courseTitle = activeCourse.title,
                                             reviewSuggestion = reviewSuggestion,
