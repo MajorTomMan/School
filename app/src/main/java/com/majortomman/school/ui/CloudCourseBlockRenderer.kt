@@ -16,11 +16,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
@@ -28,8 +23,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.majortomman.school.learning.activity.ActivityResult
-import com.majortomman.school.learning.activity.ActivityRuntime
+import com.majortomman.school.learning.activity.ActivityEvent
+import com.majortomman.school.learning.activity.ActivityState
 import com.majortomman.school.learning.activity.PlaceOnNumberLineActivitySpec
 import com.majortomman.school.learning.activity.SubmitActivity
 import com.majortomman.school.learning.activity.TextAnswerActivityState
@@ -52,8 +47,9 @@ internal fun AuthoredTeachingContent(
     steps: List<CourseStep>,
     activeStepId: String,
     assessmentOutcome: InlineAssessmentOutcome?,
+    activityState: ActivityState?,
     activityEnabled: Boolean = true,
-    onActivityResult: (CourseStep, ActivityResult) -> Unit,
+    onActivityEvent: (CourseStep, ActivityEvent) -> Unit,
 ) {
     steps.forEachIndexed { index, step ->
         if (index > 0) {
@@ -65,8 +61,9 @@ internal fun AuthoredTeachingContent(
             step = step,
             active = step.id == activeStepId,
             assessmentOutcome = if (step.id == activeStepId) assessmentOutcome else null,
+            activityState = if (step.id == activeStepId) activityState else null,
             activityEnabled = activityEnabled,
-            onActivityResult = onActivityResult,
+            onActivityEvent = onActivityEvent,
         )
     }
 }
@@ -76,8 +73,9 @@ private fun AuthoredStep(
     step: CourseStep,
     active: Boolean,
     assessmentOutcome: InlineAssessmentOutcome?,
+    activityState: ActivityState?,
     activityEnabled: Boolean,
-    onActivityResult: (CourseStep, ActivityResult) -> Unit,
+    onActivityEvent: (CourseStep, ActivityEvent) -> Unit,
 ) {
     val title = step.title ?: defaultTitle(step.role)
     if (title != null) {
@@ -86,24 +84,28 @@ private fun AuthoredStep(
     }
     LearningContentList(step.content)
     if (active) {
-        step.activity?.let {
+        step.activity?.let { spec ->
             Spacer(Modifier.height(18.dp))
-            when (it) {
+            val state = requireNotNull(activityState) { "当前 Activity 缺少 runtime state：" + spec.id }
+            require(state.spec == spec) { "Activity UI state 与 spec 不一致：" + spec.id }
+            when (spec) {
                 is TextAnswerActivitySpec -> TextAnswerActivity(
-                    spec = it,
+                    spec = spec,
+                    state = state as TextAnswerActivityState,
                     assessmentOutcome = assessmentOutcome,
                     explanation = step.assessment?.explanation.orEmpty(),
                     enabled = activityEnabled,
-                    onResult = { result -> onActivityResult(step, result) },
+                    onEvent = { event -> onActivityEvent(step, event) },
                 )
                 is PlaceOnNumberLineActivitySpec -> PlaceOnNumberLineActivity(
-                    spec = it,
+                    spec = spec,
+                    state = state as NumberLinePositionState,
                     assessmentOutcome = assessmentOutcome,
                     explanation = step.assessment?.explanation.orEmpty(),
                     enabled = activityEnabled,
-                    onResult = { result -> onActivityResult(step, result) },
+                    onEvent = { event -> onActivityEvent(step, event) },
                 )
-                else -> error("未提供 Activity UI host：" + it.capability)
+                else -> error("未提供 Activity UI host：" + spec.capability)
             }
         }
     }
@@ -159,20 +161,16 @@ private fun LearningContentList(content: List<LearningContent>) {
 @Composable
 private fun TextAnswerActivity(
     spec: TextAnswerActivitySpec,
+    state: TextAnswerActivityState,
     assessmentOutcome: InlineAssessmentOutcome?,
     explanation: List<LearningContent>,
     enabled: Boolean,
-    onResult: (ActivityResult) -> Unit,
+    onEvent: (ActivityEvent) -> Unit,
 ) {
-    val runtime = remember(spec) { ActivityRuntime(spec) }
-    var state by remember(spec.id.value) { mutableStateOf(runtime.state as TextAnswerActivityState) }
-
     BasicTextField(
         value = state.draft,
         enabled = enabled,
-        onValueChange = { value ->
-            state = runtime.dispatch(TextChanged(value)).state as TextAnswerActivityState
-        },
+        onValueChange = { value -> onEvent(TextChanged(value)) },
         modifier = Modifier.fillMaxWidth().heightIn(min = SchoolUiMetrics.textInputMinHeight).padding(vertical = 8.dp),
         textStyle = TextStyle(
             color = MaterialTheme.colorScheme.onBackground,
@@ -194,11 +192,7 @@ private fun TextAnswerActivity(
     SchoolPrimaryAction(
         label = "提交",
         enabled = enabled && state.draft.isNotBlank(),
-        onClick = {
-            val transition = runtime.dispatch(SubmitActivity)
-            state = transition.state as TextAnswerActivityState
-            transition.result?.let(onResult)
-        },
+        onClick = { onEvent(SubmitActivity) },
     )
 
     ActivityAssessmentFeedback(assessmentOutcome, explanation)
@@ -207,13 +201,12 @@ private fun TextAnswerActivity(
 @Composable
 private fun PlaceOnNumberLineActivity(
     spec: PlaceOnNumberLineActivitySpec,
+    state: NumberLinePositionState,
     assessmentOutcome: InlineAssessmentOutcome?,
     explanation: List<LearningContent>,
     enabled: Boolean,
-    onResult: (ActivityResult) -> Unit,
+    onEvent: (ActivityEvent) -> Unit,
 ) {
-    val runtime = remember(spec) { ActivityRuntime(spec) }
-    var state by remember(spec.id.value) { mutableStateOf(runtime.state as NumberLinePositionState) }
     val visualization = VisualizationInvocation(
         renderer = VisualizationKey("mathematics.number-line.basic"),
         parameters = VisualizationParameters.of(
@@ -237,20 +230,14 @@ private fun PlaceOnNumberLineActivity(
     Slider(
         value = state.selectedValue.toFloat(),
         enabled = enabled,
-        onValueChange = { raw ->
-            state = runtime.dispatch(PositionSelected(raw.toDouble())).state as NumberLinePositionState
-        },
+        onValueChange = { raw -> onEvent(PositionSelected(raw.toDouble())) },
         valueRange = spec.min.toFloat()..spec.max.toFloat(),
     )
     Spacer(Modifier.height(12.dp))
     SchoolPrimaryAction(
         label = "提交",
         enabled = enabled,
-        onClick = {
-            val transition = runtime.dispatch(SubmitActivity)
-            state = transition.state as NumberLinePositionState
-            transition.result?.let(onResult)
-        },
+        onClick = { onEvent(SubmitActivity) },
     )
     ActivityAssessmentFeedback(assessmentOutcome, explanation)
 }
