@@ -241,6 +241,8 @@ class AssessmentProgressStore internal constructor(
         settlement: AssessmentSettlementEntity,
         alreadySettled: Boolean,
     ): AssessmentSettlementSnapshot {
+        val session = dao.findSession(settlement.sessionId)
+            ?: error("结算记录缺少对应会话")
         val results = dao.questionResultsForSession(settlement.sessionId).map(
             AssessmentQuestionResultEntity::toDomain,
         )
@@ -254,7 +256,7 @@ class AssessmentProgressStore internal constructor(
         settlement.verifyAgainst(summary)
         return AssessmentSettlementSnapshot(
             summary = summary,
-            evidence = evidenceStore.evidenceForContext(settlement.sessionId),
+            evidence = evidenceStore.evidenceForContext(session.courseId, settlement.sessionId),
             masteryUpdates = evidenceStore.masteryUpdatesForContext(session.courseId, settlement.sessionId),
             settledAtEpochMillis = settlement.settledAtEpochMillis,
             alreadySettled = alreadySettled,
