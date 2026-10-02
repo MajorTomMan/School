@@ -19,12 +19,11 @@ object CourseStorageManager {
         )
     }
 
-    suspend fun checkForUpdates(context: Context, textbookIds: Set<String> = emptySet()): CourseStorageUpdateCheck {
+    suspend fun checkForUpdates(context: Context, textbookIds: Set<String> = emptySet()): CourseUpdateCheckResult {
         val appContext = context.applicationContext
         val result = CourseSyncManager.checkForUpdates(appContext, textbookIds)
-        val checkedAt = System.currentTimeMillis()
-        preferences(appContext).edit().putLong(KEY_LAST_CHECKED_AT, checkedAt).apply()
-        return CourseStorageUpdateCheck(result, checkedAt)
+        preferences(appContext).edit().putLong(KEY_LAST_CHECKED_AT, System.currentTimeMillis()).apply()
+        return result
     }
 
     suspend fun removeTextbook(context: Context, textbookId: String): CourseTextbookRemovalResult = withContext(Dispatchers.IO) {
@@ -66,8 +65,6 @@ data class CourseStorageSnapshot(
     val textbookBytes: Map<String, Long> = emptyMap(),
     val lastCheckedAt: Long = 0L,
 )
-
-data class CourseStorageUpdateCheck(val result: CourseUpdateCheckResult, val checkedAt: Long)
 
 sealed interface CourseTextbookRemovalResult {
     data object Busy : CourseTextbookRemovalResult
