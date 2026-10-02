@@ -112,8 +112,11 @@ fun SchoolApp(
             val knowledgePoint = course.document.knowledgePoints.firstOrNull {
                 it.id == advice.knowledgePointId.value
             }
-            val reviewLesson = course.lessons.firstOrNull {
-                advice.knowledgePointId.value in it.knowledgePointIds
+            val reviewLesson = course.lessons.firstOrNull { courseLesson ->
+                val progressStatus = lessons.firstOrNull { it.id == courseLesson.id }?.status
+                advice.knowledgePointId.value in courseLesson.knowledgePointIds &&
+                    progressStatus != null &&
+                    progressStatus != LessonProgressStatus.NOT_STARTED
             }
             if (knowledgePoint != null && reviewLesson != null) {
                 LearningReviewSuggestion(
