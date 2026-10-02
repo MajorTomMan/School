@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-tests=(
-  "com.majortomman.school.update.UpdateManifestCodecTest"
-  "com.majortomman.school.learning.science.MathFoundationTest"
-  "com.majortomman.school.learning.science.MathFormulaVerifierTest"
-  "com.majortomman.school.learning.verification.math.MathVerificationEngineTest"
-)
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CI_DIR="$ROOT/scripts/ci"
+cd "$ROOT"
 
-args=()
-for test_class in "${tests[@]}"; do args+=(--tests "$test_class"); done
-if [[ -x "./gradlew" ]]; then gradle_cmd=(./gradlew); else gradle_cmd=(gradle); fi
+bash "$CI_DIR/check_framework_v1_boundaries.sh"
 
-"${gradle_cmd[@]}" :app:testDebugUnitTest "${args[@]}" --stacktrace
+if [[ -x "./gradlew" ]]; then
+  gradle_cmd=(./gradlew)
+else
+  gradle_cmd=(gradle)
+fi
+
+"${gradle_cmd[@]}" :app:testDebugUnitTest :visualization:testDebugUnitTest --stacktrace
 "${gradle_cmd[@]}" :app:assembleDebug --stacktrace
