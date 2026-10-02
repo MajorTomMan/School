@@ -18,10 +18,12 @@ import com.majortomman.school.learning.verification.core.VerificationResult
 import com.majortomman.school.learning.verification.core.VerificationRuleKey
 import com.majortomman.school.learning.verification.core.VerificationStatus
 import com.majortomman.school.learning.verification.core.VerificationStep
-import com.majortomman.school.learning.verification.core.VerificationVisualizationRequest
-import com.majortomman.school.learning.verification.core.VerificationVisualizationValue
 import com.majortomman.school.learning.verification.core.VerificationWarning
+import com.majortomman.school.visualization.VisualizationInvocation
+import com.majortomman.school.visualization.VisualizationKey
 import com.majortomman.school.visualization.VisualizationParameterValue
+import com.majortomman.school.visualization.VisualizationParameters
+import com.majortomman.school.visualization.VisualizationTexts
 import java.math.BigDecimal
 import java.math.RoundingMode
 import kotlin.math.abs
@@ -395,7 +397,7 @@ object MathVerificationEngine {
         else -> emptySet()
     }
 
-    private fun buildFunctionGraphRequest(expressionText: String): VerificationVisualizationRequest {
+    private fun buildFunctionGraphRequest(expressionText: String): VisualizationInvocation {
         val executable = toExecutableExpression(expressionText)
         val parsed = VisualizationParameterValue.MathExpressionValue.parse(executable)
         return buildFunctionGraphRequest(executable, parsed, "y = $expressionText")
@@ -405,18 +407,18 @@ object MathVerificationEngine {
         executableExpression: String,
         parsed: VisualizationParameterValue.MathExpressionValue,
         displayTitle: String,
-    ): VerificationVisualizationRequest {
+    ): VisualizationInvocation {
         val bounds = deriveGraphBounds(parsed)
-        return VerificationVisualizationRequest(
-            renderer = "mathematics.function.graph",
-            parameters = mapOf(
-                "expression" to VerificationVisualizationValue.MathExpressionValue(executableExpression),
-                "xMin" to VerificationVisualizationValue.NumberValue(bounds.xMin),
-                "xMax" to VerificationVisualizationValue.NumberValue(bounds.xMax),
-                "yMin" to VerificationVisualizationValue.NumberValue(bounds.yMin),
-                "yMax" to VerificationVisualizationValue.NumberValue(bounds.yMax),
+        return VisualizationInvocation(
+            renderer = VisualizationKey("mathematics.function.graph"),
+            parameters = VisualizationParameters.of(
+                "expression" to VisualizationParameterValue.MathExpressionValue.parse(executableExpression),
+                "xMin" to VisualizationParameterValue.NumberValue(bounds.xMin),
+                "xMax" to VisualizationParameterValue.NumberValue(bounds.xMax),
+                "yMin" to VisualizationParameterValue.NumberValue(bounds.yMin),
+                "yMax" to VisualizationParameterValue.NumberValue(bounds.yMax),
             ),
-            texts = mapOf(
+            texts = VisualizationTexts.of(
                 "title" to displayTitle,
                 "note" to "本地解析 · 双指缩放 / 双击复位",
             ),
@@ -491,7 +493,7 @@ object MathVerificationEngine {
         answer: VerificationArtifact,
         steps: List<VerificationStep>,
         warnings: List<VerificationWarning> = emptyList(),
-        visualizations: List<VerificationVisualizationRequest> = emptyList(),
+        visualizations: List<VisualizationInvocation> = emptyList(),
     ): VerificationResult = VerificationResult(
         status = VerificationStatus.SUCCESS,
         problemType = type,
