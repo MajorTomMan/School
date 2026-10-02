@@ -69,6 +69,13 @@ if [[ -n "$ui_verifier_matches" ]]; then
   failed=1
 fi
 
+ui_activity_runtime_matches="$(grep -RInw --include='*.kt' --include='*.java' -- "ActivityRuntime" "app/src/main/java/com/majortomman/school/ui" 2>/dev/null || true)"
+if [[ -n "$ui_activity_runtime_matches" ]]; then
+  echo "Framework v1 guard: UI must not own ActivityRuntime" >&2
+  echo "$ui_activity_runtime_matches" >&2
+  failed=1
+fi
+
 if (( failed != 0 )); then
   exit 1
 fi
