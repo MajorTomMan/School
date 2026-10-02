@@ -38,6 +38,7 @@ fun TodayScreen(
     currentLessonId: String,
     lessons: List<Lesson>,
     courseTitle: String,
+    courseSubject: String,
     reviewSuggestion: LearningReviewSuggestion?,
     onStartLesson: (String) -> Unit,
     onOpenPractice: () -> Unit,
@@ -70,7 +71,7 @@ fun TodayScreen(
                 modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.primaryContainer).padding(horizontal = 18.dp, vertical = 22.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("数学", color = MaterialTheme.colorScheme.onPrimaryContainer, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(courseSubject, color = MaterialTheme.colorScheme.onPrimaryContainer, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(courseTitle, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
