@@ -26,7 +26,8 @@ class CloudCourseCodecTest {
         assertEquals("为什么需要负数", lesson.title)
         assertEquals("positive-negative", lesson.knowledgePointIds.single())
         assertEquals(CourseStepRole.INQUIRY, lesson.steps[0].role)
-        assertTrue(lesson.steps[0].content.single() is LearningContent.Text)
+        assertEquals(2, lesson.steps[0].content.size)
+        assertTrue(lesson.steps[0].content.all { it is LearningContent.Text })
 
         val visualization = (lesson.steps[1].content.single() as LearningContent.Visualization).visualization
         assertEquals(VisualizationKey("mathematics.number-line.basic"), visualization.renderer)
