@@ -67,6 +67,6 @@ internal fun JSONObject.optionalActivityText(key: String): String? {
 
 internal fun JSONObject.activityNumber(key: String): Double {
     val raw = get(key)
-    require(raw is Number && raw !is Boolean) { "activity parameter " + key + " 必须是 number" }
+    require(raw is Number) { "activity parameter " + key + " 必须是 number" }
     return raw.toDouble().also { require(it.isFinite()) { "activity parameter " + key + " 必须是有限数" } }
 }
