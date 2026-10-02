@@ -58,6 +58,7 @@ forbidden_paths=(
   "app/src/main/java/com/majortomman/school/ui/AssessmentLearningContentRenderer.kt"
   "app/src/main/java/com/majortomman/school/ui/CloudCourseBlockRenderer.kt"
   "app/src/main/java/com/majortomman/school/learning/verification/VerificationHubModels.kt"
+  "app/src/main/java/com/majortomman/school/learning/verification/DiagnosticModels.kt"
   "app/src/main/java/com/majortomman/school/learning/cloud/CourseCapabilityCompatibilityValidator.kt"
 )
 
