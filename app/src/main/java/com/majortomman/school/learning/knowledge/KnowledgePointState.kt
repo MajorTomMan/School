@@ -55,18 +55,19 @@ object KnowledgePointStateProjector {
 class KnowledgePointStateReader internal constructor(
     private val database: SchoolLearningDatabase,
 ) {
-    suspend fun read(ids: Collection<KnowledgePointId>): List<KnowledgePointState> {
+    suspend fun read(courseId: String, ids: Collection<KnowledgePointId>): List<KnowledgePointState> {
+        require(courseId.isNotBlank()) { "courseId 不能为空" }
         val orderedIds = ids.distinct()
         if (orderedIds.isEmpty()) return emptyList()
 
         val dao = database.learningEvidenceDao()
         val rawIds = orderedIds.map(KnowledgePointId::value)
-        val mastery = dao.masteryStates(rawIds)
+        val mastery = dao.masteryStates(courseId, rawIds)
             .associate { row ->
                 val id = KnowledgePointId(row.knowledgePointId)
                 id to MasteryState(id, row.score, row.accumulatedEvidenceWeight)
             }
-        val evidence = dao.evidenceStats(rawIds)
+        val evidence = dao.evidenceStats(courseId, rawIds)
             .associate { row ->
                 KnowledgePointId(row.knowledgePointId) to KnowledgePointEvidenceSummary(
                     evidenceCount = row.evidenceCount,
