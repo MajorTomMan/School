@@ -1,8 +1,12 @@
 package com.majortomman.school.learning.runtime
 
 import com.majortomman.school.learning.activity.ActivityId
-import com.majortomman.school.learning.activity.TextAnswerActivityResult
+import com.majortomman.school.learning.activity.CoreTextAnswerActivityHandler
+import com.majortomman.school.learning.activity.SchoolActivityRuntimeCatalog
+import com.majortomman.school.learning.activity.SubmitActivity
 import com.majortomman.school.learning.activity.TextAnswerActivitySpec
+import com.majortomman.school.learning.activity.TextAnswerActivityState
+import com.majortomman.school.learning.activity.TextChanged
 import com.majortomman.school.learning.assessment.domain.Difficulty
 import com.majortomman.school.learning.assessment.domain.InlineAssessmentOutcome
 import com.majortomman.school.learning.assessment.domain.InlineAssessmentRule
@@ -16,9 +20,15 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 class LessonSessionControllerTest {
+    @Before
+    fun installActivityHandlers() {
+        SchoolActivityRuntimeCatalog.install(CoreTextAnswerActivityHandler)
+    }
+
     @Test
     fun incorrectAnswerDoesNotAdvanceAndCorrectAnswerPersistsBeforeAdvance() = runBlocking {
         val recorded = mutableListOf<LearningEvidence>()
@@ -29,24 +39,35 @@ class LessonSessionControllerTest {
             evidenceGateway = LessonEvidenceGateway { recorded += it },
         )
 
-        controller.dispatch(
-            LessonSessionIntent.ActivityResultSubmitted(
-                stepId = "practice",
-                result = TextAnswerActivityResult(ActivityId("activity-answer"), "wrong"),
-            ),
-        )
+        controller.dispatch(LessonSessionIntent.ActivityEventDispatched("practice", TextChanged("wrong")))
+        controller.dispatch(LessonSessionIntent.ActivityEventDispatched("practice", SubmitActivity))
         assertEquals(0, controller.state.value.runtime.currentStepIndex)
         assertEquals(InlineAssessmentOutcome.INCORRECT, controller.state.value.assessmentFeedback?.outcome)
 
-        controller.dispatch(
-            LessonSessionIntent.ActivityResultSubmitted(
-                stepId = "practice",
-                result = TextAnswerActivityResult(ActivityId("activity-answer"), "-3"),
-            ),
-        )
+        controller.dispatch(LessonSessionIntent.ActivityEventDispatched("practice", TextChanged("-3")))
+        controller.dispatch(LessonSessionIntent.ActivityEventDispatched("practice", SubmitActivity))
         assertTrue(recorded.isNotEmpty())
         assertTrue(controller.state.value.runtime.finished)
         assertEquals(InlineAssessmentOutcome.CORRECT, controller.state.value.assessmentFeedback?.outcome)
+    }
+
+    @Test
+    fun activitySemanticStateIsOwnedByController() = runBlocking {
+        val controller = LessonSessionController(
+            courseId = "course-1",
+            contentRevision = "rev-1",
+            lesson = lesson(),
+            evidenceGateway = LessonEvidenceGateway { },
+        )
+
+        val initial = controller.state.value.activityState as TextAnswerActivityState
+        assertEquals("", initial.draft)
+
+        controller.dispatch(LessonSessionIntent.ActivityEventDispatched("practice", TextChanged(" -3 ")))
+
+        val edited = controller.state.value.activityState as TextAnswerActivityState
+        assertEquals(" -3 ", edited.draft)
+        assertFalse(controller.state.value.runtime.finished)
     }
 
     @Test
@@ -58,12 +79,8 @@ class LessonSessionControllerTest {
             evidenceGateway = LessonEvidenceGateway { error("disk unavailable") },
         )
 
-        controller.dispatch(
-            LessonSessionIntent.ActivityResultSubmitted(
-                stepId = "practice",
-                result = TextAnswerActivityResult(ActivityId("activity-answer"), "-3"),
-            ),
-        )
+        controller.dispatch(LessonSessionIntent.ActivityEventDispatched("practice", TextChanged("-3")))
+        controller.dispatch(LessonSessionIntent.ActivityEventDispatched("practice", SubmitActivity))
 
         assertFalse(controller.state.value.runtime.finished)
         assertEquals(0, controller.state.value.runtime.currentStepIndex)
