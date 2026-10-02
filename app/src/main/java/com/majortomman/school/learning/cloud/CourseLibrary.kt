@@ -79,8 +79,6 @@ object CourseLibraryRepository {
 
     fun hasInstalledCourseContent(): Boolean = mutableState.value.courses.isNotEmpty()
 
-    fun installedCourseIds(): Set<String> = mutableState.value.courses.map(InstalledCourse::id).toSet()
-
     fun lessonTitle(lessonId: String): String? = mutableState.value.courses.asSequence()
         .flatMap { it.lessons.asSequence() }
         .firstOrNull { it.id == lessonId }
