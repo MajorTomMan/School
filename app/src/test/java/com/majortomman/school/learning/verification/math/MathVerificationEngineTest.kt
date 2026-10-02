@@ -2,6 +2,7 @@ package com.majortomman.school.learning.verification.math
 
 import com.majortomman.school.learning.verification.core.VerificationRequest
 import com.majortomman.school.learning.verification.core.VerificationStatus
+import com.majortomman.school.visualization.VisualizationKey
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -43,7 +44,7 @@ class MathVerificationEngineTest {
         assertEquals("math.polynomial-expression", result.problemType.id)
         assertEquals("x^2 + 5x + 6", result.answer?.display)
         assertTrue(result.steps.any { it.rule.value == "EXPAND_AND_COMBINE" })
-        assertEquals("mathematics.function.graph", result.visualizations.single().renderer)
+        assertEquals(VisualizationKey("mathematics.function.graph"), result.visualizations.single().renderer)
     }
 
     @Test
@@ -75,7 +76,7 @@ class MathVerificationEngineTest {
         assertEquals(VerificationStatus.SUCCESS, result.status)
         assertEquals("math.function", result.problemType.id)
         assertEquals("y = sin(x)", result.answer?.display)
-        assertEquals("mathematics.function.graph", result.visualizations.single().renderer)
+        assertEquals(VisualizationKey("mathematics.function.graph"), result.visualizations.single().renderer)
     }
 
     @Test
@@ -85,7 +86,7 @@ class MathVerificationEngineTest {
         assertEquals(VerificationStatus.SUCCESS, result.status)
         assertEquals("math.function", result.problemType.id)
         assertEquals("y = e^x", result.answer?.display)
-        assertEquals("mathematics.function.graph", result.visualizations.single().renderer)
+        assertEquals(VisualizationKey("mathematics.function.graph"), result.visualizations.single().renderer)
     }
 
     @Test
