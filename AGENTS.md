@@ -365,7 +365,7 @@ Lesson 不再维护独立的 `practice`、`summary` 或历史多态 step 类型�
 - activity ID 在整本教材内唯一。Activity 固定使用 `id + capability + schemaVersion + parameters`；`parameters` 只在对应 capability decoder 中转成 typed spec，运行时不得保留无类型 Map。
 - 当前内置 Activity capability 包括 `core.text-answer@1` 与 `mathematics.place-on-number-line@1`。数轴 Activity 参数为 `min/max/step/initialValue`，语义状态由 ActivityRuntime 持有。
 - inline assessment 当前开放 `exactText` 与 `exactNumber`；`exactNumber` 必须声明 `expected` 与非负 `tolerance`。knowledge point 引用必须真实存在，`difficulty` 使用 `0.0..1.0`。
-- staging 必须以真实运行时注册表验证 capability：Activity 必须同时存在兼容的 typed decoder 与 ActivityRuntime handler；Visualization 必须存在兼容的 renderer/schemaVersion。缺能力或版本不兼容的课程不得进入 active。
+- staging 必须以真实运行时注册表验证 capability：Activity 必须同时存在兼容的 typed decoder、ActivityRuntime handler 与 UI host，三者 capability/schemaVersion 必须一致；Visualization 必须存在兼容的 renderer/schemaVersion。缺能力、缺 UI host 或版本不兼容的课程不得进入 active。
 - `references` 满足 `pageStart <= pageEnd <= textbook.pdf.pageCount`。
 - parser 使用严格字段白名单；旧 `practice`、`summary`、`type=question/formula/visualization/...` step 不提供兼容 fallback。
 
@@ -399,7 +399,7 @@ Assessment 契约另外支持 image；course step 在正式 course asset catalog
 - `text.style` 使用 `body`、`prompt`、`caption`、`explanation`。
 - `formula.expression` 保存不带数学定界符的纯 LaTeX，不混入中文说明或 Unicode 数学符号。
 - `visualization` 使用 `renderer + schemaVersion + parameters + texts`，并通过 `SchoolVisualizationCatalog` 严格验证 renderer 与 schemaVersion。
-- Activity 描述“用户如何产生语义结果”；Assessment 描述“如何解释稳定结果”；Renderer 不承担判题或 Lesson 流程。
+- Activity 描述“用户如何产生语义结果”；Assessment 描述“如何解释稳定结果”；Renderer 不承担判题或 Lesson 流程。新增 Activity capability 必须在 composition root 成套注册 decoder、runtime handler、UI host，不允许 UI 通过 `when (spec)` 维护另一份隐式能力表。
 - 数轴等交互遵循 `raw input → PositionSelected(value) → ActivityState → NumberPositionResult → Assessment`；Slider/手势控件属于 Activity Host，不属于 Renderer。
 - Course 只声明 typed spec，不保存拖动像素坐标、pressed、pointer id 等 UI 临时状态。
 
