@@ -1,12 +1,5 @@
 package com.majortomman.school.ui
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -34,7 +27,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.majortomman.school.learning.verification.VerificationSubject
 import com.majortomman.school.learning.verification.core.VerificationResult
 import com.majortomman.school.learning.verification.core.VerificationRequest
 import com.majortomman.school.learning.verification.core.VerificationStatus
@@ -51,77 +43,11 @@ import com.majortomman.school.visualization.VisualizationTexts
 
 @Composable
 internal fun VerificationHubScreen() {
-    var openedSubjectName by rememberSaveable { mutableStateOf<String?>(null) }
-
-    AnimatedContent(
-        targetState = openedSubjectName,
-        transitionSpec = {
-            if (targetState != null) {
-                (fadeIn(tween(220)) + slideInHorizontally(tween(360)) { it }) togetherWith
-                    (fadeOut(tween(150)) + slideOutHorizontally(tween(300)) { -it / 3 })
-            } else {
-                (fadeIn(tween(220)) + slideInHorizontally(tween(360)) { -it / 3 }) togetherWith
-                    (fadeOut(tween(150)) + slideOutHorizontally(tween(300)) { it })
-            }
-        },
-        label = "verificationSubjectPage",
-    ) { subjectName ->
-        if (subjectName == null) {
-            VerificationSubjectIndex(onOpen = { openedSubjectName = it.name })
-        } else {
-            val subject = VerificationSubject.valueOf(subjectName)
-            when (subject) {
-                VerificationSubject.MATHEMATICS -> MathVerificationPage(onBack = { openedSubjectName = null })
-                else -> VerificationSubjectPlaceholderPage(subject, onBack = { openedSubjectName = null })
-            }
-        }
-    }
+    MathVerificationPage()
 }
 
 @Composable
-private fun VerificationSubjectIndex(onOpen: (VerificationSubject) -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 24.dp),
-    ) {
-        Text("验证", color = MaterialTheme.colorScheme.onBackground, fontSize = 38.sp, fontWeight = FontWeight.SemiBold)
-        Spacer(Modifier.height(8.dp))
-        Text("选择学科，进入对应的本地验证页面。学科共享步骤和结果框架，但各自保留独立的知识与推理规则。", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 15.sp, lineHeight = 23.sp)
-        Spacer(Modifier.height(28.dp))
-
-        VerificationSubject.entries.chunked(2).forEach { subjects ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                subjects.forEach { subject ->
-                    VerificationSubjectEntry(subject, Modifier.weight(1f)) { onOpen(subject) }
-                }
-                if (subjects.size == 1) Spacer(Modifier.weight(1f))
-            }
-            Spacer(Modifier.height(12.dp))
-        }
-        Spacer(Modifier.height(36.dp))
-    }
-}
-
-@Composable
-private fun VerificationSubjectEntry(subject: VerificationSubject, modifier: Modifier, onClick: () -> Unit) {
-    val available = subject == VerificationSubject.MATHEMATICS
-    Column(modifier = modifier.clickable(onClick = onClick).padding(vertical = 14.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(subject.label, color = MaterialTheme.colorScheme.onBackground, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-            Text(if (available) "本地可用" else "待接入", color = if (available) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-        }
-        Spacer(Modifier.height(6.dp))
-        Text(subject.subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, lineHeight = 18.sp)
-        Spacer(Modifier.height(14.dp))
-        Box(Modifier.fillMaxWidth().height(if (available) 2.dp else 1.dp).background(if (available) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)))
-    }
-}
-
-@Composable
-private fun MathVerificationPage(onBack: () -> Unit) {
+private fun MathVerificationPage() {
     var input by rememberSaveable { mutableStateOf("") }
     var result by remember { mutableStateOf<VerificationResult?>(null) }
 
@@ -132,8 +58,6 @@ private fun MathVerificationPage(onBack: () -> Unit) {
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 24.dp),
     ) {
-        Text("‹ 验证", modifier = Modifier.clickable(onClick = onBack).padding(vertical = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
-        Spacer(Modifier.height(10.dp))
         Text("数学", color = MaterialTheme.colorScheme.onBackground, fontSize = 38.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(6.dp))
         Text("初高中数学 · 本地符号推理", color = MaterialTheme.colorScheme.primary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
@@ -290,36 +214,11 @@ private fun MathVerificationStep(number: Int, step: VerificationStep) {
     }
 }
 
-@Composable
-private fun VerificationSubjectPlaceholderPage(subject: VerificationSubject, onBack: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(horizontal = 20.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Column {
-            Text("‹ 验证", modifier = Modifier.clickable(onClick = onBack).padding(vertical = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
-            Spacer(Modifier.height(10.dp))
-            Text(subject.label, color = MaterialTheme.colorScheme.onBackground, fontSize = 38.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(8.dp))
-            Text(subject.subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp, lineHeight = 22.sp)
-        }
-        Column {
-            Box(Modifier.fillMaxWidth().height(2.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)))
-            Spacer(Modifier.height(14.dp))
-            Text("本地验证能力待接入", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(6.dp))
-            Text("入口与公共 Verification Core 已建立；后续会把该学科现有的确定性内核适配到同一结果、步骤和可视化协议。", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f), fontSize = 13.sp, lineHeight = 20.sp)
-        }
-    }
-}
-
 private fun VerificationVisualizationRequest.toVisualizationInvocation(): VisualizationInvocation {
     val mapped = linkedMapOf<String, VisualizationParameterValue>()
     for ((name, value) in parameters) {
         mapped[name] = when (value) {
             is VerificationVisualizationValue.NumberValue -> VisualizationParameterValue.NumberValue(value.value)
-            is VerificationVisualizationValue.BooleanValue -> VisualizationParameterValue.BooleanValue(value.value)
-            is VerificationVisualizationValue.NumberListValue -> VisualizationParameterValue.NumberListValue(value.values)
             is VerificationVisualizationValue.MathExpressionValue -> VisualizationParameterValue.MathExpressionValue.parse(value.expression)
         }
     }
