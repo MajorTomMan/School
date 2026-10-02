@@ -448,6 +448,9 @@ assets/<question-assets>
 ### 7.8 完整性、更新与发布建议
 
 - App 以 `size + SHA-256` 判断本地文件是否与远端一致；内容变化必须产生新的真实 size/hash。
+- JSON parser 只负责严格字段、基础类型、安全表达式与 typed spec 解码；Renderer/UI capability 是否已安装属于 runtime compatibility，不得重新塞回通用 Content parser。
+- staging 激活前与 active course 每次重新加载时都必须验证 runtime capability；App 升级后若旧课程依赖已经不存在或版本不兼容，课程不得继续进入可用 Library。
+- active course 的 `.course-state.json` 不是仅供 update planner 参考的提示信息；Library 加载和更新规划都必须以它校验真实文件集合、size 与 SHA-256。校验失败视为本地课程不可用/需重新下载，不得仅凭 state 元数据判断“已是最新”。
 - 更新时只下载变化文件；若增量传输体积达到当前全量阈值或增量文件缺少 URL，则使用完整 ZIP。
 - 完整安装和增量安装都先进入 staging，所有文件、课程 JSON、题库和 PDF 验证通过后再原子替换 active；失败时保留上一份已验证课程。
 - 大 PDF、图片和未来大型媒体优先使用 `bundled=false`，让正文小改动不触发大资源重复下载。
