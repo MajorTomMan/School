@@ -23,6 +23,7 @@ forbidden_symbols=(
   "ReviewScheduler"
   "MasteryStatus"
   "DailyPlan"
+  "CourseStorageUpdateCheck"
   "LegacyCourseParser"
 )
 
