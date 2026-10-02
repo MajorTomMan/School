@@ -212,11 +212,13 @@ class AssessmentProgressStore internal constructor(
             dao.findSettlement(sessionId.value)?.let { loadSettlement(it, alreadySettled = true) }
         }
 
-    suspend fun masteryState(knowledgePointId: KnowledgePointId): MasteryState? =
-        evidenceStore.masteryState(knowledgePointId)
+    suspend fun masteryState(courseId: String, knowledgePointId: KnowledgePointId): MasteryState? =
+        evidenceStore.masteryState(courseId, knowledgePointId)
 
-    suspend fun masteryHistory(knowledgePointId: KnowledgePointId): List<MasteryHistoryPoint> =
-        evidenceStore.masteryHistory(knowledgePointId)
+    suspend fun masteryHistory(
+        courseId: String,
+        knowledgePointId: KnowledgePointId,
+    ): List<MasteryHistoryPoint> = evidenceStore.masteryHistory(courseId, knowledgePointId)
 
     suspend fun clearAll() {
         database.withTransaction {
@@ -253,7 +255,7 @@ class AssessmentProgressStore internal constructor(
         return AssessmentSettlementSnapshot(
             summary = summary,
             evidence = evidenceStore.evidenceForContext(settlement.sessionId),
-            masteryUpdates = evidenceStore.masteryUpdatesForContext(settlement.sessionId),
+            masteryUpdates = evidenceStore.masteryUpdatesForContext(session.courseId, settlement.sessionId),
             settledAtEpochMillis = settlement.settledAtEpochMillis,
             alreadySettled = alreadySettled,
         )
