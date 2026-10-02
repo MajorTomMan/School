@@ -136,6 +136,23 @@ class CourseCacheFilesTest {
         }
     }
 
+    @Test
+    fun installedTextbookIdsIncludeCorruptedActiveDirectories() {
+        val parent = Files.createTempDirectory("school-course-installed-ids")
+        try {
+            val root = parent.resolve("course-packs")
+            Files.createDirectories(root.resolve("active/course-a"))
+            Files.createDirectories(root.resolve("active/course-b"))
+            Files.createDirectories(root.resolve("active/.course-b-deleting-1"))
+
+            val ids = CourseCacheFiles.installedTextbookIds(root.toFile())
+
+            assertEquals(setOf("course-a", "course-b"), ids)
+        } finally {
+            parent.toFile().deleteRecursively()
+        }
+    }
+
     private fun writeIntegrityState(active: java.nio.file.Path, fileName: String) {
         val file = active.resolve(fileName).toFile()
         val item = JSONObject()
