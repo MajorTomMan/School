@@ -25,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.majortomman.school.data.DailyPlan
 import com.majortomman.school.data.Lesson
 import com.majortomman.school.learning.progress.LessonProgressStatus
 
@@ -36,7 +35,7 @@ data class LearningReviewSuggestion(
 
 @Composable
 fun TodayScreen(
-    plan: DailyPlan,
+    currentLessonId: String,
     lessons: List<Lesson>,
     courseTitle: String,
     reviewSuggestion: LearningReviewSuggestion?,
@@ -44,7 +43,7 @@ fun TodayScreen(
     onOpenPractice: () -> Unit,
     onOpenPath: () -> Unit,
 ) {
-    val lesson = lessons.firstOrNull { it.id == plan.newLessonId } ?: return
+    val lesson = lessons.firstOrNull { it.id == currentLessonId } ?: return
     val completed = lessons.count { it.status == LessonProgressStatus.COMPLETED }
     val progress = if (lessons.isEmpty()) 0f else completed.toFloat() / lessons.size.toFloat()
     val currentIndex = lessons.indexOfFirst { it.id == lesson.id }
