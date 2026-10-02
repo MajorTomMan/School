@@ -43,11 +43,6 @@ data class InstalledCourse(
         val end = lesson.references.maxOfOrNull { it.pageEnd } ?: return null
         return start..end
     }
-
-    fun isMath(): Boolean {
-        val normalized = subject.trim().lowercase()
-        return normalized == "数学" || normalized == "math" || normalized == "mathematics"
-    }
 }
 
 data class CourseLibraryState(
