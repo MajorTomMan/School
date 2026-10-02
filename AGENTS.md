@@ -365,7 +365,7 @@ Lesson 不再维护独立的 `practice`、`summary` 或历史多态 step 类型�
 - activity ID 在整本教材内唯一。Activity 固定使用 `id + capability + schemaVersion + parameters`；`parameters` 只在对应 capability decoder 中转成 typed spec，运行时不得保留无类型 Map。
 - 当前内置 Activity capability 包括 `core.text-answer@1` 与 `mathematics.place-on-number-line@1`。数轴 Activity 参数为 `min/max/step/initialValue`，语义状态由 ActivityRuntime 持有。
 - inline assessment 当前开放 `exactText` 与 `exactNumber`；`exactNumber` 必须声明 `expected` 与非负 `tolerance`。knowledge point 引用必须真实存在，`difficulty` 使用 `0.0..1.0`。
-- staging 必须验证每个 Activity/Visualization capability 的 key、kind 与 schemaVersion；缺能力或版本不兼容的课程不得进入 active。
+- staging 必须以真实运行时注册表验证 capability：Activity 必须同时存在兼容的 typed decoder 与 ActivityRuntime handler；Visualization 必须存在兼容的 renderer/schemaVersion。缺能力或版本不兼容的课程不得进入 active。
 - `references` 满足 `pageStart <= pageEnd <= textbook.pdf.pageCount`。
 - parser 使用严格字段白名单；旧 `practice`、`summary`、`type=question/formula/visualization/...` step 不提供兼容 fallback。
 
@@ -520,10 +520,10 @@ assets/<question-assets>
 
 ## 11. Verification 与学科引擎
 
-- Verification 共享输入、结果、结构化步骤、问题/警告和可视化请求，但不实现万能 Solver。
+- Verification 共享输入、结果、结构化步骤和问题/警告；需要可视化时直接产出统一的 `VisualizationInvocation`，不再维护第二套可视化请求协议。
 - `VerificationStep` 表示结构化规则变换，不退化成不可验证的字符串列表。
 - Math、Physics、Chemistry、Biology 等拥有独立领域语义；可以复用底层数学能力，但不能混淆学科规则。
-- Math Engine 不依赖 Visualization；App/UI 层负责把领域结果映射为可视化 invocation。
+- Math Engine 可以依赖稳定的 Visualization contract 类型并产出 `VisualizationInvocation`，但不得依赖 Compose UI、Renderer 实现或自行绘图。
 - 不使用 `Any`、无类型 Map、反射、脚本或任意回调作为跨学科协议。
 - 本地验证没有 AI fallback；不支持时明确返回不支持。
 - 当前 Math Engine 范围是初高中基础数学，不把极限、导数、积分、微分方程、Taylor 展开等高等数学混入当前本地验证。
