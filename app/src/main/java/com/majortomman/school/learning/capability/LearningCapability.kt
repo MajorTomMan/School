@@ -29,9 +29,6 @@ value class SubjectId(val value: String) {
 enum class CapabilityKind {
     VISUALIZATION,
     ACTIVITY,
-    VERIFICATION,
-    NOTATION,
-    PRESENTATION,
 }
 
 data class CapabilityDescriptor(
