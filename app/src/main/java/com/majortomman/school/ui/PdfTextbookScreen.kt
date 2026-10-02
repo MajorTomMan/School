@@ -114,7 +114,7 @@ fun PdfTextbookScreen(
         return Offset(nextPan.x.coerceIn(-maxX, maxX), nextPan.y.coerceIn(-maxY, maxY))
     }
 
-    val transformState = rememberTransformableState { zoomChange, panChange, _ ->
+    val transformState = rememberTransformableState { _, zoomChange, panChange, _ ->
         val nextZoom = (zoom * zoomChange).coerceIn(1f, 5f)
         pan = if (nextZoom <= 1.001f) Offset.Zero else constrain(nextZoom, pan + panChange)
         zoom = nextZoom
