@@ -114,6 +114,7 @@ object CourseLibraryRepository {
             }
             if (assessments != null && assessmentKnowledgePoints != null) {
                 AssessmentPackageContract.validate(document, assessments, assessmentKnowledgePoints)
+                LearningContentRuntimeCompatibilityValidator.validate(assessments)
             }
             InstalledCourse(
                 rootPath = root.absolutePath,
