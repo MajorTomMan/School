@@ -1,5 +1,6 @@
 package com.majortomman.school.learning.cloud
 
+import com.majortomman.school.learning.activity.SchoolActivityHostCapabilityCatalog
 import com.majortomman.school.learning.activity.SchoolActivityRuntimeCatalog
 import com.majortomman.school.learning.course.CourseDocument
 
@@ -10,7 +11,10 @@ internal object CourseRuntimeCompatibilityValidator {
             .flatMap { it.lessons }
             .flatMap { it.steps }
             .forEach { step ->
-                step.activity?.let(SchoolActivityRuntimeCatalog::requireHandler)
+                step.activity?.let { spec ->
+                    SchoolActivityRuntimeCatalog.requireHandler(spec)
+                    SchoolActivityHostCapabilityCatalog.requireHost(spec)
+                }
                 LearningContentRuntimeCompatibilityValidator.validate(step.content)
             }
     }
