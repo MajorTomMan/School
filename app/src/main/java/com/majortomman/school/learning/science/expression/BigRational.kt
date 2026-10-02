@@ -5,6 +5,7 @@ import java.math.BigInteger
 import java.math.MathContext
 
 /** Exact rational number used by the science engines. */
+@ConsistentCopyVisibility
 data class BigRational private constructor(
     val numerator: BigInteger,
     val denominator: BigInteger,
