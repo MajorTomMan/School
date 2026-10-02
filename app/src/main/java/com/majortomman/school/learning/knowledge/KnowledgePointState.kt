@@ -46,6 +46,10 @@ object KnowledgePointStateProjector {
     }
 }
 
+interface KnowledgePointStateSource {
+    suspend fun read(courseId: String, ids: Collection<KnowledgePointId>): List<KnowledgePointState>
+}
+
 /**
  * Read-only projection of learning state.
  *
@@ -54,8 +58,8 @@ object KnowledgePointStateProjector {
  */
 class KnowledgePointStateReader internal constructor(
     private val database: SchoolLearningDatabase,
-) {
-    suspend fun read(courseId: String, ids: Collection<KnowledgePointId>): List<KnowledgePointState> {
+) : KnowledgePointStateSource {
+    override suspend fun read(courseId: String, ids: Collection<KnowledgePointId>): List<KnowledgePointState> {
         require(courseId.isNotBlank()) { "courseId 不能为空" }
         val orderedIds = ids.distinct()
         if (orderedIds.isEmpty()) return emptyList()
