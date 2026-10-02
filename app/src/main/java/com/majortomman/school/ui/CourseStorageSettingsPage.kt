@@ -160,9 +160,9 @@ internal fun CourseStorageSettingsPage() {
                     updateStatus = "正在获取并验证课程清单…"
                     updateOffer = null
                     scope.launch {
-                        val checked = CourseStorageManager.checkForUpdates(context)
+                        val result = CourseStorageManager.checkForUpdates(context)
                         refreshState()
-                        when (val result = checked.result) {
+                        when (result) {
                             CourseUpdateCheckResult.Disabled -> updateStatus = "当前 APK 未配置课程源。"
                             CourseUpdateCheckResult.NotPublished -> updateStatus = "新版课程尚未发布。"
                             CourseUpdateCheckResult.NoUpdate -> updateStatus = "已安装课程均为最新版本。"
