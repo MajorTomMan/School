@@ -31,15 +31,8 @@ import com.majortomman.school.learning.verification.core.VerificationResult
 import com.majortomman.school.learning.verification.core.VerificationRequest
 import com.majortomman.school.learning.verification.core.VerificationStatus
 import com.majortomman.school.learning.verification.core.VerificationStep
-import com.majortomman.school.learning.verification.core.VerificationVisualizationRequest
-import com.majortomman.school.learning.verification.core.VerificationVisualizationValue
 import com.majortomman.school.learning.verification.math.MathVerificationEngine
 import com.majortomman.school.visualization.SchoolVisualization
-import com.majortomman.school.visualization.VisualizationInvocation
-import com.majortomman.school.visualization.VisualizationKey
-import com.majortomman.school.visualization.VisualizationParameterValue
-import com.majortomman.school.visualization.VisualizationParameters
-import com.majortomman.school.visualization.VisualizationTexts
 
 @Composable
 internal fun VerificationHubScreen() {
@@ -159,7 +152,7 @@ private fun MathVerificationResultView(result: VerificationResult) {
                 Text("可视化", color = MaterialTheme.colorScheme.onBackground, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(12.dp))
                 Box(Modifier.fillMaxWidth().height(330.dp)) {
-                    SchoolVisualization(visualization.toVisualizationInvocation(), Modifier.fillMaxSize())
+                    SchoolVisualization(visualization, Modifier.fillMaxSize())
                 }
             }
         }
@@ -212,19 +205,4 @@ private fun MathVerificationStep(number: Int, step: VerificationStep) {
             }
         }
     }
-}
-
-private fun VerificationVisualizationRequest.toVisualizationInvocation(): VisualizationInvocation {
-    val mapped = linkedMapOf<String, VisualizationParameterValue>()
-    for ((name, value) in parameters) {
-        mapped[name] = when (value) {
-            is VerificationVisualizationValue.NumberValue -> VisualizationParameterValue.NumberValue(value.value)
-            is VerificationVisualizationValue.MathExpressionValue -> VisualizationParameterValue.MathExpressionValue.parse(value.expression)
-        }
-    }
-    return VisualizationInvocation(
-        renderer = VisualizationKey(renderer),
-        parameters = VisualizationParameters.of(mapped),
-        texts = VisualizationTexts.of(texts),
-    )
 }
