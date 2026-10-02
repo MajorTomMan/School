@@ -88,7 +88,7 @@ internal object LearningContentParser {
                 is JSONArray -> VisualizationParameterValue.NumberListValue(
                     List(raw.length()) { index ->
                         val item = raw.get(index)
-                        require(item is Number && item !is Boolean) { "$location.parameters.$key 只能是数值列表" }
+                        require(item is Number) { "$location.parameters.$key 只能是数值列表" }
                         item.toDouble()
                     },
                 )
