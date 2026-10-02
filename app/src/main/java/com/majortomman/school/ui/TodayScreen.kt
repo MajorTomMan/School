@@ -29,11 +29,17 @@ import com.majortomman.school.data.DailyPlan
 import com.majortomman.school.data.Lesson
 import com.majortomman.school.learning.progress.LessonProgressStatus
 
+internal data class LearningReviewSuggestion(
+    val knowledgePointName: String,
+    val lessonId: String,
+)
+
 @Composable
 fun TodayScreen(
     plan: DailyPlan,
     lessons: List<Lesson>,
     courseTitle: String,
+    reviewSuggestion: LearningReviewSuggestion?,
     onStartLesson: (String) -> Unit,
     onOpenPractice: () -> Unit,
     onOpenPath: () -> Unit,
@@ -85,6 +91,14 @@ fun TodayScreen(
         Spacer(Modifier.height(30.dp))
         SchoolSectionLabel("今天建议")
         Spacer(Modifier.height(8.dp))
+        reviewSuggestion?.let { suggestion ->
+            LearningSuggestionRow(
+                "复习",
+                suggestion.knowledgePointName,
+                "根据近期练习结果，建议回顾这个知识点",
+                "约 10 分钟",
+            ) { onStartLesson(suggestion.lessonId) }
+        }
         LearningSuggestionRow("练习", lesson.title, "完成当前课程的正式题组", "约 15 分钟", onClick = onOpenPractice)
         next?.let { LearningSuggestionRow("阅读", it.title, "为下一节内容做准备", "约 10 分钟") { onStartLesson(it.id) } }
 
