@@ -56,9 +56,9 @@ App CI/CD 规则保持：
 - App CI 只监听 `dev` 的 App、Visualization、Gradle、签名、版本和 workflow 等 App 构建相关变化。
 - `courses/**` 不存在，也不得重新加入 CI 触发路径。
 - CI/CD 负责机械工作：解析版本、执行单元测试、编译 APK、生成并签名更新清单、上传产物、刷新 GitHub Development Release。
-- Development Release 的阻断型单元测试只覆盖 App 数据结构/协议与数学引擎；另以 `:app:assembleDebug` 验证 APK 能正常构建。
-- 阻断型单元测试不得依赖课程包、课程正文、教材内容、远端课程、UI/Presentation/Visualization 展示文案；数学表达式、协议 key、结构化状态和规则 ID 不视为展示文案。
-- 其他 UI、课程、网络等专项测试如保留，仅用于本地或专项验证，不阻断 Development Release。
+- Development Release 必须执行完整的 `:app:testDebugUnitTest` 与 `:visualization:testDebugUnitTest`，并以 `:app:assembleDebug` 验证 APK 能正常构建。
+- 阻断型 JVM 单元测试不得依赖远端课程、网络可用性或不稳定展示文案；数学表达式、协议 key、结构化状态和规则 ID 属于可验证契约。
+- 设备/Instrumentation、真实网络和人工视觉验收等专项测试可独立执行，不作为 Development Release 的 JVM 单测替代。
 - CI/CD 不负责决定版本号，不生成版本号，不编写或审核变更点，不判断课程内容正确性。
 - 不为了 CI 新建 Python validator 或其他长期工具。
 
