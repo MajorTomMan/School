@@ -201,9 +201,10 @@ private fun AssessmentQuestionPage(
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
             )
-            AssessmentLearningContentList(
+            LearningContentList(
                 content = richQuestion.stem,
                 assetFiles = assetFiles,
+                surface = LearningContentSurface.ASSESSMENT,
                 compact = false,
             )
             AnswerArea(page, richQuestion, assetFiles, dispatch)
@@ -318,7 +319,12 @@ private fun AnswerArea(
                             }
                             .padding(horizontal = 2.dp, vertical = 12.dp),
                     ) {
-                        AssessmentLearningContentList(choice.content, assetFiles, compact = true)
+                        LearningContentList(
+                            content = choice.content,
+                            assetFiles = assetFiles,
+                            surface = LearningContentSurface.ASSESSMENT,
+                            compact = true,
+                        )
                         Box(
                             Modifier
                                 .fillMaxWidth()
@@ -460,7 +466,12 @@ private fun HintAndExplanationArea(
             page.progress.explanationViewed -> {
                 Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.58f)))
                 Text("参考解析", color = MaterialTheme.colorScheme.secondary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                AssessmentLearningContentList(question.explanation, assetFiles, compact = true)
+                LearningContentList(
+                    content = question.explanation,
+                    assetFiles = assetFiles,
+                    surface = LearningContentSurface.ASSESSMENT,
+                    compact = true,
+                )
             }
             canViewExplanation -> Text(
                 text = "查看参考答案与完整解析",
