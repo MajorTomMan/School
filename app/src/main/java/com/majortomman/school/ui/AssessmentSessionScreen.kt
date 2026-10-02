@@ -296,7 +296,6 @@ private fun AnswerArea(
                         AnswerInputSpec.Integer -> "输入整数"
                         is AnswerInputSpec.Decimal -> "输入小数"
                         is AnswerInputSpec.Rational -> "输入分数或等值小数"
-                        else -> "输入答案"
                     },
                     value = raw,
                     modifier = Modifier.fillMaxWidth(),
