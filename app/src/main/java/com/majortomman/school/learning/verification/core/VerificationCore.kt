@@ -1,13 +1,5 @@
 package com.majortomman.school.learning.verification.core
 
-import com.majortomman.school.learning.verification.VerificationSubject
-
-enum class VerificationMode {
-    DETERMINISTIC,
-    CONTEXTUAL,
-    EVIDENCE_BASED,
-}
-
 enum class VerificationStatus {
     SUCCESS,
     UNSUPPORTED,
@@ -20,13 +12,6 @@ data class VerificationRequest(
     init {
         require(input.length <= 4_000) { "验证输入不能超过 4000 个字符。" }
     }
-}
-
-interface SubjectEngine {
-    val subject: VerificationSubject
-    val mode: VerificationMode
-
-    fun verify(request: VerificationRequest): VerificationResult
 }
 
 @JvmInline
@@ -61,9 +46,6 @@ sealed interface VerificationArtifact {
     data class MathEquation(override val display: String) : VerificationArtifact
     data class MathFunction(override val display: String) : VerificationArtifact
     data class MathSolution(override val display: String) : VerificationArtifact
-    data class PhysicalRelation(override val display: String) : VerificationArtifact
-    data class ChemicalEquation(override val display: String) : VerificationArtifact
-    data class BiologyRelation(override val display: String) : VerificationArtifact
 }
 
 data class VerificationStep(
@@ -82,15 +64,9 @@ data class VerificationStep(
     }
 }
 
-enum class VerificationWarningSeverity {
-    INFO,
-    WARNING,
-}
-
 data class VerificationWarning(
     val code: String,
     val message: String,
-    val severity: VerificationWarningSeverity = VerificationWarningSeverity.WARNING,
 ) {
     init {
         require(code.matches(Regex("[A-Z][A-Z0-9_]*"))) { "验证警告 code 无效：$code" }
@@ -102,14 +78,6 @@ sealed interface VerificationVisualizationValue {
     data class NumberValue(val value: Double) : VerificationVisualizationValue {
         init {
             require(value.isFinite()) { "可视化数值必须是有限数。" }
-        }
-    }
-
-    data class BooleanValue(val value: Boolean) : VerificationVisualizationValue
-
-    data class NumberListValue(val values: List<Double>) : VerificationVisualizationValue {
-        init {
-            require(values.all(Double::isFinite)) { "可视化数值列表只能包含有限数。" }
         }
     }
 
@@ -133,8 +101,6 @@ data class VerificationVisualizationRequest(
 }
 
 data class VerificationResult(
-    val subject: VerificationSubject,
-    val mode: VerificationMode,
     val status: VerificationStatus,
     val problemType: VerificationProblemType,
     val normalizedInput: String,
