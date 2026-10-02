@@ -1,5 +1,7 @@
 package com.majortomman.school.learning.verification.core
 
+import com.majortomman.school.visualization.VisualizationInvocation
+
 enum class VerificationStatus {
     SUCCESS,
     UNSUPPORTED,
@@ -74,32 +76,6 @@ data class VerificationWarning(
     }
 }
 
-sealed interface VerificationVisualizationValue {
-    data class NumberValue(val value: Double) : VerificationVisualizationValue {
-        init {
-            require(value.isFinite()) { "可视化数值必须是有限数。" }
-        }
-    }
-
-    data class MathExpressionValue(val expression: String) : VerificationVisualizationValue {
-        init {
-            require(expression.isNotBlank()) { "可视化数学表达式不能为空。" }
-        }
-    }
-}
-
-data class VerificationVisualizationRequest(
-    val renderer: String,
-    val parameters: Map<String, VerificationVisualizationValue> = emptyMap(),
-    val texts: Map<String, String> = emptyMap(),
-) {
-    init {
-        require(renderer.matches(Regex("[a-z0-9][a-z0-9._-]*"))) { "可视化 renderer key 无效：$renderer" }
-        require(parameters.keys.all { it.matches(Regex("[A-Za-z][A-Za-z0-9_]*")) }) { "可视化参数名无效。" }
-        require(texts.keys.all { it.matches(Regex("[A-Za-z][A-Za-z0-9_]*")) }) { "可视化文本名无效。" }
-    }
-}
-
 data class VerificationResult(
     val status: VerificationStatus,
     val problemType: VerificationProblemType,
@@ -107,7 +83,7 @@ data class VerificationResult(
     val answer: VerificationArtifact? = null,
     val steps: List<VerificationStep> = emptyList(),
     val warnings: List<VerificationWarning> = emptyList(),
-    val visualizations: List<VerificationVisualizationRequest> = emptyList(),
+    val visualizations: List<VisualizationInvocation> = emptyList(),
 ) {
     init {
         if (status == VerificationStatus.SUCCESS) require(answer != null) { "成功的验证结果必须包含答案。" }
