@@ -33,6 +33,8 @@ forbidden_symbols=(
   "CapabilityKind"
   "SubjectModule"
   "SubjectId"
+  "VerificationVisualizationRequest"
+  "VerificationVisualizationValue"
   "LegacyCourseParser"
 )
 
