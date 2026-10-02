@@ -97,6 +97,7 @@ object CourseLibraryRepository {
         return runCatching {
             val document = CourseDocumentParser.decode(courseFile.readText(Charsets.UTF_8))
             require(document.textbook.id == root.name) { "课程目录与教材 ID 不一致" }
+            CourseRuntimeCompatibilityValidator.validate(document)
             val pdf = File(root, document.textbook.pdf.path)
             require(pdf.isFile) { "课程缺少教材 PDF" }
 
