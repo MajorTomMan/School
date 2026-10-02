@@ -33,6 +33,7 @@ internal object AssessmentPackageStagingValidator {
         val assessments = AssessmentDocumentParser.decode(assessmentsFile.readText(Charsets.UTF_8))
         val knowledgePoints = KnowledgePointDocumentParser.decode(knowledgePointsFile.readText(Charsets.UTF_8))
         AssessmentPackageContract.validate(course, assessments, knowledgePoints)
+        LearningContentRuntimeCompatibilityValidator.validate(assessments)
         assessments.assets.forEach { asset -> validateAsset(remote, staging, asset) }
     }
 
