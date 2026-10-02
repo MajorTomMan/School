@@ -11,10 +11,7 @@ import com.majortomman.school.learning.science.math.AlgebraSolver
 import com.majortomman.school.learning.science.math.AlgebraStep
 import com.majortomman.school.learning.science.math.EquationSolution
 import com.majortomman.school.learning.science.math.Polynomial
-import com.majortomman.school.learning.verification.VerificationSubject
-import com.majortomman.school.learning.verification.core.SubjectEngine
 import com.majortomman.school.learning.verification.core.VerificationArtifact
-import com.majortomman.school.learning.verification.core.VerificationMode
 import com.majortomman.school.learning.verification.core.VerificationProblemType
 import com.majortomman.school.learning.verification.core.VerificationRequest
 import com.majortomman.school.learning.verification.core.VerificationResult
@@ -32,11 +29,8 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToLong
 
-object MathVerificationEngine : SubjectEngine {
-    override val subject: VerificationSubject = VerificationSubject.MATHEMATICS
-    override val mode: VerificationMode = VerificationMode.DETERMINISTIC
-
-    override fun verify(request: VerificationRequest): VerificationResult {
+object MathVerificationEngine {
+    fun verify(request: VerificationRequest): VerificationResult {
         val source = request.input.trim()
         if (source.isBlank()) return invalid(source, "请输入数学表达式或方程。")
         val basic = normalizeBasicSymbols(source)
@@ -499,8 +493,6 @@ object MathVerificationEngine : SubjectEngine {
         warnings: List<VerificationWarning> = emptyList(),
         visualizations: List<VerificationVisualizationRequest> = emptyList(),
     ): VerificationResult = VerificationResult(
-        subject = subject,
-        mode = mode,
         status = VerificationStatus.SUCCESS,
         problemType = type,
         normalizedInput = normalizedInput,
@@ -511,8 +503,6 @@ object MathVerificationEngine : SubjectEngine {
     )
 
     private fun unsupported(input: String, message: String): VerificationResult = VerificationResult(
-        subject = subject,
-        mode = mode,
         status = VerificationStatus.UNSUPPORTED,
         problemType = TYPE_UNSUPPORTED,
         normalizedInput = input,
@@ -520,8 +510,6 @@ object MathVerificationEngine : SubjectEngine {
     )
 
     private fun invalid(input: String, message: String): VerificationResult = VerificationResult(
-        subject = subject,
-        mode = mode,
         status = VerificationStatus.INVALID,
         problemType = TYPE_INVALID,
         normalizedInput = input,
