@@ -29,7 +29,7 @@ import com.majortomman.school.data.DailyPlan
 import com.majortomman.school.data.Lesson
 import com.majortomman.school.learning.progress.LessonProgressStatus
 
-internal data class LearningReviewSuggestion(
+data class LearningReviewSuggestion(
     val knowledgePointName: String,
     val lessonId: String,
 )
