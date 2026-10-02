@@ -1,9 +1,9 @@
 package com.majortomman.school.learning.language
 
-import com.majortomman.school.learning.verification.DiagnosticResult
-import com.majortomman.school.learning.verification.DiagnosticStep
-import com.majortomman.school.learning.verification.ErrorType
-import com.majortomman.school.learning.verification.VerificationStatus
+import com.majortomman.school.learning.language.diagnostic.DiagnosticResult
+import com.majortomman.school.learning.language.diagnostic.DiagnosticStep
+import com.majortomman.school.learning.language.diagnostic.DiagnosticErrorType
+import com.majortomman.school.learning.language.diagnostic.DiagnosticStatus
 import java.text.Normalizer
 import java.util.Locale
 
@@ -135,7 +135,7 @@ object LanguageAnswerVerifier {
     ): DiagnosticResult {
         if (actual.isBlank()) {
             return DiagnosticResult(
-                status = VerificationStatus.INPUT_IN_PROGRESS,
+                status = DiagnosticStatus.INPUT_IN_PROGRESS,
                 message = "继续输入答案。",
             )
         }
@@ -148,7 +148,7 @@ object LanguageAnswerVerifier {
         val normalizedAccepted = acceptedRaw.map { normalize(it, policy) }.toSet()
         if (normalizedActual in normalizedAccepted) {
             return DiagnosticResult(
-                status = VerificationStatus.CORRECT,
+                status = DiagnosticStatus.CORRECT,
                 normalizedAnswer = normalizedActual,
                 steps = listOf(
                     DiagnosticStep("输入", actual, true),
@@ -163,19 +163,19 @@ object LanguageAnswerVerifier {
         val looseExpected = acceptedRaw.map { normalize(it, loosePolicy) }.toSet()
         val errorType = when {
             looseActual in looseExpected && !policy.ignoreCase && actual.lowercase(Locale.ROOT) in
-                acceptedRaw.map { it.lowercase(Locale.ROOT) }.toSet() -> ErrorType.CAPITALIZATION
-            looseActual in looseExpected && !policy.ignorePunctuation -> ErrorType.PUNCTUATION
-            closestDistance(normalizedActual, normalizedAccepted) <= 2 -> ErrorType.SPELLING
-            else -> ErrorType.SENTENCE_STRUCTURE
+                acceptedRaw.map { it.lowercase(Locale.ROOT) }.toSet() -> DiagnosticErrorType.CAPITALIZATION
+            looseActual in looseExpected && !policy.ignorePunctuation -> DiagnosticErrorType.PUNCTUATION
+            closestDistance(normalizedActual, normalizedAccepted) <= 2 -> DiagnosticErrorType.SPELLING
+            else -> DiagnosticErrorType.SENTENCE_STRUCTURE
         }
         val message = when (errorType) {
-            ErrorType.CAPITALIZATION -> "内容基本正确，请检查大小写。"
-            ErrorType.PUNCTUATION -> "内容基本正确，请检查标点。"
-            ErrorType.SPELLING -> "句子结构接近，请检查拼写。"
+            DiagnosticErrorType.CAPITALIZATION -> "内容基本正确，请检查大小写。"
+            DiagnosticErrorType.PUNCTUATION -> "内容基本正确，请检查标点。"
+            DiagnosticErrorType.SPELLING -> "句子结构接近，请检查拼写。"
             else -> "当前表达与本题接受的句子结构不一致。"
         }
         return DiagnosticResult(
-            status = VerificationStatus.INCORRECT,
+            status = DiagnosticStatus.INCORRECT,
             normalizedAnswer = normalizedActual,
             steps = listOf(
                 DiagnosticStep("你的表达", actual, false),
@@ -190,13 +190,13 @@ object LanguageAnswerVerifier {
     fun verifyOrder(pattern: SentencePattern, actualTokenIds: List<String>): DiagnosticResult {
         if (actualTokenIds.isEmpty()) {
             return DiagnosticResult(
-                status = VerificationStatus.INPUT_IN_PROGRESS,
+                status = DiagnosticStatus.INPUT_IN_PROGRESS,
                 message = "依次选择词语组成句子。",
             )
         }
         if (actualTokenIds in pattern.acceptedOrders) {
             return DiagnosticResult(
-                status = VerificationStatus.CORRECT,
+                status = DiagnosticStatus.CORRECT,
                 normalizedAnswer = pattern.textFor(actualTokenIds),
                 steps = actualTokenIds.mapIndexed { index, id ->
                     DiagnosticStep("第 ${index + 1} 位", pattern.token(id)?.surface.orEmpty(), true)
@@ -208,9 +208,9 @@ object LanguageAnswerVerifier {
         val expectedIds = pattern.tokens.map { it.id }
         val sameTokens = actualTokenIds.size == expectedIds.size &&
             actualTokenIds.groupingBy { it }.eachCount() == expectedIds.groupingBy { it }.eachCount()
-        val errorType = if (sameTokens) ErrorType.WORD_ORDER else ErrorType.SENTENCE_STRUCTURE
+        val errorType = if (sameTokens) DiagnosticErrorType.WORD_ORDER else DiagnosticErrorType.SENTENCE_STRUCTURE
         return DiagnosticResult(
-            status = VerificationStatus.INCORRECT,
+            status = DiagnosticStatus.INCORRECT,
             normalizedAnswer = pattern.textFor(actualTokenIds),
             steps = listOf(
                 DiagnosticStep("当前顺序", pattern.textFor(actualTokenIds), false),
@@ -265,8 +265,8 @@ object EnglishWordFormVerifier {
     fun verify(lexeme: EnglishLexeme, requestedForm: EnglishForm, actual: String): DiagnosticResult {
         val expected = lexeme.forms[requestedForm]
             ?: return DiagnosticResult(
-                status = VerificationStatus.UNSUPPORTED,
-                errorType = ErrorType.WORD_FORM,
+                status = DiagnosticStatus.UNSUPPORTED,
+                errorType = DiagnosticErrorType.WORD_FORM,
                 message = "当前词条没有配置这一词形。",
             )
         val result = LanguageAnswerVerifier.verifyText(
@@ -274,11 +274,11 @@ object EnglishWordFormVerifier {
             actual = actual,
             policy = LanguageAnswerPolicy(ignoreCase = true, ignorePunctuation = true),
         )
-        return if (result.status == VerificationStatus.CORRECT) {
+        return if (result.status == DiagnosticStatus.CORRECT) {
             result.copy(message = "词形正确：${lexeme.lemma} → $expected。")
         } else {
             result.copy(
-                errorType = ErrorType.WORD_FORM,
+                errorType = DiagnosticErrorType.WORD_FORM,
                 message = "这里需要 ${requestedForm.displayName()}：$expected。",
             )
         }
@@ -297,20 +297,20 @@ object JapaneseLanguageVerifier {
     fun verifyParticle(rule: JapaneseParticleRule, actual: String): DiagnosticResult {
         if (actual.isBlank()) {
             return DiagnosticResult(
-                status = VerificationStatus.INPUT_IN_PROGRESS,
+                status = DiagnosticStatus.INPUT_IN_PROGRESS,
                 message = "选择一个助词。",
             )
         }
         val accepted = actual in rule.accepted
         val explanation = rule.explanationByParticle[actual].orEmpty()
         return DiagnosticResult(
-            status = if (accepted) VerificationStatus.CORRECT else VerificationStatus.INCORRECT,
+            status = if (accepted) DiagnosticStatus.CORRECT else DiagnosticStatus.INCORRECT,
             normalizedAnswer = actual,
             steps = listOf(
                 DiagnosticStep("所选助词", actual, accepted),
                 DiagnosticStep("本题优先表达", rule.preferred, null),
             ),
-            errorType = if (accepted) null else ErrorType.PARTICLE,
+            errorType = if (accepted) null else DiagnosticErrorType.PARTICLE,
             message = if (accepted) {
                 explanation.ifBlank { "助词符合当前语境。" }
             } else {
@@ -322,8 +322,8 @@ object JapaneseLanguageVerifier {
     fun verifyForm(lexeme: JapaneseLexeme, requestedForm: JapaneseForm, actual: String): DiagnosticResult {
         val expected = lexeme.forms[requestedForm]
             ?: return DiagnosticResult(
-                status = VerificationStatus.UNSUPPORTED,
-                errorType = ErrorType.CONJUGATION,
+                status = DiagnosticStatus.UNSUPPORTED,
+                errorType = DiagnosticErrorType.CONJUGATION,
                 message = "当前词条没有配置这一活用形式。",
             )
         val result = LanguageAnswerVerifier.verifyText(
@@ -331,11 +331,11 @@ object JapaneseLanguageVerifier {
             actual = actual,
             policy = LanguageAnswerPolicy(ignorePunctuation = true),
         )
-        return if (result.status == VerificationStatus.CORRECT) {
+        return if (result.status == DiagnosticStatus.CORRECT) {
             result.copy(message = "活用正确：${lexeme.dictionaryForm} → $expected。")
         } else {
             result.copy(
-                errorType = ErrorType.CONJUGATION,
+                errorType = DiagnosticErrorType.CONJUGATION,
                 message = "当前语境需要 ${requestedForm.displayName()}：$expected。",
             )
         }
@@ -344,14 +344,14 @@ object JapaneseLanguageVerifier {
     fun verifyRegister(context: DialogueContext, actual: SpeechRegister): DiagnosticResult {
         val correct = actual == context.expectedRegister
         return DiagnosticResult(
-            status = if (correct) VerificationStatus.CORRECT else VerificationStatus.INCORRECT,
+            status = if (correct) DiagnosticStatus.CORRECT else DiagnosticStatus.INCORRECT,
             normalizedAnswer = actual.name,
             steps = listOf(
                 DiagnosticStep("说话者", context.speakerRole, null),
                 DiagnosticStep("听话者", context.listenerRole, null),
                 DiagnosticStep("所选语体", actual.displayName(), correct),
             ),
-            errorType = if (correct) null else ErrorType.SPEECH_REGISTER,
+            errorType = if (correct) null else DiagnosticErrorType.SPEECH_REGISTER,
             message = if (correct) "语体与当前人物关系相符。" else "当前人物关系更适合${context.expectedRegister.displayName()}。",
         )
     }
