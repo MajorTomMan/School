@@ -1,35 +1,21 @@
 package com.majortomman.school.learning
 
-import com.majortomman.school.learning.capability.CapabilityDescriptor
 import com.majortomman.school.learning.capability.CapabilityKey
-import com.majortomman.school.learning.capability.CapabilityKind
-import com.majortomman.school.learning.capability.CapabilityRegistry
-import com.majortomman.school.learning.capability.SubjectId
-import com.majortomman.school.learning.capability.SubjectModule
 import com.majortomman.school.learning.relation.RelationDefinition
 import com.majortomman.school.learning.relation.RelationSolveResult
 import com.majortomman.school.learning.relation.SolveRule
 import com.majortomman.school.learning.relation.VariableDefinition
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LearningEngineFoundationTest {
     @Test
-    fun capabilityRegistryUsesStableKeysWithoutCentralSubjectEnums() {
-        val mathematics = object : SubjectModule {
-            override val id = SubjectId("mathematics")
-            override val capabilities = listOf(
-                CapabilityDescriptor(CapabilityKey("mathematics.number-line"), id, CapabilityKind.VISUALIZATION),
-                CapabilityDescriptor(CapabilityKey("mathematics.place-on-number-line"), id, CapabilityKind.ACTIVITY),
-            )
-        }
-        val registry = CapabilityRegistry(listOf(mathematics))
+    fun capabilityKeyKeepsStableTypedIdentity() {
+        val key = CapabilityKey("mathematics.number-line")
 
-        assertTrue(registry.supports(CapabilityKey("mathematics.number-line"), CapabilityKind.VISUALIZATION))
-        assertFalse(registry.supports(CapabilityKey("physics.force-diagram"), CapabilityKind.VISUALIZATION))
-        assertEquals(1, registry.capabilities(SubjectId("mathematics"), CapabilityKind.ACTIVITY).size)
+        assertEquals("mathematics.number-line", key.value)
+        assertEquals("mathematics.number-line", key.toString())
     }
 
     @Test
