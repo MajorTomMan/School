@@ -102,13 +102,14 @@ fun InteractiveLessonScreen(
                 assessmentOutcome = state.assessmentFeedback
                     ?.takeIf { it.stepId == currentStep.id }
                     ?.outcome,
+                activityState = state.activityState,
                 activityEnabled = !state.busy,
-                onActivityResult = { step, result ->
+                onActivityEvent = { step, event ->
                     scope.launch {
                         controller.dispatch(
-                            LessonSessionIntent.ActivityResultSubmitted(
+                            LessonSessionIntent.ActivityEventDispatched(
                                 stepId = step.id,
-                                result = result,
+                                event = event,
                             ),
                         )
                     }
