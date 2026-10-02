@@ -3,6 +3,7 @@ package com.majortomman.school.learning.assessment.contract
 import com.majortomman.school.startup.SchoolLearningModules
 import com.majortomman.school.learning.assessment.domain.AnswerInputSpec
 import com.majortomman.school.learning.assessment.domain.AnswerRule
+import com.majortomman.school.learning.cloud.LearningContentRuntimeCompatibilityValidator
 import com.majortomman.school.learning.content.LearningContent
 import com.majortomman.school.learning.course.CourseChapter
 import com.majortomman.school.learning.course.CourseDocument
@@ -56,20 +57,22 @@ class AssessmentContractParserTest {
     }
 
     @Test
-    fun rejectsUnknownVisualizationParameter() {
+    fun runtimeCompatibilityRejectsUnknownVisualizationParameter() {
         val root = JSONObject(validAssessmentsJson())
         val visualization = root.getJSONArray("questionSets").getJSONObject(0).getJSONArray("questions").getJSONObject(0).getJSONArray("stem").getJSONObject(3)
         visualization.getJSONObject("parameters").put("script", 1)
-        val error = runCatching { AssessmentDocumentParser.decode(root) }.exceptionOrNull()
+        val assessments = AssessmentDocumentParser.decode(root)
+        val error = runCatching { LearningContentRuntimeCompatibilityValidator.validate(assessments) }.exceptionOrNull()
         assertTrue(error?.message.orEmpty().contains("不接受参数 script"))
     }
 
     @Test
-    fun rejectsMathExpressionForNumericVisualizationParameter() {
+    fun runtimeCompatibilityRejectsMathExpressionForNumericVisualizationParameter() {
         val root = JSONObject(validAssessmentsJson())
         val visualization = root.getJSONArray("questionSets").getJSONObject(0).getJSONArray("questions").getJSONObject(0).getJSONArray("stem").getJSONObject(3)
         visualization.getJSONObject("parameters").put("min", "-5")
-        val error = runCatching { AssessmentDocumentParser.decode(root) }.exceptionOrNull()
+        val assessments = AssessmentDocumentParser.decode(root)
+        val error = runCatching { LearningContentRuntimeCompatibilityValidator.validate(assessments) }.exceptionOrNull()
         assertTrue(error?.message.orEmpty().contains("参数 min 类型应为 NUMBER"))
     }
 
