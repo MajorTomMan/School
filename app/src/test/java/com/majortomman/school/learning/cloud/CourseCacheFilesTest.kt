@@ -2,6 +2,8 @@ package com.majortomman.school.learning.cloud
 
 import java.nio.file.Files
 import kotlin.io.path.writeBytes
+import kotlin.io.path.writeText
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -91,4 +93,56 @@ class CourseCacheFilesTest {
             parent.toFile().deleteRecursively()
         }
     }
+    @Test
+    fun localIntegrityAcceptsMatchingStateAndRejectsCorruption() {
+        val parent = Files.createTempDirectory("school-course-integrity")
+        try {
+            val active = parent.resolve("course-a")
+            Files.createDirectories(active)
+            active.resolve("course.json").writeBytes("course".toByteArray())
+            writeIntegrityState(active, "course.json")
+
+            val state = CourseLocalIntegrityValidator.readValidated(active.toFile())
+            assertEquals(setOf("course.json"), state.files.keys)
+
+            active.resolve("course.json").writeBytes("corrupted".toByteArray())
+            val failure = runCatching {
+                CourseLocalIntegrityValidator.readValidated(active.toFile())
+            }.exceptionOrNull()
+
+            assertTrue(failure is IllegalArgumentException)
+        } finally {
+            parent.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun localIntegrityRejectsUnexpectedActiveFile() {
+        val parent = Files.createTempDirectory("school-course-integrity-extra")
+        try {
+            val active = parent.resolve("course-a")
+            Files.createDirectories(active)
+            active.resolve("course.json").writeBytes("course".toByteArray())
+            writeIntegrityState(active, "course.json")
+            active.resolve("undeclared.bin").writeBytes(byteArrayOf(1))
+
+            val failure = runCatching {
+                CourseLocalIntegrityValidator.readValidated(active.toFile())
+            }.exceptionOrNull()
+
+            assertTrue(failure?.message.orEmpty().contains("未声明"))
+        } finally {
+            parent.toFile().deleteRecursively()
+        }
+    }
+
+    private fun writeIntegrityState(active: java.nio.file.Path, fileName: String) {
+        val file = active.resolve(fileName).toFile()
+        val item = JSONObject()
+            .put("size", file.length())
+            .put("sha256", CoursePackStore.sha256(file))
+        val state = JSONObject().put("files", JSONObject().put(fileName, item))
+        active.resolve(".course-state.json").writeText(state.toString())
+    }
+
 }
