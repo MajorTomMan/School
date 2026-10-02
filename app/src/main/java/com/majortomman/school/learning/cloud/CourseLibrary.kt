@@ -95,6 +95,7 @@ object CourseLibraryRepository {
         val courseFile = File(root, COURSE_FILE_NAME)
         if (!courseFile.isFile) return null
         return runCatching {
+            CourseLocalIntegrityValidator.readValidated(root)
             val document = CourseDocumentParser.decode(courseFile.readText(Charsets.UTF_8))
             require(document.textbook.id == root.name) { "课程目录与教材 ID 不一致" }
             CourseRuntimeCompatibilityValidator.validate(document)
