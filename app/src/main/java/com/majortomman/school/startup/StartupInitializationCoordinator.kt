@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.SystemClock
 import android.util.Log
 import com.majortomman.school.learning.cloud.CourseLibraryRepository
+import com.majortomman.school.learning.cloud.CourseStorageManager
 import com.majortomman.school.learning.cloud.CourseSyncManager
 import com.majortomman.school.learning.cloud.CourseUpdateCheckResult
 import com.majortomman.school.learning.cloud.CourseUpdateOffer
@@ -46,7 +47,7 @@ object StartupInitializationCoordinator {
     }
 
     private suspend fun checkInstalledCourseUpdates(appContext: Context, onCourseUpdateAvailable: (CourseUpdateOffer) -> Unit) {
-        val textbookIds = CourseLibraryRepository.installedCourseIds()
+        val textbookIds = CourseStorageManager.installedTextbookIds(appContext)
         if (textbookIds.isEmpty()) {
             Log.i(LOG_TAG, "course update check skipped because no course is installed")
             return
