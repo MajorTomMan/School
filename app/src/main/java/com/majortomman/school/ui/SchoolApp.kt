@@ -42,10 +42,14 @@ import com.majortomman.school.data.AiSettings
 import com.majortomman.school.data.AppSettingsRepository
 import com.majortomman.school.data.DailyPlan
 import com.majortomman.school.data.Lesson
+import com.majortomman.school.learning.advisor.LearningAdvisor
+import com.majortomman.school.learning.advisor.ReviewAdvice
 import com.majortomman.school.learning.assessment.persistence.AssessmentProgressStore
 import com.majortomman.school.learning.cloud.CourseLibraryRepository
 import com.majortomman.school.learning.cloud.InstalledCourse
 import com.majortomman.school.learning.course.CourseLesson
+import com.majortomman.school.learning.knowledge.KnowledgePointId
+import com.majortomman.school.learning.knowledge.KnowledgePointStateReader
 import com.majortomman.school.learning.progress.CourseProgressSnapshot
 import com.majortomman.school.learning.progress.LessonProgressStatus
 import com.majortomman.school.learning.progress.persistence.CourseProgressStore
@@ -77,10 +81,13 @@ fun SchoolApp(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val assessmentProgressStore = remember(context) { AssessmentProgressStore.create(context) }
+    val knowledgeStateReader = remember(context) { KnowledgePointStateReader.create(context) }
+    val learningAdvisor = remember { LearningAdvisor() }
     val aiSettings by settingsRepository.aiSettings.collectAsState(initial = AiSettings())
     val libraryState by CourseLibraryRepository.state.collectAsState()
 
     val activeCourse = libraryState.course(activeCourseId)
+    var reviewAdvice by remember(activeCourse?.id) { mutableStateOf<ReviewAdvice?>(null) }
     val progressFlow = remember(activeCourse?.id) {
         activeCourse?.id?.let(courseProgressStore::observeCourse)
             ?: flowOf(CourseProgressSnapshot(courseId = ""))
@@ -100,6 +107,24 @@ fun SchoolApp(
         ?: lessons.lastOrNull()
     val dailyPlan = currentLesson?.let { DailyPlan(it.id, it.estimatedMinutes) }
     val selectedTab = MainTab.valueOf(selectedTabName)
+    val reviewSuggestion = activeCourse?.let { course ->
+        reviewAdvice?.let { advice ->
+            val knowledgePoint = course.document.knowledgePoints.firstOrNull {
+                it.id == advice.knowledgePointId.value
+            }
+            val reviewLesson = course.lessons.firstOrNull {
+                advice.knowledgePointId.value in it.knowledgePointIds
+            }
+            if (knowledgePoint != null && reviewLesson != null) {
+                LearningReviewSuggestion(
+                    knowledgePointName = knowledgePoint.name,
+                    lessonId = reviewLesson.id,
+                )
+            } else {
+                null
+            }
+        }
+    }
     val openedCourseLesson = activeCourse?.lessons?.firstOrNull { it.id == openedLessonId }
     val openedLessonIndex = activeCourse?.lessons?.indexOfFirst { it.id == openedLessonId } ?: -1
     val nextCourseLesson = activeCourse?.lessons?.getOrNull(openedLessonIndex + 1).takeIf { openedLessonIndex >= 0 }
@@ -115,6 +140,21 @@ fun SchoolApp(
         val uiLesson = lessons.firstOrNull { it.id == lessonId }
         if (uiLesson?.status == LessonProgressStatus.NOT_STARTED) {
             scope.launch { courseProgressStore.startLesson(course.id, lessonId) }
+        }
+    }
+
+    LaunchedEffect(activeCourse?.id, selectedTab, openedLessonId) {
+        val course = activeCourse
+        if (course == null) {
+            reviewAdvice = null
+        } else if (selectedTab == MainTab.LEARN && openedLessonId == null) {
+            val ids = course.document.knowledgePoints.map { KnowledgePointId(it.id) }
+            reviewAdvice = runCatching {
+                learningAdvisor.advise(
+                    states = knowledgeStateReader.read(course.id, ids),
+                    reviewLimit = 1,
+                ).reviews.firstOrNull()
+            }.getOrNull()
         }
     }
 
@@ -208,6 +248,7 @@ fun SchoolApp(
                                             plan = dailyPlan,
                                             lessons = lessons,
                                             courseTitle = activeCourse.title,
+                                            reviewSuggestion = reviewSuggestion,
                                             onStartLesson = { openLesson(activeCourse, it) },
                                             onOpenPractice = { selectedTabName = MainTab.PRACTICE.name },
                                             onOpenPath = { selectedTabName = MainTab.COURSES.name },
