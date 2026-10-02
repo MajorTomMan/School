@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Upsert
 import androidx.room.withTransaction
 import com.majortomman.school.learning.persistence.SchoolLearningDatabase
+import com.majortomman.school.learning.progress.CourseProgressGateway
 import com.majortomman.school.learning.progress.CourseProgressSnapshot
 import com.majortomman.school.learning.progress.LessonProgressStatus
 import kotlinx.coroutines.flow.Flow
@@ -56,11 +57,11 @@ internal interface CourseProgressDao {
 
 class CourseProgressStore internal constructor(
     private val database: SchoolLearningDatabase,
-) {
+) : CourseProgressGateway {
     private val dao: CourseProgressDao
         get() = database.courseProgressDao()
 
-    fun observeCourse(courseId: String): Flow<CourseProgressSnapshot> =
+    override fun observeCourse(courseId: String): Flow<CourseProgressSnapshot> =
         dao.observeCourse(courseId).map { rows ->
             CourseProgressSnapshot(
                 courseId = courseId,
@@ -71,7 +72,7 @@ class CourseProgressStore internal constructor(
             )
         }
 
-    suspend fun startLesson(courseId: String, lessonId: String, atEpochMillis: Long = System.currentTimeMillis()) {
+    override suspend fun startLesson(courseId: String, lessonId: String, atEpochMillis: Long) {
         require(courseId.isNotBlank()) { "courseId 不能为空" }
         require(lessonId.isNotBlank()) { "lessonId 不能为空" }
         dao.upsert(
@@ -84,7 +85,7 @@ class CourseProgressStore internal constructor(
         )
     }
 
-    suspend fun finishLessonAndStartNext(
+    override suspend fun finishLessonAndStartNext(
         courseId: String,
         currentLessonId: String,
         nextLessonId: String?,
