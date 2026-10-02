@@ -97,11 +97,11 @@ internal interface LearningEvidenceDao {
     @Query(
         """
         SELECT * FROM learning_evidence
-        WHERE sourceContextId = :contextId
+        WHERE courseId = :courseId AND sourceContextId = :contextId
         ORDER BY recordedAtEpochMillis ASC, evidenceId ASC
         """,
     )
-    suspend fun evidenceForContext(contextId: String): List<LearningEvidenceEntity>
+    suspend fun evidenceForContext(courseId: String, contextId: String): List<LearningEvidenceEntity>
 
     @Query(
         """
@@ -247,8 +247,8 @@ class LearningEvidenceStore internal constructor(
             .associateBy(MasteryState::knowledgePointId)
     }
 
-    internal suspend fun evidenceForContext(contextId: String): List<LearningEvidence> =
-        dao.evidenceForContext(contextId).map(LearningEvidenceEntity::toDomain)
+    internal suspend fun evidenceForContext(courseId: String, contextId: String): List<LearningEvidence> =
+        dao.evidenceForContext(courseId, contextId).map(LearningEvidenceEntity::toDomain)
 
     internal suspend fun masteryUpdatesForContext(courseId: String, contextId: String): List<MasteryUpdate> =
         dao.masterySnapshotsForContext(courseId, contextId).map(MasteryUpdateSnapshotEntity::toDomain)
