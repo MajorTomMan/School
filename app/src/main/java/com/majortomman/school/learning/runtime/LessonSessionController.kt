@@ -1,6 +1,9 @@
 package com.majortomman.school.learning.runtime
 
+import com.majortomman.school.learning.activity.ActivityEvent
 import com.majortomman.school.learning.activity.ActivityResult
+import com.majortomman.school.learning.activity.ActivityRuntime
+import com.majortomman.school.learning.activity.ActivityState
 import com.majortomman.school.learning.assessment.domain.InlineAssessmentEvidenceFactory
 import com.majortomman.school.learning.assessment.domain.InlineAssessmentEvaluator
 import com.majortomman.school.learning.assessment.domain.InlineAssessmentOutcome
@@ -23,6 +26,7 @@ data class LessonAssessmentFeedback(
 
 data class LessonSessionState(
     val runtime: LessonRuntimeState,
+    val activityState: ActivityState? = null,
     val assessmentFeedback: LessonAssessmentFeedback? = null,
     val busy: Boolean = false,
     val errorMessage: String? = null,
@@ -31,17 +35,18 @@ data class LessonSessionState(
 sealed interface LessonSessionIntent {
     data object ContinueRequested : LessonSessionIntent
 
-    data class ActivityResultSubmitted(
+    data class ActivityEventDispatched(
         val stepId: String,
-        val result: ActivityResult,
+        val event: ActivityEvent,
     ) : LessonSessionIntent
 }
 
 /**
  * Lesson 应用层控制器。
  *
- * UI 只发送语义 Intent 并订阅 state；Inline Assessment、Evidence 持久化和 Step 推进
- * 均在这里串行执行。只有 Evidence 成功写入后，带 assessment 的 Activity 才允许推进。
+ * LessonRuntime 和 ActivityRuntime 都由应用层持有。UI 只发送语义 Intent 并订阅 state；
+ * Inline Assessment、Evidence 持久化和 Step 推进均在这里串行执行。只有 Evidence 成功写入后，
+ * 带 assessment 的 Activity 才允许推进。
  */
 class LessonSessionController(
     private val courseId: String,
@@ -56,8 +61,14 @@ class LessonSessionController(
 
     private val mutex = Mutex()
     private val runtime = LessonRuntime(lesson)
+    private var activityRuntime: ActivityRuntime? = createActivityRuntime()
     private val wrongAttempts = linkedMapOf<String, Int>()
-    private val mutableState = MutableStateFlow(LessonSessionState(runtime.state))
+    private val mutableState = MutableStateFlow(
+        LessonSessionState(
+            runtime = runtime.state,
+            activityState = activityRuntime?.state,
+        ),
+    )
 
     val state: StateFlow<LessonSessionState> = mutableState.asStateFlow()
 
@@ -66,7 +77,7 @@ class LessonSessionController(
             runCatching {
                 when (intent) {
                     LessonSessionIntent.ContinueRequested -> continueLesson()
-                    is LessonSessionIntent.ActivityResultSubmitted -> submitActivityResult(intent)
+                    is LessonSessionIntent.ActivityEventDispatched -> dispatchActivityEvent(intent)
                 }
             }.onFailure {
                 publish(
@@ -81,22 +92,44 @@ class LessonSessionController(
     private fun continueLesson() {
         if (mutableState.value.busy) return
         runtime.dispatch(LessonRuntimeEvent.ContinueRequested)
+        syncActivityRuntime()
         publish()
     }
 
-    private suspend fun submitActivityResult(intent: LessonSessionIntent.ActivityResultSubmitted) {
+    private suspend fun dispatchActivityEvent(intent: LessonSessionIntent.ActivityEventDispatched) {
         if (mutableState.value.busy || runtime.state.finished) return
         val step = runtime.currentStep
         if (intent.stepId != step.id || step.activity == null) return
 
+        val activity = activityRuntime ?: error("当前 step 缺少 ActivityRuntime：${step.id}")
+        require(activity.state.spec == step.activity) {
+            "ActivityRuntime 与当前 step 不一致：${step.id}"
+        }
+
+        val transition = activity.dispatch(intent.event)
+        val result = transition.result
+        if (result == null) {
+            publish()
+            return
+        }
+        submitActivityResult(result)
+    }
+
+    private suspend fun submitActivityResult(result: ActivityResult) {
+        val step = runtime.currentStep
+        require(step.activity?.id == result.activityId) {
+            "ActivityResult 与当前 step 不一致：${result.activityId}"
+        }
+
         val assessment = step.assessment
         if (assessment == null) {
             runtime.dispatch(LessonRuntimeEvent.ActivityCompleted(step.id))
+            syncActivityRuntime()
             publish()
             return
         }
 
-        val evaluated = InlineAssessmentEvaluator.evaluate(assessment, intent.result)
+        val evaluated = InlineAssessmentEvaluator.evaluate(assessment, result)
         when (evaluated.outcome) {
             InlineAssessmentOutcome.INVALID -> {
                 publish(
@@ -118,7 +151,7 @@ class LessonSessionController(
                     contentRevision = contentRevision,
                     lessonId = lesson.id,
                     stepId = step.id,
-                    activityId = intent.result.activityId,
+                    activityId = result.activityId,
                     assessment = assessment,
                     wrongAttemptCount = wrongAttempts[step.id] ?: 0,
                 )
@@ -126,10 +159,31 @@ class LessonSessionController(
                 evidenceGateway.record(evidence)
                 wrongAttempts.remove(step.id)
                 runtime.dispatch(LessonRuntimeEvent.AssessmentEvaluated(step.id, correct = true))
+                syncActivityRuntime()
                 publish(
                     assessmentFeedback = LessonAssessmentFeedback(step.id, InlineAssessmentOutcome.CORRECT),
                 )
             }
+        }
+    }
+
+    private fun createActivityRuntime(): ActivityRuntime? {
+        if (runtime.state.finished) return null
+        return runtime.currentStep.activity?.let(::ActivityRuntime)
+    }
+
+    private fun syncActivityRuntime() {
+        if (runtime.state.finished) {
+            activityRuntime = null
+            return
+        }
+        val spec = runtime.currentStep.activity
+        if (spec == null) {
+            activityRuntime = null
+            return
+        }
+        if (activityRuntime?.state?.spec != spec) {
+            activityRuntime = ActivityRuntime(spec)
         }
     }
 
@@ -140,6 +194,7 @@ class LessonSessionController(
     ) {
         mutableState.value = LessonSessionState(
             runtime = runtime.state,
+            activityState = activityRuntime?.state,
             assessmentFeedback = assessmentFeedback,
             busy = busy,
             errorMessage = errorMessage,
