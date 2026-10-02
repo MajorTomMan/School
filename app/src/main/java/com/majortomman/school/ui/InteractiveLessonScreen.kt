@@ -76,7 +76,7 @@ fun InteractiveLessonScreen(
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())
                 .padding(horizontal = SchoolUiMetrics.pageHorizontal, vertical = 22.dp),
         ) {
-            Text("MATHEMATICS / JUNIOR HIGH / SCHOOL", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+            Text("${course.subject.uppercase()} / ${course.grade.uppercase()} / SCHOOL", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
             Spacer(Modifier.padding(top = 5.dp))
             Text(lesson.title, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
             Text(course.title, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleSmall)
