@@ -161,6 +161,31 @@ internal abstract class SchoolLearningDatabase : RoomDatabase() {
                 )
                 db.execSQL(
                     """
+                    INSERT INTO mastery_state (
+                        courseId,
+                        knowledgePointId,
+                        score,
+                        accumulatedEvidenceWeight,
+                        lastPolicyVersion,
+                        updatedAtEpochMillis
+                    )
+                    SELECT
+                        courseId,
+                        knowledgePointId,
+                        (
+                            0.5 + SUM(score * weight * (0.75 + difficulty * 0.5))
+                        ) / (
+                            1.0 + SUM(weight * (0.75 + difficulty * 0.5))
+                        ),
+                        1.0 + SUM(weight * (0.75 + difficulty * 0.5)),
+                        1,
+                        MAX(recordedAtEpochMillis)
+                    FROM learning_evidence
+                    GROUP BY courseId, knowledgePointId
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
                     CREATE TABLE IF NOT EXISTS mastery_update_snapshot (
                         snapshotId TEXT NOT NULL,
                         courseId TEXT NOT NULL,
