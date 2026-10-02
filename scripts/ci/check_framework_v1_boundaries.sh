@@ -27,6 +27,12 @@ forbidden_symbols=(
   "VerificationSubject"
   "VerificationMode"
   "SubjectEngine"
+  "CapabilityRegistry"
+  "SchoolCapabilityCatalog"
+  "CapabilityDescriptor"
+  "CapabilityKind"
+  "SubjectModule"
+  "SubjectId"
   "LegacyCourseParser"
 )
 
@@ -50,6 +56,7 @@ forbidden_paths=(
   "app/src/main/java/com/majortomman/school/ui/AssessmentLearningContentRenderer.kt"
   "app/src/main/java/com/majortomman/school/ui/CloudCourseBlockRenderer.kt"
   "app/src/main/java/com/majortomman/school/learning/verification/VerificationHubModels.kt"
+  "app/src/main/java/com/majortomman/school/learning/cloud/CourseCapabilityCompatibilityValidator.kt"
 )
 
 failed=0
@@ -81,13 +88,6 @@ ui_activity_runtime_matches="$(grep -RInw --include='*.kt' --include='*.java' --
 if [[ -n "$ui_activity_runtime_matches" ]]; then
   echo "Framework v1 guard: UI must not own ActivityRuntime" >&2
   echo "$ui_activity_runtime_matches" >&2
-  failed=1
-fi
-
-unsupported_capability_kinds="$(grep -RInE --include='*.kt' --include='*.java' -- 'CapabilityKind\.(VERIFICATION|NOTATION|PRESENTATION)' "${source_roots[@]}" 2>/dev/null || true)"
-if [[ -n "$unsupported_capability_kinds" ]]; then
-  echo "Framework v1 guard: future-only capability kind reintroduced" >&2
-  echo "$unsupported_capability_kinds" >&2
   failed=1
 fi
 
