@@ -480,6 +480,7 @@ assets/<question-assets>
 - School 只有一个学习数据宿主：`SchoolLearningDatabase`。不得重新引入并行的历史学习数据库。
 - `CourseProgressStore` 只保存“学到哪里”：`NOT_STARTED / IN_PROGRESS / COMPLETED`。课程进度不得包含“已掌握”“需要复习”等知识状态。
 - `KnowledgePointId` 属于共享 Knowledge 层，不属于 Assessment；Assessment、Evidence、Mastery 只能依赖共享知识身份。
+- Mastery 与 `KnowledgePointState` 的持久化/查询作用域固定为 `courseId + knowledgePointId`；不同课程即使复用同名知识点 ID，也不得共享 mastery projection。
 - `LearningEvidence` 是 source-neutral 事实模型；独立 Assessment 与 Lesson 内联 Activity 必须写入同一 Evidence Store，禁止维护第二套掌握度证据。
 - 有判定规则的 Lesson Activity 必须先持久化 Evidence 并完成 Mastery projection，再由 LessonRuntime 推进 Step；持久化失败时不得假装完成。
 - `MasteryPolicy` 只消费 `LearningEvidence`，不得依赖 question/session/renderer/UI 等来源专用对象。
