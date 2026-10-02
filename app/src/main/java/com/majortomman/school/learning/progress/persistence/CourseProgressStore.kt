@@ -89,7 +89,7 @@ class CourseProgressStore internal constructor(
         courseId: String,
         currentLessonId: String,
         nextLessonId: String?,
-        atEpochMillis: Long = System.currentTimeMillis(),
+        atEpochMillis: Long,
     ) {
         database.withTransaction {
             dao.upsert(
