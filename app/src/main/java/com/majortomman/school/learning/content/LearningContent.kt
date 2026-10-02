@@ -23,9 +23,11 @@ enum class LearningTextStyle {
 }
 
 /**
- * Shared immutable content used by assessment stems, choices and explanations.
- * Rendering remains APK-owned; course packages only select declarative content or invoke
- * APK-owned visualization infrastructure with renderer + typed parameters + display texts.
+ * Shared immutable authored content used by course steps and assessment material.
+ *
+ * Rendering remains APK-owned. Course packages and assessment packages only select declarative
+ * content or invoke APK-owned visualization infrastructure with renderer + typed parameters +
+ * display texts.
  */
 sealed interface LearningContent {
     data class Heading(
