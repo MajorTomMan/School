@@ -159,18 +159,26 @@ class CloudCourseCodecTest {
     }
 
     @Test
-    fun visualizationRejectsUnknownRendererAndParameter() {
-        val unknownRenderer = SAMPLE_COURSE.replace(
-            "mathematics.number-line.basic",
-            "mathematics.number-line.missing",
+    fun visualizationRuntimeCompatibilityRejectsUnknownRendererAndParameter() {
+        val unknownRenderer = CourseDocumentParser.decode(
+            SAMPLE_COURSE.replace(
+                "mathematics.number-line.basic",
+                "mathematics.number-line.missing",
+            ),
         )
-        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(unknownRenderer) }
+        assertThrows(IllegalArgumentException::class.java) {
+            CourseRuntimeCompatibilityValidator.validate(unknownRenderer)
+        }
 
-        val unknownParameter = SAMPLE_COURSE.replace(
-            "\"step\":1",
-            "\"step\":1,\"remoteUrl\":1",
+        val unknownParameter = CourseDocumentParser.decode(
+            SAMPLE_COURSE.replace(
+                "\"step\":1",
+                "\"step\":1,\"remoteUrl\":1",
+            ),
         )
-        assertThrows(IllegalArgumentException::class.java) { CourseDocumentParser.decode(unknownParameter) }
+        assertThrows(IllegalArgumentException::class.java) {
+            CourseRuntimeCompatibilityValidator.validate(unknownParameter)
+        }
     }
 
     @Test
