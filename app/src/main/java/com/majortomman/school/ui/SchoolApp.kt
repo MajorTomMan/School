@@ -340,19 +340,13 @@ fun SchoolApp(
     }
 }
 
-private fun CourseLesson.toUiLesson(status: LessonProgressStatus): Lesson {
-    val start = references.minOfOrNull { it.pageStart } ?: 1
-    val end = references.maxOfOrNull { it.pageEnd } ?: start
-    return Lesson(
+private fun CourseLesson.toUiLesson(status: LessonProgressStatus): Lesson =
+    Lesson(
         id = id,
         title = title,
         subtitle = goals.firstOrNull().orEmpty(),
-        estimatedMinutes = 18,
-        textbookPages = start..end,
         status = status,
-        objectives = goals,
     )
-}
 
 private fun closeTextbook(
     onCourse: (String?) -> Unit,
