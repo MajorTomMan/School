@@ -1,7 +1,7 @@
 package com.majortomman.school.learning.language
 
-import com.majortomman.school.learning.verification.ErrorType
-import com.majortomman.school.learning.verification.VerificationStatus
+import com.majortomman.school.learning.language.diagnostic.DiagnosticErrorType
+import com.majortomman.school.learning.language.diagnostic.DiagnosticStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -19,7 +19,7 @@ class LanguageLearningEngineTest {
             ),
         )
 
-        assertEquals(VerificationStatus.CORRECT, result.status)
+        assertEquals(DiagnosticStatus.CORRECT, result.status)
     }
 
     @Test
@@ -29,8 +29,8 @@ class LanguageLearningEngineTest {
             actual = "i play basketball.",
         )
 
-        assertEquals(VerificationStatus.INCORRECT, result.status)
-        assertEquals(ErrorType.CAPITALIZATION, result.errorType)
+        assertEquals(DiagnosticStatus.INCORRECT, result.status)
+        assertEquals(DiagnosticErrorType.CAPITALIZATION, result.errorType)
     }
 
     @Test
@@ -51,8 +51,8 @@ class LanguageLearningEngineTest {
             listOf("subject", "object", "verb", "time"),
         )
 
-        assertEquals(VerificationStatus.INCORRECT, result.status)
-        assertEquals(ErrorType.WORD_ORDER, result.errorType)
+        assertEquals(DiagnosticStatus.INCORRECT, result.status)
+        assertEquals(DiagnosticErrorType.WORD_ORDER, result.errorType)
     }
 
     @Test
@@ -69,11 +69,11 @@ class LanguageLearningEngineTest {
         )
 
         assertEquals(
-            VerificationStatus.CORRECT,
+            DiagnosticStatus.CORRECT,
             EnglishWordFormVerifier.verify(play, EnglishForm.THIRD_PERSON_SINGULAR, "plays").status,
         )
         assertEquals(
-            ErrorType.WORD_FORM,
+            DiagnosticErrorType.WORD_FORM,
             EnglishWordFormVerifier.verify(play, EnglishForm.THIRD_PERSON_SINGULAR, "play").errorType,
         )
     }
@@ -91,7 +91,7 @@ class LanguageLearningEngineTest {
 
         val result = JapaneseLanguageVerifier.verifyParticle(rule, "に")
 
-        assertEquals(VerificationStatus.CORRECT, result.status)
+        assertEquals(DiagnosticStatus.CORRECT, result.status)
         assertTrue(result.message.contains("到达点"))
     }
 
@@ -115,7 +115,7 @@ class LanguageLearningEngineTest {
             "行きます",
         )
 
-        assertEquals(VerificationStatus.CORRECT, result.status)
+        assertEquals(DiagnosticStatus.CORRECT, result.status)
     }
 
     @Test
@@ -128,6 +128,6 @@ class LanguageLearningEngineTest {
             ),
         )
 
-        assertEquals(VerificationStatus.CORRECT, result.status)
+        assertEquals(DiagnosticStatus.CORRECT, result.status)
     }
 }
