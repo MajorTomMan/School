@@ -11,8 +11,3 @@ data class Lesson(
     val status: LessonProgressStatus,
     val objectives: List<String>,
 )
-
-data class DailyPlan(
-    val newLessonId: String,
-    val estimatedMinutes: Int,
-)
