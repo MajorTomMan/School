@@ -22,6 +22,7 @@ forbidden_symbols=(
   "LearningDao"
   "ReviewScheduler"
   "MasteryStatus"
+  "DailyPlan"
   "LegacyCourseParser"
 )
 
