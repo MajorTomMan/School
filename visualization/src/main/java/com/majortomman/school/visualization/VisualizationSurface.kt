@@ -55,7 +55,7 @@ internal fun ZoomableVisualizationSurface(
         return Offset(nextOffset.x.coerceIn(-maxX, maxX), nextOffset.y.coerceIn(-maxY, maxY))
     }
 
-    val transformState = rememberTransformableState { zoomChange, panChange, _ ->
+    val transformState = rememberTransformableState { _, zoomChange, panChange, _ ->
         val nextScale = (scale * zoomChange).coerceIn(minScale, maxScale)
         offset = if (nextScale <= minScale + 0.001f) Offset.Zero else constrained(nextScale, offset + panChange)
         scale = nextScale
