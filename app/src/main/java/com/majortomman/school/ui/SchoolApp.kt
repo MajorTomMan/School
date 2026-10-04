@@ -50,6 +50,7 @@ import com.majortomman.school.learning.knowledge.KnowledgePointId
 import com.majortomman.school.learning.knowledge.KnowledgePointStateReader
 import com.majortomman.school.learning.progress.CourseProgressSnapshot
 import com.majortomman.school.learning.progress.LessonProgressStatus
+import com.majortomman.school.learning.persistence.RoomLearningDataMaintenance
 import com.majortomman.school.learning.progress.persistence.CourseProgressStore
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -79,6 +80,9 @@ fun SchoolApp(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val assessmentProgressStore = remember(context) { AssessmentProgressStore.create(context) }
+    val learningDataMaintenance = remember(courseProgressStore, assessmentProgressStore) {
+        RoomLearningDataMaintenance(courseProgressStore, assessmentProgressStore)
+    }
     val knowledgeStateReader = remember(context) { KnowledgePointStateReader.create(context) }
     val learningAdvisor = remember { LearningAdvisor() }
     val aiSettings by settingsRepository.aiSettings.collectAsState(initial = AiSettings())
@@ -289,7 +293,7 @@ fun SchoolApp(
 
                                 MainTab.MINE -> {
                                     if (mineSettingsOpen) {
-                                        MaterialSettingsScreen(
+                                        SettingsScreen(
                                             settings = aiSettings,
                                             onSave = { updated ->
                                                 scope.launch { settingsRepository.saveAiSettings(updated) }
@@ -299,10 +303,7 @@ fun SchoolApp(
                                                 selectedTabName = MainTab.COURSES.name
                                             },
                                             onClearProgress = {
-                                                scope.launch {
-                                                    courseProgressStore.clearAll()
-                                                    assessmentProgressStore.clearAll()
-                                                }
+                                                scope.launch { learningDataMaintenance.clearAll() }
                                             },
                                             onBack = { mineSettingsOpen = false },
                                         )
