@@ -363,7 +363,7 @@ Lesson 不再维护独立的 `practice`、`summary` 或历史多态 step 类型�
 - step ID 在整本教材内唯一；step 至少包含 content 或 activity。
 - `practice` 与 `checkpoint` 角色必须声明 activity；声明 assessment 时必须同时存在 activity。
 - activity ID 在整本教材内唯一。Activity 固定使用 `id + capability + schemaVersion + parameters`；`parameters` 只在对应 capability decoder 中转成 typed spec，运行时不得保留无类型 Map。
-- 当前内置 Activity capability 包括 `core.text-answer@1` 与 `mathematics.place-on-number-line@1`。数轴 Activity 参数为 `min/max/step/initialValue`，语义状态由 ActivityRuntime 持有。
+- 当前内置 Activity capability 包括 `core.text-answer@1`、`core.select-one@1`、`core.order@1`、`core.match@1` 与 `mathematics.place-on-number-line@1`。`core.select-one` 使用 `options[{id,label}]`，结果为选中 option ID；`core.order` 使用 `items[{id,label}]`，结果按当前顺序编码为 `id1|id2|...`；`core.match` 使用等长的 `left[{id,label}]` / `right[{id,label}]`，结果按 left 声明顺序编码为 `leftId=rightId|...`。这些 canonical text 结果可直接配合 `exactText` assessment。数轴 Activity 参数为 `min/max/step/initialValue`，语义状态统一由 ActivityRuntime 持有。
 - inline assessment 当前开放 `exactText` 与 `exactNumber`；`exactNumber` 必须声明 `expected` 与非负 `tolerance`。knowledge point 引用必须真实存在，`difficulty` 使用 `0.0..1.0`。
 - staging 必须以真实运行时注册表验证 capability：Activity 必须同时存在兼容的 typed decoder、ActivityRuntime handler 与 UI host，三者 capability/schemaVersion 必须一致；Visualization 必须存在兼容的 renderer/schemaVersion。缺能力、缺 UI host 或版本不兼容的课程不得进入 active。
 - `references` 满足 `pageStart <= pageEnd <= textbook.pdf.pageCount`。
