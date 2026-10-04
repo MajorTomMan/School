@@ -25,6 +25,7 @@ class KnowledgePointStateProjectorTest {
             evidence = mapOf(
                 observed to KnowledgePointEvidenceSummary(
                     evidenceCount = 2,
+                    wrongAttemptCount = 1,
                     lastEvidenceAtEpochMillis = 100L,
                 ),
             ),
@@ -34,6 +35,7 @@ class KnowledgePointStateProjectorTest {
         assertTrue(states[0].observed)
         assertEquals(0.72, states[0].masteryScore!!, 0.0001)
         assertEquals(2, states[0].evidenceCount)
+        assertEquals(1, states[0].wrongAttemptCount)
         assertFalse(states[1].observed)
         assertNull(states[1].masteryScore)
         assertEquals(0.0, states[1].accumulatedEvidenceWeight, 0.0)
