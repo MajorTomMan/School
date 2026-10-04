@@ -27,7 +27,7 @@ import com.majortomman.school.learning.progress.LessonProgressStatus
 @Composable
 fun CoursePathScreen(
     courseTitle: String,
-    lessons: List<Lesson>,
+    lessons: List<LessonUiModel>,
     onOpenLesson: (String) -> Unit,
     onChooseCourse: () -> Unit,
 ) {
@@ -56,7 +56,7 @@ fun CoursePathScreen(
             )
             current?.let {
                 Spacer(Modifier.height(18.dp))
-                SchoolPrimaryAction("继续学习  ${it.title}  →", onClick = { onOpenLesson(it.id) })
+                SchoolPrimaryAction("继续学习  ${it.title}  →", onClick = { onOpenLessonUiModel(it.id) })
             }
             Spacer(Modifier.height(10.dp))
             Text("切换课程", modifier = Modifier.clickable(onClick = onChooseCourse).padding(vertical = 8.dp), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
@@ -65,7 +65,7 @@ fun CoursePathScreen(
             Spacer(Modifier.height(8.dp))
         }
         itemsIndexed(lessons, key = { _, lesson -> lesson.id }) { index, lesson ->
-            CourseLessonRow(index + 1, lesson, onClick = { onOpenLesson(lesson.id) })
+            CourseLessonRow(index + 1, lesson, onClick = { onOpenLessonUiModel(lesson.id) })
         }
         item { Spacer(Modifier.height(SchoolUiMetrics.pageBottom)) }
     }
