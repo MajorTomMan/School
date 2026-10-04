@@ -32,9 +32,24 @@ class LearningAdvisorTest {
                 state("weakest", mastery = 0.10, evidenceCount = 1, lastEvidenceAt = 400L),
             ),
             reviewLimit = 2,
+            nowEpochMillis = 500L,
         )
 
         assertEquals(listOf("weakest", "older"), advice.reviews.map { it.knowledgePointId.value })
+    }
+
+    @Test
+    fun wrongAttemptsRaiseReviewPriorityForEqualMastery() {
+        val advice = advisor.advise(
+            states = listOf(
+                state("clean", mastery = 0.40, evidenceCount = 3, lastEvidenceAt = 200L),
+                state("struggling", mastery = 0.40, evidenceCount = 3, lastEvidenceAt = 300L, wrongAttemptCount = 4),
+            ),
+            nowEpochMillis = 500L,
+        )
+
+        assertEquals("struggling", advice.reviews.first().knowledgePointId.value)
+        assertTrue(advice.reviews.first().priorityScore > advice.reviews.last().priorityScore)
     }
 
     @Test
@@ -51,11 +66,13 @@ class LearningAdvisorTest {
         mastery: Double?,
         evidenceCount: Int,
         lastEvidenceAt: Long?,
+        wrongAttemptCount: Int = 0,
     ): KnowledgePointState = KnowledgePointState(
         id = KnowledgePointId(id),
         masteryScore = mastery,
         accumulatedEvidenceWeight = if (mastery == null) 0.0 else evidenceCount.toDouble(),
         evidenceCount = evidenceCount,
+        wrongAttemptCount = wrongAttemptCount,
         lastEvidenceAtEpochMillis = lastEvidenceAt,
     )
 }
