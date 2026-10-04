@@ -102,7 +102,7 @@ fun SchoolApp(
         } else {
             LessonProgressStatus.NOT_STARTED
         }
-        lesson.toUiLessonUiModel(progress.lessonStatuses[lesson.id] ?: defaultStatus)
+        lesson.toUiLesson(progress.lessonStatuses[lesson.id] ?: defaultStatus)
     }
     val currentLesson = lessons.firstOrNull { it.status == LessonProgressStatus.IN_PROGRESS }
         ?: lessons.firstOrNull { it.status == LessonProgressStatus.NOT_STARTED }
@@ -139,11 +139,11 @@ fun SchoolApp(
         null
     }
 
-    fun openLessonUiModel(course: InstalledCourse, lessonId: String) {
+    fun openLesson(course: InstalledCourse, lessonId: String) {
         openedLessonId = lessonId
         val uiLesson = lessons.firstOrNull { it.id == lessonId }
         if (uiLesson?.status == LessonProgressStatus.NOT_STARTED) {
-            scope.launch { courseProgressStore.startLessonUiModel(course.id, lessonId) }
+            scope.launch { courseProgressStore.startLesson(course.id, lessonId) }
         }
     }
 
@@ -254,7 +254,7 @@ fun SchoolApp(
                                             courseTitle = activeCourse.title,
                                             courseSubject = activeCourse.subject,
                                             reviewSuggestion = reviewSuggestion,
-                                            onStartLesson = { openLessonUiModel(activeCourse, it) },
+                                            onStartLesson = { openLesson(activeCourse, it) },
                                             onOpenPractice = { selectedTabName = MainTab.PRACTICE.name },
                                             onOpenPath = { selectedTabName = MainTab.COURSES.name },
                                         )
@@ -280,7 +280,7 @@ fun SchoolApp(
                                         CoursePathScreen(
                                             courseTitle = activeCourse.title,
                                             lessons = lessons,
-                                            onOpenLesson = { openLessonUiModel(activeCourse, it) },
+                                            onOpenLesson = { openLesson(activeCourse, it) },
                                             onChooseCourse = { activeCourseId = null },
                                         )
                                     }
@@ -341,7 +341,7 @@ fun SchoolApp(
     }
 }
 
-private fun CourseLesson.toUiLessonUiModel(status: LessonProgressStatus): LessonUiModel =
+private fun CourseLesson.toUiLesson(status: LessonProgressStatus): LessonUiModel =
     LessonUiModel(
         id = id,
         title = title,
