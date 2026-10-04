@@ -40,7 +40,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.majortomman.school.data.AiSettings
 import com.majortomman.school.data.AppSettingsRepository
-import com.majortomman.school.data.Lesson
 import com.majortomman.school.learning.advisor.LearningAdvisor
 import com.majortomman.school.learning.advisor.ReviewAdvice
 import com.majortomman.school.learning.assessment.persistence.AssessmentProgressStore
@@ -342,7 +341,7 @@ fun SchoolApp(
 }
 
 private fun CourseLesson.toUiLesson(status: LessonProgressStatus): Lesson =
-    Lesson(
+    LessonUiModel(
         id = id,
         title = title,
         subtitle = goals.firstOrNull().orEmpty(),
