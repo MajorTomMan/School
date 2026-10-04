@@ -85,7 +85,7 @@ fun TodayScreen(
             }
         }
         Spacer(Modifier.height(16.dp))
-        SchoolPrimaryAction("继续学习  →", onClick = { onStartLessonUiModel(lesson.id) })
+        SchoolPrimaryAction("继续学习  →", onClick = { onStartLesson(lesson.id) })
 
         Spacer(Modifier.height(30.dp))
         SchoolSectionLabel("今天建议")
@@ -95,10 +95,10 @@ fun TodayScreen(
                 "复习",
                 suggestion.knowledgePointName,
                 "根据近期练习结果，建议回顾这个知识点",
-            ) { onStartLessonUiModel(suggestion.lessonId) }
+            ) { onStartLesson(suggestion.lessonId) }
         }
         LearningSuggestionRow("练习", lesson.title, "完成当前课程的正式题组", onClick = onOpenPractice)
-        next?.let { LearningSuggestionRow("阅读", it.title, "为下一节内容做准备") { onStartLessonUiModel(it.id) } }
+        next?.let { LearningSuggestionRow("阅读", it.title, "为下一节内容做准备") { onStartLesson(it.id) } }
 
         Spacer(Modifier.height(30.dp))
         SchoolSectionLabel("我的课程")
