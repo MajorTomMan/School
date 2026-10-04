@@ -366,7 +366,12 @@ fun SchoolApp(
                                                 selectedTabName = MainTab.COURSES.name
                                             },
                                             onClearProgress = {
-                                                scope.launch { learningDataMaintenance.clearAll() }
+                                                scope.launch {
+                                                    learningDataMaintenance.clearAll()
+                                                    knowledgeStates = emptyList()
+                                                    reviewQueue = emptyList()
+                                                    practiceStatuses = emptyMap()
+                                                }
                                             },
                                             onBack = { minePageName = MinePage.HOME.name },
                                         )
