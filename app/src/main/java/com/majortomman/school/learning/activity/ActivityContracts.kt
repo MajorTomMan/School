@@ -23,6 +23,9 @@ interface ActivitySpec {
 
 object ActivityCapabilityKeys {
     val TEXT_ANSWER = CapabilityKey("core.text-answer")
+    val SELECT_ONE = CapabilityKey("core.select-one")
+    val ORDER = CapabilityKey("core.order")
+    val MATCH = CapabilityKey("core.match")
     val PLACE_ON_NUMBER_LINE = CapabilityKey("mathematics.place-on-number-line")
 }
 
@@ -35,6 +38,62 @@ data class TextAnswerActivitySpec(
 
     init {
         require(placeholder == null || placeholder.isNotBlank()) { "activity placeholder 不能为空字符串" }
+    }
+}
+
+data class ActivityOption(
+    val id: String,
+    val label: String,
+) {
+    init {
+        require(ID.matches(id)) { "activity option id 格式无效：$id" }
+        require(label.isNotBlank()) { "activity option label 不能为空" }
+    }
+
+    private companion object {
+        val ID = Regex("^[A-Za-z0-9._:-]+$")
+    }
+}
+
+data class SelectOneActivitySpec(
+    override val id: ActivityId,
+    val options: List<ActivityOption>,
+) : ActivitySpec {
+    override val capability: CapabilityKey = ActivityCapabilityKeys.SELECT_ONE
+    override val schemaVersion: Int = 1
+
+    init {
+        require(options.size in 2..12) { "select-one options 数量必须在 2..12" }
+        require(options.map(ActivityOption::id).distinct().size == options.size) { "select-one option id 不能重复" }
+    }
+}
+
+data class OrderActivitySpec(
+    override val id: ActivityId,
+    val items: List<ActivityOption>,
+) : ActivitySpec {
+    override val capability: CapabilityKey = ActivityCapabilityKeys.ORDER
+    override val schemaVersion: Int = 1
+
+    init {
+        require(items.size in 2..12) { "order items 数量必须在 2..12" }
+        require(items.map(ActivityOption::id).distinct().size == items.size) { "order item id 不能重复" }
+    }
+}
+
+data class MatchActivitySpec(
+    override val id: ActivityId,
+    val leftItems: List<ActivityOption>,
+    val rightItems: List<ActivityOption>,
+) : ActivitySpec {
+    override val capability: CapabilityKey = ActivityCapabilityKeys.MATCH
+    override val schemaVersion: Int = 1
+
+    init {
+        require(leftItems.size in 2..12) { "match leftItems 数量必须在 2..12" }
+        require(rightItems.size == leftItems.size) { "match 左右项目数量必须一致" }
+        require(leftItems.map(ActivityOption::id).distinct().size == leftItems.size) { "match left item id 不能重复" }
+        require(rightItems.map(ActivityOption::id).distinct().size == rightItems.size) { "match right item id 不能重复" }
     }
 }
 
