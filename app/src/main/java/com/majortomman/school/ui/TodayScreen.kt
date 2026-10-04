@@ -25,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.majortomman.school.data.Lesson
 import com.majortomman.school.learning.progress.LessonProgressStatus
 
 data class LearningReviewSuggestion(
