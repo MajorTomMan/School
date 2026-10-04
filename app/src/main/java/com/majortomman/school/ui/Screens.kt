@@ -22,7 +22,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.majortomman.school.data.Lesson
 import com.majortomman.school.learning.progress.LessonProgressStatus
 
 @Composable
@@ -73,7 +72,7 @@ fun CoursePathScreen(
 }
 
 @Composable
-private fun CourseLessonRow(number: Int, lesson: Lesson, onClick: () -> Unit) {
+private fun CourseLessonRow(number: Int, lesson: LessonUiModel, onClick: () -> Unit) {
     val marker = when (lesson.status) {
         LessonProgressStatus.COMPLETED -> "✓"
         LessonProgressStatus.IN_PROGRESS -> "●"
