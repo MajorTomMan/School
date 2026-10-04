@@ -57,7 +57,7 @@ fun TodayScreen(
             SchoolBrandSlash(modifier = Modifier.height(24.dp).width(7.dp))
             Text("School", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         }
-        Text("初中学习 · 更高效的自己", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        Text("持续学习 · 保持进度", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(20.dp))
         Text("学习", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
         Text("继续保持专注，把今天的一小步学扎实。", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
@@ -95,11 +95,10 @@ fun TodayScreen(
                 "复习",
                 suggestion.knowledgePointName,
                 "根据近期练习结果，建议回顾这个知识点",
-                "约 10 分钟",
             ) { onStartLesson(suggestion.lessonId) }
         }
-        LearningSuggestionRow("练习", lesson.title, "完成当前课程的正式题组", "约 15 分钟", onClick = onOpenPractice)
-        next?.let { LearningSuggestionRow("阅读", it.title, "为下一节内容做准备", "约 10 分钟") { onStartLesson(it.id) } }
+        LearningSuggestionRow("练习", lesson.title, "完成当前课程的正式题组", onClick = onOpenPractice)
+        next?.let { LearningSuggestionRow("阅读", it.title, "为下一节内容做准备") { onStartLesson(it.id) } }
 
         Spacer(Modifier.height(30.dp))
         SchoolSectionLabel("我的课程")
@@ -120,7 +119,7 @@ fun TodayScreen(
 }
 
 @Composable
-private fun LearningSuggestionRow(kind: String, title: String, description: String, time: String, onClick: () -> Unit) {
+private fun LearningSuggestionRow(kind: String, title: String, description: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 13.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -131,7 +130,6 @@ private fun LearningSuggestionRow(kind: String, title: String, description: Stri
             Text("$kind：$title", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
-        Text(time, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
     }
     SchoolDivider()
 }
