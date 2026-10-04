@@ -42,11 +42,14 @@ import com.majortomman.school.data.AiSettings
 import com.majortomman.school.data.AppSettingsRepository
 import com.majortomman.school.learning.advisor.LearningAdvisor
 import com.majortomman.school.learning.advisor.ReviewAdvice
+import com.majortomman.school.learning.assessment.domain.QuestionSetId
+import com.majortomman.school.learning.assessment.persistence.AssessmentPracticeStatus
 import com.majortomman.school.learning.assessment.persistence.AssessmentProgressStore
 import com.majortomman.school.learning.cloud.CourseLibraryRepository
 import com.majortomman.school.learning.cloud.InstalledCourse
 import com.majortomman.school.learning.course.CourseLesson
 import com.majortomman.school.learning.knowledge.KnowledgePointId
+import com.majortomman.school.learning.knowledge.KnowledgePointState
 import com.majortomman.school.learning.knowledge.KnowledgePointStateReader
 import com.majortomman.school.learning.progress.CourseProgressSnapshot
 import com.majortomman.school.learning.progress.LessonProgressStatus
@@ -62,6 +65,12 @@ private enum class MainTab(val label: String, val symbol: String) {
     MINE("我的", "●"),
 }
 
+private enum class MinePage {
+    HOME,
+    RECORD,
+    SETTINGS,
+}
+
 @Composable
 fun SchoolApp(
     settingsRepository: AppSettingsRepository,
@@ -69,7 +78,7 @@ fun SchoolApp(
     initialCourseId: String? = null,
 ) {
     var selectedTabName by rememberSaveable { mutableStateOf(MainTab.LEARN.name) }
-    var mineSettingsOpen by rememberSaveable { mutableStateOf(false) }
+    var minePageName by rememberSaveable { mutableStateOf(MinePage.HOME.name) }
     var activeCourseId by rememberSaveable { mutableStateOf(initialCourseId) }
     var openedLessonId by rememberSaveable { mutableStateOf<String?>(null) }
     var openedCourseId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -89,7 +98,11 @@ fun SchoolApp(
     val libraryState by CourseLibraryRepository.state.collectAsState()
 
     val activeCourse = libraryState.course(activeCourseId)
-    var reviewAdvice by remember(activeCourse?.id) { mutableStateOf<ReviewAdvice?>(null) }
+    var knowledgeStates by remember(activeCourse?.id) { mutableStateOf<List<KnowledgePointState>>(emptyList()) }
+    var reviewQueue by remember(activeCourse?.id) { mutableStateOf<List<ReviewAdvice>>(emptyList()) }
+    var practiceStatuses by remember(activeCourse?.id) {
+        mutableStateOf<Map<QuestionSetId, AssessmentPracticeStatus>>(emptyMap())
+    }
     val progressFlow = remember(activeCourse?.id) {
         activeCourse?.id?.let(courseProgressStore::observeCourse)
             ?: flowOf(CourseProgressSnapshot(courseId = ""))
@@ -109,7 +122,7 @@ fun SchoolApp(
         ?: lessons.lastOrNull()
     val selectedTab = MainTab.valueOf(selectedTabName)
     val reviewSuggestion = activeCourse?.let { course ->
-        reviewAdvice?.let { advice ->
+        reviewQueue.firstOrNull()?.let { advice ->
             val knowledgePoint = course.document.knowledgePoints.firstOrNull {
                 it.id == advice.knowledgePointId.value
             }
@@ -147,18 +160,31 @@ fun SchoolApp(
         }
     }
 
-    LaunchedEffect(activeCourse?.id, selectedTab, openedLessonId) {
+    LaunchedEffect(activeCourse?.id, activeCourse?.contentVersion, selectedTab, openedLessonId) {
         val course = activeCourse
         if (course == null) {
-            reviewAdvice = null
-        } else if (selectedTab == MainTab.LEARN && openedLessonId == null) {
+            knowledgeStates = emptyList()
+            reviewQueue = emptyList()
+            practiceStatuses = emptyMap()
+        } else if (openedLessonId == null && (selectedTab == MainTab.LEARN || selectedTab == MainTab.MINE)) {
             val ids = course.document.knowledgePoints.map { KnowledgePointId(it.id) }
-            reviewAdvice = runCatching {
-                learningAdvisor.advise(
-                    states = knowledgeStateReader.read(course.id, ids),
-                    reviewLimit = 1,
-                ).reviews.firstOrNull()
-            }.getOrNull()
+            knowledgeStates = runCatching { knowledgeStateReader.read(course.id, ids) }.getOrDefault(emptyList())
+            reviewQueue = learningAdvisor.advise(
+                states = knowledgeStates,
+                reviewLimit = 3,
+            ).reviews
+            val assessmentDocument = course.assessments
+            practiceStatuses = if (assessmentDocument == null) {
+                emptyMap()
+            } else {
+                runCatching {
+                    assessmentProgressStore.practiceStatuses(
+                        courseId = course.id,
+                        contentRevision = course.contentVersion.toString(),
+                        questionSetIds = assessmentDocument.questionSets.map { it.id },
+                    )
+                }.getOrDefault(emptyMap())
+            }
         }
     }
 
@@ -229,7 +255,7 @@ fun SchoolApp(
                     containerColor = MaterialTheme.colorScheme.background,
                     bottomBar = {
                         SchoolBottomBar(selectedTab) {
-                            if (it != MainTab.MINE) mineSettingsOpen = false
+                            if (it != MainTab.MINE) minePageName = MinePage.HOME.name
                             selectedTabName = it.name
                         }
                     },
@@ -292,28 +318,57 @@ fun SchoolApp(
                                 )
 
                                 MainTab.MINE -> {
-                                    if (mineSettingsOpen) {
-                                        SettingsScreen(
+                                    when (MinePage.valueOf(minePageName)) {
+                                        MinePage.HOME -> MyScreen(
+                                            currentCourseTitle = activeCourse?.title,
+                                            recentLessonTitle = progress.lastLessonId
+                                                ?.let { lastId -> lessons.firstOrNull { it.id == lastId }?.title },
+                                            onOpenLearningRecord = {
+                                                if (activeCourse == null) {
+                                                    selectedTabName = MainTab.COURSES.name
+                                                } else {
+                                                    minePageName = MinePage.RECORD.name
+                                                }
+                                            },
+                                            onOpenCourses = { selectedTabName = MainTab.COURSES.name },
+                                            onOpenSettings = { minePageName = MinePage.SETTINGS.name },
+                                        )
+
+                                        MinePage.RECORD -> {
+                                            val course = activeCourse
+                                            if (course == null) {
+                                                NoActiveTextbookScreen { selectedTabName = MainTab.COURSES.name }
+                                            } else {
+                                                LearningRecordScreen(
+                                                    courseTitle = course.title,
+                                                    completedLessonCount = lessons.count { it.status == LessonProgressStatus.COMPLETED },
+                                                    totalLessonCount = lessons.size,
+                                                    recentLessonTitle = progress.lastLessonId
+                                                        ?.let { lastId -> lessons.firstOrNull { it.id == lastId }?.title },
+                                                    practiceStatuses = practiceStatuses.values,
+                                                    knowledgeStates = knowledgeStates,
+                                                    reviewQueue = reviewQueue,
+                                                    knowledgePointNames = course.document.knowledgePoints.associate {
+                                                        KnowledgePointId(it.id) to it.name
+                                                    },
+                                                    onBack = { minePageName = MinePage.HOME.name },
+                                                )
+                                            }
+                                        }
+
+                                        MinePage.SETTINGS -> SettingsScreen(
                                             settings = aiSettings,
                                             onSave = { updated ->
                                                 scope.launch { settingsRepository.saveAiSettings(updated) }
                                             },
                                             onOpenSubjects = {
-                                                mineSettingsOpen = false
+                                                minePageName = MinePage.HOME.name
                                                 selectedTabName = MainTab.COURSES.name
                                             },
                                             onClearProgress = {
                                                 scope.launch { learningDataMaintenance.clearAll() }
                                             },
-                                            onBack = { mineSettingsOpen = false },
-                                        )
-                                    } else {
-                                        MyScreen(
-                                            currentCourseTitle = activeCourse?.title,
-                                            recentLessonTitle = progress.lastLessonId
-                                                ?.let { lastId -> lessons.firstOrNull { it.id == lastId }?.title },
-                                            onOpenCourses = { selectedTabName = MainTab.COURSES.name },
-                                            onOpenSettings = { mineSettingsOpen = true },
+                                            onBack = { minePageName = MinePage.HOME.name },
                                         )
                                     }
                                 }
