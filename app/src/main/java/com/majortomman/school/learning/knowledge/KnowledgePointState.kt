@@ -7,10 +7,12 @@ import com.majortomman.school.learning.persistence.SchoolLearningDatabase
 
 data class KnowledgePointEvidenceSummary(
     val evidenceCount: Int,
+    val wrongAttemptCount: Int,
     val lastEvidenceAtEpochMillis: Long?,
 ) {
     init {
         require(evidenceCount >= 0) { "evidenceCount 不能小于 0" }
+        require(wrongAttemptCount >= 0) { "wrongAttemptCount 不能小于 0" }
         require(lastEvidenceAtEpochMillis == null || lastEvidenceAtEpochMillis >= 0L) {
             "lastEvidenceAtEpochMillis 不能小于 0"
         }
@@ -22,6 +24,7 @@ data class KnowledgePointState(
     val masteryScore: Double?,
     val accumulatedEvidenceWeight: Double,
     val evidenceCount: Int,
+    val wrongAttemptCount: Int,
     val lastEvidenceAtEpochMillis: Long?,
 ) {
     val observed: Boolean
@@ -41,6 +44,7 @@ object KnowledgePointStateProjector {
             masteryScore = masteryState?.score,
             accumulatedEvidenceWeight = masteryState?.accumulatedEvidenceWeight ?: 0.0,
             evidenceCount = summary?.evidenceCount ?: 0,
+            wrongAttemptCount = summary?.wrongAttemptCount ?: 0,
             lastEvidenceAtEpochMillis = summary?.lastEvidenceAtEpochMillis,
         )
     }
@@ -75,6 +79,7 @@ class KnowledgePointStateReader internal constructor(
             .associate { row ->
                 KnowledgePointId(row.knowledgePointId) to KnowledgePointEvidenceSummary(
                     evidenceCount = row.evidenceCount,
+                    wrongAttemptCount = row.wrongAttemptCount,
                     lastEvidenceAtEpochMillis = row.lastEvidenceAtEpochMillis,
                 )
             }
