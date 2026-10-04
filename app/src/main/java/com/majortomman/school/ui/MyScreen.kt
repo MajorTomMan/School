@@ -33,6 +33,7 @@ import com.majortomman.school.data.DisplaySettings
 fun MyScreen(
     currentCourseTitle: String?,
     recentLessonTitle: String?,
+    onOpenLearningRecord: () -> Unit,
     onOpenCourses: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
@@ -68,7 +69,7 @@ fun MyScreen(
 
         Spacer(Modifier.height(26.dp))
         SchoolDivider()
-        MyRow("◷", "学习记录", recentLessonTitle?.let { "最近学习：$it" } ?: "还没有学习记录", onOpenSettings)
+        MyRow("◷", "学习记录", recentLessonTitle?.let { "最近学习：$it" } ?: "还没有学习记录", onOpenLearningRecord)
         MyRow("▤", "教材管理", currentCourseTitle?.let { "当前教材：$it" } ?: "尚未选择课程", onOpenCourses)
         MyRow("↓", "下载与存储", "离线课程包", onOpenSettings)
         MyRow("◐", "显示模式", displaySettings.themeMode.label, onOpenSettings)
