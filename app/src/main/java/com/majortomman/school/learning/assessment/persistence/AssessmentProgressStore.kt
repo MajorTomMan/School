@@ -9,6 +9,7 @@ import com.majortomman.school.learning.knowledge.KnowledgePointId
 import com.majortomman.school.learning.assessment.domain.QuestionDefinition
 import com.majortomman.school.learning.assessment.domain.QuestionKey
 import com.majortomman.school.learning.assessment.domain.QuestionSetDefinition
+import com.majortomman.school.learning.assessment.domain.QuestionSetId
 import com.majortomman.school.learning.assessment.domain.SessionId
 import com.majortomman.school.learning.evidence.persistence.LearningEvidenceStore
 import com.majortomman.school.learning.evidence.persistence.MasteryHistoryPoint
@@ -21,6 +22,21 @@ import com.majortomman.school.learning.persistence.SchoolLearningDatabase
  * 只通过本 Store 读写答题事实、结算和掌握度快照，避免 UI 或其他模块直接访问 Room
  * 或把课程进度与知识掌握状态混为一体。
  */
+enum class AssessmentPracticeState {
+    NOT_STARTED,
+    IN_PROGRESS,
+    COMPLETED,
+}
+
+data class AssessmentPracticeStatus(
+    val questionSetId: QuestionSetId,
+    val state: AssessmentPracticeState,
+    val startedAtEpochMillis: Long? = null,
+    val completedAtEpochMillis: Long? = null,
+    val finalCorrectCount: Int? = null,
+    val totalQuestionCount: Int? = null,
+)
+
 class AssessmentProgressStore internal constructor(
     private val database: SchoolLearningDatabase,
     private val settlementPlanner: AssessmentSettlementPlanner = AssessmentSettlementPlanner(),
@@ -28,6 +44,51 @@ class AssessmentProgressStore internal constructor(
     private val dao: AssessmentProgressDao
         get() = database.assessmentProgressDao()
     private val evidenceStore = LearningEvidenceStore(database)
+
+    suspend fun practiceStatuses(
+        courseId: String,
+        contentRevision: String,
+        questionSetIds: Collection<QuestionSetId>,
+    ): Map<QuestionSetId, AssessmentPracticeStatus> {
+        require(courseId.isNotBlank()) { "courseId 不能为空" }
+        require(contentRevision.isNotBlank()) { "contentRevision 不能为空" }
+        return questionSetIds.distinct().associateWith { questionSetId ->
+            val inProgress = dao.findInProgressSession(
+                courseId = courseId,
+                contentRevision = contentRevision,
+                questionSetId = questionSetId.value,
+            )
+            if (inProgress != null) {
+                AssessmentPracticeStatus(
+                    questionSetId = questionSetId,
+                    state = AssessmentPracticeState.IN_PROGRESS,
+                    startedAtEpochMillis = inProgress.startedAtEpochMillis,
+                )
+            } else {
+                val completed = dao.findLatestCompletedSession(
+                    courseId = courseId,
+                    contentRevision = contentRevision,
+                    questionSetId = questionSetId.value,
+                )
+                if (completed == null) {
+                    AssessmentPracticeStatus(
+                        questionSetId = questionSetId,
+                        state = AssessmentPracticeState.NOT_STARTED,
+                    )
+                } else {
+                    val settlement = dao.findSettlement(completed.sessionId)
+                    AssessmentPracticeStatus(
+                        questionSetId = questionSetId,
+                        state = AssessmentPracticeState.COMPLETED,
+                        startedAtEpochMillis = completed.startedAtEpochMillis,
+                        completedAtEpochMillis = completed.completedAtEpochMillis,
+                        finalCorrectCount = settlement?.finalCorrectCount,
+                        totalQuestionCount = settlement?.totalQuestionCount,
+                    )
+                }
+            }
+        }
+    }
 
     suspend fun startSession(
         courseId: String,
