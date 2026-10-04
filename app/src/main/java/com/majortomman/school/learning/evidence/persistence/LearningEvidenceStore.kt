@@ -107,6 +107,7 @@ internal interface LearningEvidenceDao {
         """
         SELECT knowledgePointId,
                COUNT(*) AS evidenceCount,
+               COALESCE(SUM(wrongAttemptCount), 0) AS wrongAttemptCount,
                MAX(recordedAtEpochMillis) AS lastEvidenceAtEpochMillis
         FROM learning_evidence
         WHERE courseId = :courseId AND knowledgePointId IN (:knowledgePointIds)
@@ -164,6 +165,7 @@ data class LearningEvidenceApplyResult(
 data class KnowledgePointEvidenceStats(
     val knowledgePointId: String,
     val evidenceCount: Int,
+    val wrongAttemptCount: Int,
     val lastEvidenceAtEpochMillis: Long?,
 )
 
