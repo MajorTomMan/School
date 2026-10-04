@@ -1,7 +1,7 @@
 ## 变更点
 
-- 新增独立学习记录页，汇总当前课程进度、最近学习、练习完成情况、知识掌握度与建议复习项。
-- 将复习建议升级为 ReviewQueue，综合掌握度、错误尝试次数和距离上次学习的时间确定复习优先级。
-- Practice 题组列表新增未开始、进行中、已完成状态；未完成会话可直接继续，已完成题组显示上次结果并支持再次练习。
-- Assessment 持久化层新增题组进度 read model，在不改动答题状态机的前提下复用现有 session 自动恢复能力。
-- 清空学习数据后同步刷新学习记录、知识状态和复习队列，避免界面保留已删除的旧摘要。
+- 新增 `core.select-one@1` 通用单项选择 Activity，课程可声明选项并通过 canonical option ID 参与 inline assessment。
+- 新增 `core.order@1` 通用排序 Activity，支持逐项上下调整并以稳定的 `id1|id2|...` 结果复用现有 exactText 判定。
+- 新增 `core.match@1` 通用匹配 Activity，支持一对一配对并按左侧声明顺序生成稳定的 `leftId=rightId|...` 结果。
+- 三种新 Activity 已完整接入 typed decoder、ActivityRuntime、Compose UI host、运行时 capability 注册与课程兼容性校验。
+- 补充 Runtime 与课程参数解析单元测试，并同步更新课程包 Activity 长期契约说明。
