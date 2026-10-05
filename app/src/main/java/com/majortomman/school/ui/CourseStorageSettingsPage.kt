@@ -38,6 +38,7 @@ import com.majortomman.school.learning.cloud.CourseCacheClearResult
 import com.majortomman.school.learning.cloud.CourseDownloadCoordinator
 import com.majortomman.school.learning.cloud.CourseDownloadUiState
 import com.majortomman.school.learning.cloud.CourseLibraryRepository
+import com.majortomman.school.learning.cloud.CourseResourceUsage
 import com.majortomman.school.learning.cloud.CourseStorageManager
 import com.majortomman.school.learning.cloud.CourseStorageSnapshot
 import com.majortomman.school.learning.cloud.CourseTextbookRemovalResult
@@ -104,7 +105,11 @@ internal fun CourseStorageSettingsPage() {
     Column {
         CourseSettingsSectionTitle("课程资源")
         TextLine(
-            if (BuildConfig.COURSE_MANIFEST_URL.isBlank()) "当前 APK 未配置课程源。" else "课程列表完全来自远端清单与已安装的 course.json，不再维护 APK 内置教材目录。",
+            if (BuildConfig.COURSE_MANIFEST_URL.isBlank()) {
+                "当前 APK 未配置课程源。"
+            } else {
+                "课程结构、题库、知识点和教材由远端清单统一管理；除 course.json 外的大资源可独立下载与更新。"
+            },
             if (BuildConfig.COURSE_MANIFEST_URL.isBlank()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(10.dp))
@@ -122,6 +127,7 @@ internal fun CourseStorageSettingsPage() {
                 CourseResourceItem(
                     row = row,
                     installedBytes = snapshot?.textbookBytes?.get(row.id),
+                    resourceUsage = snapshot?.resourceUsage?.get(row.id),
                     downloadBusy = downloadBusy,
                     confirmingDelete = confirmDeleteId == row.id,
                     onDownload = {
@@ -202,9 +208,21 @@ internal fun CourseStorageSettingsPage() {
         Spacer(Modifier.height(48.dp))
         CourseSettingsSectionTitle("本地课程缓存")
         snapshot?.let { state ->
+            val structureBytes = state.resourceUsage.values.sumOf(CourseResourceUsage::structureBytes)
+            val assessmentBytes = state.resourceUsage.values.sumOf(CourseResourceUsage::assessmentBytes)
+            val textbookBytes = state.resourceUsage.values.sumOf(CourseResourceUsage::textbookBytes)
+            val otherAssetBytes = state.resourceUsage.values.sumOf(CourseResourceUsage::otherAssetBytes)
             TextLine("课程资源共 ${formatBytes(state.totalBytes)}", MaterialTheme.colorScheme.onBackground.copy(alpha = 0.78f))
             Spacer(Modifier.height(7.dp))
-            TextLine("已安装 ${formatBytes(state.activeBytes)} · 下载与暂存 ${formatBytes(state.temporaryBytes)}", MaterialTheme.colorScheme.onSurfaceVariant, 12.sp)
+            TextLine(
+                "结构 ${formatBytes(structureBytes)} · 题库 ${formatBytes(assessmentBytes)} · 教材 ${formatBytes(textbookBytes)}",
+                MaterialTheme.colorScheme.onSurfaceVariant,
+                12.sp,
+            )
+            if (otherAssetBytes > 0L) {
+                TextLine("题目与其他资源 ${formatBytes(otherAssetBytes)}", MaterialTheme.colorScheme.onSurfaceVariant, 12.sp)
+            }
+            TextLine("下载与暂存 ${formatBytes(state.temporaryBytes)}", MaterialTheme.colorScheme.onSurfaceVariant, 12.sp)
         } ?: TextLine("正在统计本地课程…", MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(12.dp))
         TextLine("清理只删除 course-packs 下的课程、PDF、图片和下载缓存；答题与复习记录单独保存。", MaterialTheme.colorScheme.onSurfaceVariant, 12.sp)
@@ -267,6 +285,7 @@ internal fun CourseStorageSettingsPage() {
 private fun CourseResourceItem(
     row: CourseResourceRow,
     installedBytes: Long?,
+    resourceUsage: CourseResourceUsage?,
     downloadBusy: Boolean,
     confirmingDelete: Boolean,
     onDownload: () -> Unit,
@@ -289,6 +308,9 @@ private fun CourseResourceItem(
                 Text(row.displayMetadata(), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
             }
             Text(stateText, color = if (update != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, maxLines = 1, softWrap = false)
+        }
+        if (installed && resourceUsage != null) {
+            CourseResourceBreakdown(resourceUsage)
         }
         if (confirmingDelete) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -314,6 +336,32 @@ private fun CourseResourceItem(
             }
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)))
+    }
+}
+
+@Composable
+private fun CourseResourceBreakdown(usage: CourseResourceUsage) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+            CourseResourceMetric("结构", usage.structureBytes, Modifier.weight(1f))
+            CourseResourceMetric("题库", usage.assessmentBytes, Modifier.weight(1f))
+        }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+            CourseResourceMetric("教材", usage.textbookBytes, Modifier.weight(1f))
+            CourseResourceMetric("题目资源", usage.otherAssetBytes, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun CourseResourceMetric(label: String, bytes: Long, modifier: Modifier = Modifier) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+        Text(
+            if (bytes > 0L) formatBytes(bytes) else "未安装",
+            color = if (bytes > 0L) MaterialTheme.colorScheme.onBackground.copy(alpha = 0.68f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            fontSize = 11.sp,
+        )
     }
 }
 
