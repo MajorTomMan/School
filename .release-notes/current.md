@@ -1,7 +1,7 @@
 ## 变更点
 
-- 新增 `core.select-one@1` 通用单项选择 Activity，课程可声明选项并通过 canonical option ID 参与 inline assessment。
-- 新增 `core.order@1` 通用排序 Activity，支持逐项上下调整并以稳定的 `id1|id2|...` 结果复用现有 exactText 判定。
-- 新增 `core.match@1` 通用匹配 Activity，支持一对一配对并按左侧声明顺序生成稳定的 `leftId=rightId|...` 结果。
-- 三种新 Activity 已完整接入 typed decoder、ActivityRuntime、Compose UI host、运行时 capability 注册与课程兼容性校验。
-- 补充 Runtime 与课程参数解析单元测试，并同步更新课程包 Activity 长期契约说明。
+- 课程分发默认仅将 `course.json` 放入完整 ZIP；`assessments.json`、`knowledge-points.json`、教材 PDF 与题目资源推荐作为 `bundled=false` 独立文件，由同一 immutable release 的 manifest 锁定版本关系。
+- 设置页重新整理为“应用 / 课程 / 显示 / 网络 / AI / 数据”，默认进入应用页，代理设置移动到网络页。
+- 学习数据从 AI 设置中拆出为独立数据页，明确区分学习记录与课程资源缓存。
+- 课程设置页新增资源拆分统计，可按课程查看结构、题库、教材与题目资源的本地占用情况。
+- 本地课程存储快照新增资源分类统计，同时保持课程总占用与下载暂存占用的原有计算语义。
