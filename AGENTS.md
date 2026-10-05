@@ -184,7 +184,7 @@ https://course.flashnamesl.workers.dev/cloud/course/public/releases/<release-id>
 - `<course-id>.zip`：只携带 `manifest.json` 中该教材 `bundled=true` 的文件，不能多文件也不能少文件。
 - `course.json`：课程主体，必须位于最终教材安装目录根部，且必须声明为 `bundled=true`。
 - `assets/textbook.pdf`：教材 PDF。推荐作为 `bundled=false` 的独立对象，避免仅修改课程正文时重复传输大 PDF。
-- `assessments.json`、`knowledge-points.json`：可选正式题库契约；两者必须同时存在或同时不存在。
+- `assessments.json`、`knowledge-points.json`：可选正式题库契约；两者必须同时存在或同时不存在。默认作为 `bundled=false` 独立对象发布，使题库可在不重传课程 ZIP 与教材 PDF 的情况下单独更新。
 - `assets/...`：题目图片等静态资源。大资源推荐 `bundled=false` 独立存储。
 - `.course-state.json`：App 安装后自行生成的本地状态文件，课程 release 和 ZIP 中禁止提供。
 
@@ -265,7 +265,7 @@ ZIP 实际文件集合 == manifest.files 中 bundled=true 的文件集合
 - ZIP 中不能额外加入 `README`、缩略图、临时文件或其他未声明内容。
 - `bundled=true` 的文件缺失会导致完整包安装失败。
 - `bundled=false` 文件不应出现在 ZIP 中，由 App 独立下载、校验后组合到 staging。
-- 推荐把 `course.json` 以及体积较小的结构化 JSON 放 ZIP，把 PDF、题目图片、未来的大型音视频资源作为独立文件。
+- 默认只把 `course.json` 放入 ZIP。`assessments.json`、`knowledge-points.json`、教材 PDF、题目图片和未来的大型音视频资源都推荐声明为 `bundled=false` 独立文件；它们仍由同一 immutable release 的 manifest 锁定版本关系。
 - 若 `bundled=true` 文件后续变化但自身没有可用 URL，增量计划会退回完整 ZIP 更新；这是允许且符合当前设计的行为。
 - ZIP 解压后的总文件体积不得超过 App 当前限制 2 GiB。
 
