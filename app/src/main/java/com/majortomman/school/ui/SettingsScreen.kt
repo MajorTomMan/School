@@ -60,7 +60,7 @@ import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.launch
 
-internal enum class SettingsDestination(val label: String) {
+enum class SettingsDestination(val label: String) {
     APP("应用"),
     COURSE("课程"),
     DISPLAY("显示"),
