@@ -79,6 +79,7 @@ fun SchoolApp(
 ) {
     var selectedTabName by rememberSaveable { mutableStateOf(MainTab.LEARN.name) }
     var minePageName by rememberSaveable { mutableStateOf(MinePage.HOME.name) }
+    var settingsDestinationName by rememberSaveable { mutableStateOf(SettingsDestination.APP.name) }
     var activeCourseId by rememberSaveable { mutableStateOf(initialCourseId) }
     var openedLessonId by rememberSaveable { mutableStateOf<String?>(null) }
     var openedCourseId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -331,7 +332,18 @@ fun SchoolApp(
                                                 }
                                             },
                                             onOpenCourses = { selectedTabName = MainTab.COURSES.name },
-                                            onOpenSettings = { minePageName = MinePage.SETTINGS.name },
+                                            onOpenCourseSettings = {
+                                                settingsDestinationName = SettingsDestination.COURSE.name
+                                                minePageName = MinePage.SETTINGS.name
+                                            },
+                                            onOpenDisplaySettings = {
+                                                settingsDestinationName = SettingsDestination.DISPLAY.name
+                                                minePageName = MinePage.SETTINGS.name
+                                            },
+                                            onOpenSettings = {
+                                                settingsDestinationName = SettingsDestination.APP.name
+                                                minePageName = MinePage.SETTINGS.name
+                                            },
                                         )
 
                                         MinePage.RECORD -> {
@@ -365,6 +377,9 @@ fun SchoolApp(
                                                 minePageName = MinePage.HOME.name
                                                 selectedTabName = MainTab.COURSES.name
                                             },
+                                            initialPage = SettingsDestination.entries.firstOrNull {
+                                                it.name == settingsDestinationName
+                                            } ?: SettingsDestination.APP,
                                             onClearProgress = {
                                                 scope.launch {
                                                     learningDataMaintenance.clearAll()
