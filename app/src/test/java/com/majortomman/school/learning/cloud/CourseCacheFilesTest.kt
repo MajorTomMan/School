@@ -30,6 +30,11 @@ class CourseCacheFilesTest {
             assertEquals(17L, snapshot.temporaryBytes)
             assertEquals(57L, snapshot.totalBytes)
             assertEquals(40L, snapshot.textbookBytes["course-a"])
+            val usage = requireNotNull(snapshot.resourceUsage["course-a"])
+            assertEquals(11L, usage.structureBytes)
+            assertEquals(0L, usage.assessmentBytes)
+            assertEquals(0L, usage.textbookBytes)
+            assertEquals(29L, usage.otherAssetBytes)
         } finally {
             parent.toFile().deleteRecursively()
         }
