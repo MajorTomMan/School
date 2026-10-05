@@ -114,7 +114,9 @@ internal object CourseCacheFiles {
         val resourceUsage = activeDirectories.associate { directory ->
             directory.name to resourceUsage(directory)
         }
-        val textbookBytes = resourceUsage.mapValues { (_, usage) -> usage.totalBytes }
+        val textbookBytes = activeDirectories.associate { directory ->
+            directory.name to directorySize(directory)
+        }
         val activeBytes = textbookBytes.values.sum()
         val totalBytes = directorySize(root)
         return CourseStorageSnapshot(
