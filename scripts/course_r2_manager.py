@@ -527,9 +527,17 @@ def verify_manifest(root: Path, base: str, release_id: str) -> None:
         raise SystemExit("manifest.json does not use the current APK distribution contract")
     expected = f"{base.rstrip('/')}/cloud/course/public/releases/{release_id}/"
     for textbook in manifest["textbooks"]:
-        for spec in [textbook["package"], *textbook["files"]]:
-            if not isinstance(spec.get("url"), str) or not spec["url"].startswith(expected):
-                raise SystemExit(f"manifest URL is outside release {release_id}: {spec.get('url')}")
+        package = textbook["package"]
+        if not isinstance(package.get("url"), str) or not package["url"].startswith(expected):
+            raise SystemExit(f"manifest URL is outside release {release_id}: {package.get('url')}")
+        for spec in textbook["files"]:
+            url = spec.get("url")
+            if spec.get("bundled") is True:
+                if url and (not isinstance(url, str) or not url.startswith(expected)):
+                    raise SystemExit(f"manifest URL is outside release {release_id}: {url}")
+                continue
+            if not isinstance(url, str) or not url.startswith(expected):
+                raise SystemExit(f"manifest URL is outside release {release_id}: {url}")
 
 
 def github_opts(parser: argparse.ArgumentParser) -> None:
