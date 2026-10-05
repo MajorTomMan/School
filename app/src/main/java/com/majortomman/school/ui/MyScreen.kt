@@ -35,6 +35,8 @@ fun MyScreen(
     recentLessonTitle: String?,
     onOpenLearningRecord: () -> Unit,
     onOpenCourses: () -> Unit,
+    onOpenCourseSettings: () -> Unit,
+    onOpenDisplaySettings: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     val displaySettings by DisplayPreferences.state.collectAsState(initial = DisplaySettings())
@@ -71,8 +73,8 @@ fun MyScreen(
         SchoolDivider()
         MyRow("◷", "学习记录", recentLessonTitle?.let { "最近学习：$it" } ?: "还没有学习记录", onOpenLearningRecord)
         MyRow("▤", "教材管理", currentCourseTitle?.let { "当前教材：$it" } ?: "尚未选择课程", onOpenCourses)
-        MyRow("↓", "下载与存储", "离线课程包", onOpenSettings)
-        MyRow("◐", "显示模式", displaySettings.themeMode.label, onOpenSettings)
+        MyRow("↓", "下载与存储", "课程 · 题库 · 教材", onOpenCourseSettings)
+        MyRow("◐", "显示模式", displaySettings.themeMode.label, onOpenDisplaySettings)
         MyRow("⚙", "设置", "", onOpenSettings)
         MyRow("ⓘ", "关于 School", "", onOpenSettings)
 
