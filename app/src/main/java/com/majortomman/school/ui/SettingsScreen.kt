@@ -61,11 +61,12 @@ import java.util.Date
 import kotlinx.coroutines.launch
 
 private enum class SettingsPage(val label: String) {
-    PROXY("代理"),
-    UPDATE("应用"),
+    APP("应用"),
     COURSE("课程"),
     DISPLAY("显示"),
+    NETWORK("网络"),
     AI("AI"),
+    DATA("数据"),
 }
 
 @Suppress("UNUSED_PARAMETER")
@@ -77,7 +78,7 @@ fun SettingsScreen(
     onClearProgress: () -> Unit,
     onBack: (() -> Unit)? = null,
 ) {
-    var pageName by rememberSaveable { mutableStateOf(SettingsPage.PROXY.name) }
+    var pageName by rememberSaveable { mutableStateOf(SettingsPage.APP.name) }
     var endpoint by rememberSaveable { mutableStateOf(settings.endpoint) }
     var model by rememberSaveable { mutableStateOf(settings.model) }
     var apiKey by rememberSaveable { mutableStateOf(settings.apiKey) }
@@ -143,7 +144,7 @@ fun SettingsScreen(
             label = "settingsPages",
         ) { page ->
             when (page) {
-                SettingsPage.PROXY -> ProxySettingsPage(
+                SettingsPage.NETWORK -> ProxySettingsPage(
                     proxyUrl = proxyUrl,
                     onProxyUrlChange = {
                         proxyUrl = it
@@ -173,7 +174,7 @@ fun SettingsScreen(
                     },
                 )
 
-                SettingsPage.UPDATE -> UpdateSettingsPage(
+                SettingsPage.APP -> UpdateSettingsPage(
                     updateState = updateState,
                     autoCheck = updateSettings.autoCheck,
                     wifiOnly = updateSettings.wifiOnly,
@@ -219,6 +220,9 @@ fun SettingsScreen(
                         onSave(AiSettings(endpoint.trim(), model.trim(), apiKey.trim()))
                         connectionStatus = "已保存"
                     },
+                )
+
+                SettingsPage.DATA -> LearningDataSettingsPage(
                     confirmClearProgress = confirmClearProgress,
                     onBeginClear = { confirmClearProgress = true },
                     onCancelClear = { confirmClearProgress = false },
@@ -336,10 +340,6 @@ private fun AiSettingsPage(
     aiUsesProxy: Boolean,
     onTest: () -> Unit,
     onSaveAi: () -> Unit,
-    confirmClearProgress: Boolean,
-    onBeginClear: () -> Unit,
-    onCancelClear: () -> Unit,
-    onConfirmClear: () -> Unit,
 ) {
     Column {
         SettingsSectionTitle("AI")
@@ -367,17 +367,49 @@ private fun AiSettingsPage(
             )
         }
 
-        Spacer(Modifier.height(42.dp))
+    }
+}
+
+@Composable
+private fun LearningDataSettingsPage(
+    confirmClearProgress: Boolean,
+    onBeginClear: () -> Unit,
+    onCancelClear: () -> Unit,
+    onConfirmClear: () -> Unit,
+) {
+    Column {
         SettingsSectionTitle("学习数据")
-        Text("答案、反馈、复习计划和掌握状态保存在本机。", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f), style = MaterialTheme.typography.bodyMedium)
-        Spacer(Modifier.height(16.dp))
-        AnimatedContent(targetState = confirmClearProgress, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "clearLearningData") { confirming ->
+        Text(
+            "课程进度、答题记录、学习证据、掌握度和复习队列都保存在本机；删除课程资源不会自动删除这些记录。",
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            "课程结构、题库和教材文件请在“课程”页管理。这里仅处理学习产生的数据。",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Spacer(Modifier.height(24.dp))
+        AnimatedContent(
+            targetState = confirmClearProgress,
+            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            label = "clearLearningData",
+        ) { confirming ->
             if (!confirming) {
-                SettingsAction("清空学习记录", MaterialTheme.colorScheme.error, onBeginClear)
+                SettingsAction("清空全部学习记录", MaterialTheme.colorScheme.error, onBeginClear)
             } else {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    SettingsAction("取消", MaterialTheme.colorScheme.onSurfaceVariant, onCancelClear)
-                    SettingsAction("确认清空", MaterialTheme.colorScheme.error, onConfirmClear)
+                Column {
+                    Text(
+                        "这会清空课程进度、练习会话、学习证据与掌握状态，但不会删除已下载的课程、题库或教材。",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        SettingsAction("取消", MaterialTheme.colorScheme.onSurfaceVariant, onCancelClear)
+                        SettingsAction("确认清空", MaterialTheme.colorScheme.error, onConfirmClear)
+                    }
                 }
             }
         }
