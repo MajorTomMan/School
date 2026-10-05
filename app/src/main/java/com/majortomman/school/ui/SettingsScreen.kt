@@ -60,7 +60,7 @@ import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.launch
 
-private enum class SettingsPage(val label: String) {
+internal enum class SettingsDestination(val label: String) {
     APP("应用"),
     COURSE("课程"),
     DISPLAY("显示"),
@@ -76,9 +76,10 @@ fun SettingsScreen(
     onSave: (AiSettings) -> Unit,
     onOpenSubjects: () -> Unit,
     onClearProgress: () -> Unit,
+    initialPage: SettingsDestination = SettingsDestination.APP,
     onBack: (() -> Unit)? = null,
 ) {
-    var pageName by rememberSaveable { mutableStateOf(SettingsPage.APP.name) }
+    var pageName by rememberSaveable(initialPage) { mutableStateOf(initialPage.name) }
     var endpoint by rememberSaveable { mutableStateOf(settings.endpoint) }
     var model by rememberSaveable { mutableStateOf(settings.model) }
     var apiKey by rememberSaveable { mutableStateOf(settings.apiKey) }
@@ -127,11 +128,11 @@ fun SettingsScreen(
         }
         SchoolPageTitle("设置", eyebrow = "SCHOOL / SETTINGS")
         Spacer(Modifier.height(20.dp))
-        val selectedPage = SettingsPage.valueOf(pageName)
+        val selectedPage = SettingsDestination.entries.firstOrNull { it.name == pageName } ?: SettingsDestination.APP
         SchoolScrollableTabs(
-            labels = SettingsPage.entries.map { it.label },
+            labels = SettingsDestination.entries.map { it.label },
             selectedIndex = selectedPage.ordinal,
-            onSelect = { index -> pageName = SettingsPage.entries[index].name },
+            onSelect = { index -> pageName = SettingsDestination.entries[index].name },
             selectedColor = MaterialTheme.colorScheme.onBackground,
             mutedColor = MaterialTheme.colorScheme.onSurfaceVariant,
             indicatorColor = MaterialTheme.colorScheme.primary,
@@ -144,7 +145,7 @@ fun SettingsScreen(
             label = "settingsPages",
         ) { page ->
             when (page) {
-                SettingsPage.NETWORK -> ProxySettingsPage(
+                SettingsDestination.NETWORK -> ProxySettingsPage(
                     proxyUrl = proxyUrl,
                     onProxyUrlChange = {
                         proxyUrl = it
@@ -174,7 +175,7 @@ fun SettingsScreen(
                     },
                 )
 
-                SettingsPage.APP -> UpdateSettingsPage(
+                SettingsDestination.APP -> UpdateSettingsPage(
                     updateState = updateState,
                     autoCheck = updateSettings.autoCheck,
                     wifiOnly = updateSettings.wifiOnly,
@@ -186,9 +187,9 @@ fun SettingsScreen(
                     onShowUpdateStatus = updateCoordinator::showDialog,
                 )
 
-                SettingsPage.COURSE -> CourseStorageSettingsPage()
-                SettingsPage.DISPLAY -> DisplaySettingsPage(settings = displaySettings)
-                SettingsPage.AI -> AiSettingsPage(
+                SettingsDestination.COURSE -> CourseStorageSettingsPage()
+                SettingsDestination.DISPLAY -> DisplaySettingsPage(settings = displaySettings)
+                SettingsDestination.AI -> AiSettingsPage(
                     endpoint = endpoint,
                     onEndpointChange = {
                         endpoint = it
@@ -222,7 +223,7 @@ fun SettingsScreen(
                     },
                 )
 
-                SettingsPage.DATA -> LearningDataSettingsPage(
+                SettingsDestination.DATA -> LearningDataSettingsPage(
                     confirmClearProgress = confirmClearProgress,
                     onBeginClear = { confirmClearProgress = true },
                     onCancelClear = { confirmClearProgress = false },
