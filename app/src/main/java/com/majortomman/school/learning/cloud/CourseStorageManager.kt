@@ -67,8 +67,18 @@ data class CourseStorageSnapshot(
     val temporaryBytes: Long,
     val installedTextbooks: Int,
     val textbookBytes: Map<String, Long> = emptyMap(),
+    val resourceUsage: Map<String, CourseResourceUsage> = emptyMap(),
     val lastCheckedAt: Long = 0L,
 )
+
+data class CourseResourceUsage(
+    val structureBytes: Long,
+    val assessmentBytes: Long,
+    val textbookBytes: Long,
+    val otherAssetBytes: Long,
+) {
+    val totalBytes: Long get() = structureBytes + assessmentBytes + textbookBytes + otherAssetBytes
+}
 
 sealed interface CourseTextbookRemovalResult {
     data object Busy : CourseTextbookRemovalResult
@@ -101,7 +111,10 @@ internal object CourseCacheFiles {
         val activeDirectories = active.listFiles().orEmpty().filter { directory ->
             directory.isDirectory && File(directory, "course.json").isFile
         }
-        val textbookBytes = activeDirectories.associate { directory -> directory.name to directorySize(directory) }
+        val resourceUsage = activeDirectories.associate { directory ->
+            directory.name to resourceUsage(directory)
+        }
+        val textbookBytes = resourceUsage.mapValues { (_, usage) -> usage.totalBytes }
         val activeBytes = textbookBytes.values.sum()
         val totalBytes = directorySize(root)
         return CourseStorageSnapshot(
@@ -110,6 +123,35 @@ internal object CourseCacheFiles {
             temporaryBytes = (totalBytes - activeBytes).coerceAtLeast(0L),
             installedTextbooks = textbookBytes.size,
             textbookBytes = textbookBytes,
+            resourceUsage = resourceUsage,
+        )
+    }
+
+    private fun resourceUsage(directory: File): CourseResourceUsage {
+        val courseFile = File(directory, "course.json")
+        val assessmentFiles = listOf(
+            File(directory, "assessments.json"),
+            File(directory, "knowledge-points.json"),
+        )
+        val textbookPath = runCatching {
+            CourseDocumentParser.decode(courseFile.readText(Charsets.UTF_8)).textbook.pdf.path
+        }.getOrNull()
+        val textbookFile = textbookPath?.let { File(directory, it) }
+        val excluded = buildSet {
+            add(courseFile.canonicalFile)
+            assessmentFiles.filter(File::isFile).forEach { add(it.canonicalFile) }
+            textbookFile?.takeIf(File::isFile)?.let { add(it.canonicalFile) }
+        }
+        val otherAssetBytes = directory.walkTopDown()
+            .filter(File::isFile)
+            .filter { it.canonicalFile !in excluded }
+            .filterNot { it.name == ".course-state.json" }
+            .sumOf(File::length)
+        return CourseResourceUsage(
+            structureBytes = courseFile.takeIf(File::isFile)?.length() ?: 0L,
+            assessmentBytes = assessmentFiles.filter(File::isFile).sumOf(File::length),
+            textbookBytes = textbookFile?.takeIf(File::isFile)?.length() ?: 0L,
+            otherAssetBytes = otherAssetBytes,
         )
     }
 
